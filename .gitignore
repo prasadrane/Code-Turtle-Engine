@@ -1,0 +1,26 @@
+# .NET build output
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+
+# Secrets & local env
+.env
+.env.*
+*.pfx
+
+# Runtime artifacts (TURTLE_HOME default)
+.turtle/
+reviews/
+
+# Spikes recorded results may be large; keep RESULTS.md, ignore raw dumps if desired
+# (uncomment to ignore)
+# spikes/results/
+
+# OS
+.DS_Store
+Thumbs.db
