@@ -1,7 +1,8 @@
 # NOTES — Code-Turtle-Engine build log (compressed)
 
 ## Status: MVP COMPLETE (2026-09-08) — Tasks 1, 2, 4–17 done; Task 3 creds-deferred
-Branch `feat/mvp-implementation`. Offline suite green; full build 0W/0E. E2E proves core value path: real Roslyn compilation grounds council, Turtle Shell guard strips hallucinated citation.
+Branch `feat/mvp-implementation` (20 commits over master). Offline suite green (45/45); full build 0W/0E. E2E proves core value path: real Roslyn compilation grounds council, Turtle Shell guard strips hallucinated citation.
+Final whole-branch review (opus, 16b1f18..9aa62d6): Ready-to-merge WITH FIXES, NO Critical — architecture verified sound (zero-hallucination citation chain no-bypass, fail-closed, secrets clean, 8 cross-task handoffs line up, tests real). Pre-merge fix wave applied (990226a): pipeline strip-assertion test, README cited-symbol precision + single-project scope, NOTES path, ArtifactWriter InvariantCulture+ticks, CLI latency recording, degraded-review banner. Scoped re-review: all fixes ADDRESSED, no new Critical/Important. Branch ready to integrate.
 
 ## Done (task — commit — what)
 - T1 scaffold (83bb258): sln + Directory.Build.props (net10, TreatWarningsAsErrors) + global.json; 5 src + 6 test projects; refs Cli->{Council,Gatekeeper,Llm,Core}, Council->{Core,Gatekeeper,Llm}.
