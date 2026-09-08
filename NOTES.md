@@ -18,12 +18,16 @@ Branch `feat/mvp-implementation`. Offline suite green; full build 0W/0E. E2E pro
 - T13 (3d1f87d): RubricLoader, PromptBuilder (persona+payload+grounding rules), VerdictSchema, VerdictDto/FindingDto, CouncilOptions{Quorum=2,Guard=Strip}.
 - T14 (02da47a): PersonaRunner parallel, per-persona try/catch->null, quorum gate, ModelRoleFor (Allocations->fast else deep); Arbiter deterministic Merge (dedupe title+location keep-highest severity, order) + RenderMarkdown.
 - T15 (9d6dd29): TurtleShellGuard — Ordinal exact allow-list from payload ResolvedSymbols; audit every cite pre-mode; Strip drops zero-verified findings, reduces mixed; Flag keeps.
-- T16 (3938d49): CLI `review` (System.CommandLine 3.0.0-rc.1), ReviewPipeline diff->compile->payload->council->guard->markdown, ArtifactWriter 4 artifacts to $TURTLE_HOME/turtle/runs/, Composition DI, appsettings env-NAMES-only.
+- T16 (3938d49): CLI `review` (System.CommandLine 3.0.0-rc.1), ReviewPipeline diff->compile->payload->council->guard->markdown, ArtifactWriter 4 artifacts to $TURTLE_HOME/reviews/{slug}/{timestamp}/, Composition DI, appsettings env-NAMES-only.
 - T17 (this commit): e2e integration test (offline, CitingChat mock cites real payload symbol + fake; guard strips fake), LiveSmokeTests (self-skip unless TURTLE_LIVE=1), docs (README/AGENTS/rubric_v1), deleted 5 template UnitTest1.cs placeholders.
 
 ## Deferred / gated
 - T3 Spike B (Bailian structured-output probe) + live smoke run: creds `TURTLE_LLM_BASE_URL`/`TURTLE_LLM_API_KEY` set on machine but not visible to tool shell. Unblock: ~/.bashrc exports or setx + restart. StructuredChat already ships degrade path.
 - Phase 2 (per rulings, documented in README "MVP detection scope"): custom Roslyn analyzers for dangerous-cast / unawaited-task / captive-DI detection; LLM-based Arbiter conflict resolution; cloud/CI/GitHub/MCP; per-route circuit breakers; OCE propagation in PersonaRunner/guard pipelines.
+- Flag-mode `[verified]`/`[unverified]` visible markers (spec §7): Phase 2 — Strip is the MVP default.
+- `GuardException` type not created: guard filters citations rather than throwing, by design.
+- Multi-project solution compilation: Phase 2 — single-project MVP scope, now documented in README.
+- IMPLEMENTED in pre-merge fix wave: CLI latency recording (stderr `elapsed: N ms`, spec success-criterion-3); degraded-review banner in ReviewPipeline when <3 council personas succeed (spec §9); ArtifactWriter InvariantCulture + ticks-uniqued timestamp dir.
 
 ## Key API adaptations (compiler-driven, verified)
 - MEAI 10.9.0: schema = `ChatResponseFormat.ForJsonSchema(JsonDocument.Parse(jsonSchema).RootElement, schemaName: "schema")` (NO CreateJsonSchemaFormat); `AsIChatClient()` for OpenAI client.
@@ -33,7 +37,7 @@ Branch `feat/mvp-implementation`. Offline suite green; full build 0W/0E. E2E pro
 - Roslyn 5.9.0: `RegisterWorkspaceFailedHandler` if needed (WorkspaceFailed event obsolete CS0618); `SyntaxTrees.Count()` not SyntaxTreeCount().
 
 ## Known minors (deferred, logged in SDD ledger)
-PathsMatch cross-boundary false-positive; ArtifactWriter same-second overwrite + CurrentCulture dir stamp; ResolvedSymbols includes System.Object (benign); null-compilation path leaks workspace dispose; branch-name baseline untested; Cli.Tests trailing newline + template csproj property redeclaration.
+PathsMatch cross-boundary false-positive; ~~ArtifactWriter same-second overwrite + CurrentCulture dir stamp~~ (fixed pre-merge wave); ResolvedSymbols includes System.Object (benign); null-compilation path leaks workspace dispose; branch-name baseline untested; Cli.Tests trailing newline + template csproj property redeclaration.
 
 ## Commands
 `dotnet build` · `dotnet test` (offline) · `TURTLE_LIVE=1 dotnet test` · `dotnet run --project src/CodeTurtleEngine.Cli -- review <repo> [--diff <ref>] [--project <path>] [--out <file>]`

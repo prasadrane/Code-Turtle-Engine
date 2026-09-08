@@ -37,6 +37,9 @@ public sealed class ReviewPipeline
             var merged = _arbiter.Merge(verdicts);
             var guarded = _guard.Verify(merged, payload);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
+            const int ExpectedReviewPersonas = 3; // matches PersonaRunner's review personas
+            if (verdicts.Count < ExpectedReviewPersonas)
+                markdown = $"> Degraded review: {verdicts.Count}/{ExpectedReviewPersonas} council personas succeeded.\n\n" + markdown;
             var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit);
             var dir = _artifacts.Write(repoSlug, payload, verdict, markdown);
             return new ReviewResult(markdown, verdict, dir);

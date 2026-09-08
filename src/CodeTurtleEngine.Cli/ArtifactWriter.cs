@@ -1,4 +1,5 @@
 using CodeTurtleEngine.Core;
+using System.Globalization;
 using System.Text.Json;
 
 namespace CodeTurtleEngine.Cli;
@@ -11,7 +12,7 @@ public sealed class ArtifactWriter
 
     public string Write(string repoSlug, RoslynPayload payload, CouncilVerdict verdict, string markdown)
     {
-        var dir = Path.Combine(_root, "reviews", Slugify(repoSlug), DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
+        var dir = Path.Combine(_root, "reviews", Slugify(repoSlug), DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fffffff", CultureInfo.InvariantCulture));
         Directory.CreateDirectory(dir);
 
         File.WriteAllText(Path.Combine(dir, "payload.json"), JsonSerializer.Serialize(payload, TurtleJson.Options));

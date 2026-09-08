@@ -25,11 +25,14 @@ review.SetAction(async (parseResult, ct) =>
         var services = Composition.BuildServices(repo);
         var pipeline = services.GetRequiredService<ReviewPipeline>();
         var projectPath = project ?? Composition.DiscoverProject(repo);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var result = await pipeline.RunAsync(repo, projectPath, diff, ct);
+        sw.Stop();
 
         Console.Out.WriteLine(result.Markdown);
         if (outPath is not null) File.WriteAllText(outPath, result.Markdown);
         Console.Error.WriteLine($"Artifacts: {result.ArtifactDir}");
+        Console.Error.WriteLine($"elapsed: {sw.ElapsedMilliseconds} ms");
         return 0;
     }
     catch (Exception ex)

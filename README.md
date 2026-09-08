@@ -2,8 +2,9 @@
 
 AI pull-request reviewer that grounds LLM reasoning in deterministic Roslyn compiler
 truths. A full-repo compilation feeds a minified semantic payload to a council of AI
-personas; a Turtle Shell guard verifies every cited symbol so the review cannot
-hallucinate APIs.
+personas; a Turtle Shell guard grounds findings in compiler truth: every symbol a
+finding *cites* is verified against the Roslyn compilation, so cited APIs cannot be
+hallucinated. Findings that cite no symbol pass through and are not fully grounded.
 
 ## MVP scope
 Local CLI only: `diff -> compile -> payload -> council -> guard -> markdown`.
@@ -45,6 +46,8 @@ TURTLE_LIVE=1 dotnet test          # includes live Bailian smoke
 dotnet run --project src/CodeTurtleEngine.Cli -- review /path/to/repo \
   --diff HEAD~1 --out review.md
 ```
+
+MVP compiles a single project — pass `--project` to a `.csproj`, or for a `.sln` the FIRST project is compiled. Multi-project solution support is Phase 2.
 
 ## Docs
 - Design spec: `docs/superpowers/specs/2026-09-08-code-turtle-engine-design.md`

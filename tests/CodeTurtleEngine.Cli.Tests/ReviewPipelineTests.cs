@@ -29,6 +29,14 @@ public class ReviewPipelineTests
 
         Assert.Contains("# Code Turtle Review", result.Markdown);
         Assert.True(File.Exists(Path.Combine(result.ArtifactDir, "review.md")));
+
+        // FakePersonas cites "SampleRepo.DataAccess", which is absent from the stub
+        // compilation's allow-list, so the guard strips it: the rendered markdown must
+        // NOT contain the finding and must report no issues. Proves the pipeline renders
+        // guarded.KeptFindings, not the pre-guard merged list.
+        Assert.DoesNotContain("SQL injection", result.Markdown);
+        Assert.Contains("_No issues found._", result.Markdown);
+
         Directory.Delete(home, true);
     }
 }
