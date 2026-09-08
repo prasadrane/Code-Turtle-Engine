@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CodeTurtleEngine.Core\CodeTurtleEngine.Core.csproj" />
+    <ProjectReference Include="..\CodeTurtleEngine.Gatekeeper\CodeTurtleEngine.Gatekeeper.csproj" />
+    <ProjectReference Include="..\CodeTurtleEngine.Llm\CodeTurtleEngine.Llm.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
