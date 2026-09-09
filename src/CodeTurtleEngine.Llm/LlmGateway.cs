@@ -58,7 +58,7 @@ public sealed class LlmGateway : ILlmGateway
 
     private static ResiliencePipeline DefaultPipeline() =>
         new ResiliencePipelineBuilder()
-            .AddTimeout(TimeSpan.FromSeconds(240))
+            .AddTimeout(TimeSpan.FromSeconds(300))
             .AddCircuitBreaker(new CircuitBreakerStrategyOptions
             {
                 FailureRatio = 0.5,

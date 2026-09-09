@@ -24,6 +24,9 @@ public sealed class AnthropicMessagesChatClient : IChatClient
         int maxTokens = 8192, HttpMessageHandler? handler = null)
     {
         _http = handler is null ? new HttpClient() : new HttpClient(handler);
+        // Disable HttpClient's default 100s timeout — Polly's AddTimeout is the single timeout
+        // authority. Otherwise slow qwen reasoning calls are killed at 100s regardless of Polly's value.
+        _http.Timeout = Timeout.InfiniteTimeSpan;
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         _http.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
         _baseUrl = baseUrl.TrimEnd('/');
