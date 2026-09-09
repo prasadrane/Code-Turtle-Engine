@@ -54,6 +54,13 @@ LIVE VERIFIED — 3 runs reviewing the engine's own Llm project (diff vs master)
 
 PHASE-2 tuning queue (from live): payload trim (cap ResolvedSymbols + findings per method/file) to target <60s; single JSON-focused retry on `ModelException` for consistent 3/3 personas; per-route circuit breakers; OCE propagation.
 
+## Phase 2 — Inc1: Reliability + Latency (2026-09-09, branch feat/phase2-inc1)
+Shipped: `PayloadTrimmer` (caps symbols/allocations/methods/files in the LLM prompt view ONLY — guard keeps the FULL allow-list, zero-hallucination intact); PromptBuilder findings-cap; `StructuredChat` JSON-retry on `ModelException`; OCE propagation (gateway/loader/personarunner); persona-failure stderr diagnostics surfacing the `ProviderException` attempt-log; `max_tokens` 4096→8192; Polly no-retry + timeout 300s; **disabled `HttpClient` default 100s timeout** (`Timeout.InfiniteTimeSpan`).
+ROOT CAUSE of live unreliability = the hidden `HttpClient` 100s default cap, which silently killed every qwen deep-reasoning call at 100s **regardless of the Polly timeout** (so all earlier Polly tuning was moot). NOT relay flakiness. With it disabled + Polly 300s, deep calls complete.
+LIVE result (review Llm project, `--diff main`, 3 personas): **3/3 personas succeeded** (no degraded banner), 15 findings (5/persona), **audit 48 citations verified true / 0 false** (zero-hallucination held), WALL **282s**.
+LATENCY reality: ~282s (4.7 min). qwen reasoning over a real review payload ≈ 100-280s/persona on the Token Plan relay; 3 parallel → wall = slowest. The <60s spec target is NOT reachable on this relay (reasoning-bound, not payload-bound; trim helped only marginally). Remaining levers (Phase 2+): a faster/non-reasoning model (none on Token Plan), fewer personas, streaming, or a different endpoint.
+RELIABILITY: SOLVED (3/3 consistent once the HttpClient cap was removed).
+
 ## Commands
 `dotnet build` · `dotnet test` (offline) · `TURTLE_LIVE=1 dotnet test` · `dotnet run --project src/CodeTurtleEngine.Cli -- review <repo> [--diff <ref>] [--project <path>] [--out <file>]`
 (Live: source Bailian/Token-Plan creds into `TURTLE_LLM_BASE_URL` + `TURTLE_LLM_API_KEY` first. NOTE: after master→main rename, use `--diff main`.)
