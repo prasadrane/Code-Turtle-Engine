@@ -56,6 +56,55 @@ public class StructuredChatTests
     }
 
     [Fact]
+    public async Task Retries_On_Malformed_Json_Then_Succeeds()
+    {
+        var calls = 0;
+        var gw = new FakeGateway((_, _, _) => Task.FromResult(++calls == 1
+            ? "not json"
+            : "{\"Title\":\"ok\",\"Severity\":1}"));
+        var sc = new StructuredChatClient(gw, jsonRetries: 1);
+
+        var dto = await sc.CompleteStructuredAsync<Dto>("fast", Msgs(), "{}");
+
+        Assert.Equal("ok", dto.Title);
+        Assert.Equal(2, calls); // one re-roll after the malformed first response
+    }
+
+    [Fact]
+    public async Task Throws_ModelException_After_Retries_Exhausted()
+    {
+        var calls = 0;
+        var gw = new FakeGateway((_, _, _) =>
+        {
+            calls++;
+            return Task.FromResult("still not json");
+        });
+        var sc = new StructuredChatClient(gw, jsonRetries: 2);
+
+        await Assert.ThrowsAsync<ModelException>(
+            () => sc.CompleteStructuredAsync<Dto>("fast", Msgs(), "{}"));
+
+        Assert.Equal(3, calls); // initial attempt + jsonRetries re-rolls
+    }
+
+    [Fact]
+    public async Task Does_Not_Retry_On_Transport_ProviderException()
+    {
+        var calls = 0;
+        var gw = new FakeGateway((_, _, _) =>
+        {
+            calls++;
+            return Task.FromException<string>(new ProviderException("down", new[] { "x" }, null));
+        });
+        var sc = new StructuredChatClient(gw, jsonRetries: 2);
+
+        await Assert.ThrowsAsync<ProviderException>(
+            () => sc.CompleteStructuredAsync<Dto>("fast", Msgs(), "{}"));
+
+        Assert.Equal(2, calls); // schema attempt + degrade path only, no JSON re-rolls
+    }
+
+    [Fact]
     public async Task Degrades_When_Schema_Mode_Unsupported()
     {
         var gw = new FakeGateway((_, _, o) => o?.ResponseFormat is not null

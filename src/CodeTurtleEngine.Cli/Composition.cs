@@ -26,7 +26,8 @@ public static class Composition
         sc.AddSingleton(turtle);
         sc.AddSingleton<IChatClientFactory, BailianChatClientFactory>();
         sc.AddSingleton<ILlmGateway>(sp => new LlmGateway(sp.GetRequiredService<LlmOptions>(), sp.GetRequiredService<IChatClientFactory>()));
-        sc.AddSingleton<IStructuredChatClient>(sp => new StructuredChatClient(sp.GetRequiredService<ILlmGateway>()));
+        sc.AddSingleton<IStructuredChatClient>(sp => new StructuredChatClient(
+            sp.GetRequiredService<ILlmGateway>(), sp.GetRequiredService<LlmOptions>().JsonRetries));
         sc.AddSingleton<IDiffProvider, GitDiffProvider>();
         sc.AddSingleton<ICompilationLoader, MsBuildCompilationLoader>();
         sc.AddSingleton<IPersonaRunner>(sp => new PersonaRunner(sp.GetRequiredService<IStructuredChatClient>(), sp.GetRequiredService<TurtleOptions>().Council));

@@ -42,6 +42,20 @@ public class LlmGatewayTests
     }
 
     [Fact]
+    public async Task Propagates_OperationCanceledException_When_Ct_Cancelled()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var factory = new FakeFactory((_, _) =>
+            new MockChatClient((_, _) => throw new OperationCanceledException()));
+
+        var gw = new LlmGateway(Opts(), factory, ResiliencePipeline.Empty);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => gw.CompleteAsync("fast", Msgs(), ct: cts.Token));
+    }
+
+    [Fact]
     public async Task Throws_ModelException_For_Unknown_Role()
     {
         var factory = new FakeFactory((_, _) => new MockChatClient("x"));

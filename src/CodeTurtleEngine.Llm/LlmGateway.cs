@@ -42,6 +42,10 @@ public sealed class LlmGateway : ILlmGateway
                     .ConfigureAwait(false);
                 return resp.Text;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw; // user cancellation must surface as OCE, not a masked ProviderException
+            }
             catch (Exception ex)
             {
                 last = ex;

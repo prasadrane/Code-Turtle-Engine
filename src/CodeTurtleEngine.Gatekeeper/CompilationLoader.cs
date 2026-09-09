@@ -27,10 +27,16 @@ public sealed class MsBuildCompilationLoader : ICompilationLoader
 
             return new LoadedCompilation(compilation, workspace);
         }
-        catch (Exception ex) when (ex is not CompilationException)
+        catch (Exception ex) when (ex is not CompilationException && ex is not OperationCanceledException)
         {
             workspace.Dispose();
             throw new CompilationException($"Failed to load compilation from '{path}': {ex.Message}", ex);
+        }
+        catch
+        {
+            // OCE and CompilationException propagate unwrapped; workspace is not owned by anyone yet.
+            workspace.Dispose();
+            throw;
         }
     }
 }

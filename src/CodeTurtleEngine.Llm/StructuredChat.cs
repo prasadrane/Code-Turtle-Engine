@@ -13,19 +13,42 @@ public interface IStructuredChatClient
 public sealed class StructuredChatClient : IStructuredChatClient
 {
     private readonly ILlmGateway _gateway;
+    private readonly int _jsonRetries;
 
-    public StructuredChatClient(ILlmGateway gateway) => _gateway = gateway;
+    public StructuredChatClient(ILlmGateway gateway, int jsonRetries = 1)
+    {
+        _gateway = gateway;
+        _jsonRetries = Math.Max(0, jsonRetries);
+    }
 
     /// <summary>
     /// The JSON-schema instruction is ALWAYS part of the prompt: it is the only reliable structured-output
     /// path for the Anthropic-Messages protocol (no response_format), and the relay has no grammar guarantee,
     /// so client-side Parse+validate is mandatory. The OpenAI response_format attempt is kept as a bonus for
     /// "openai" routes; if it is rejected we degrade to the prompt-only call without it.
+    /// When the model answers with malformed/invalid JSON (ModelException) the whole attempt is re-rolled up
+    /// to jsonRetries times; transport errors (ProviderException) are NOT retried here — routing owns those.
     /// </summary>
     public async Task<T> CompleteStructuredAsync<T>(string role, IReadOnlyList<ChatMessage> messages,
         string jsonSchema, CancellationToken ct = default)
     {
         var instructed = WithSchemaInstruction(messages, jsonSchema);
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await AttemptAsync<T>(role, instructed, jsonSchema, ct).ConfigureAwait(false);
+            }
+            catch (ModelException) when (attempt < _jsonRetries)
+            {
+                // Malformed JSON from the model: re-roll the gateway call below.
+            }
+        }
+    }
+
+    private async Task<T> AttemptAsync<T>(string role, IReadOnlyList<ChatMessage> instructed,
+        string jsonSchema, CancellationToken ct)
+    {
         try
         {
             var opts = new ChatOptions

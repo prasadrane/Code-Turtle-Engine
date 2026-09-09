@@ -49,6 +49,18 @@ public class PersonaRunnerTests
     }
 
     [Fact]
+    public async Task Propagates_Cancellation_Instead_Of_Null_Quorum()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var chat = new FakeStructuredChat((_, _) => throw new OperationCanceledException());
+        var runner = new PersonaRunner(chat, new CouncilOptions { Quorum = 2 });
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => runner.RunAsync(Payload(), "rubric", cts.Token));
+    }
+
+    [Fact]
     public async Task Throws_ProviderException_Below_Quorum()
     {
         var chat = new FakeStructuredChat((_, _) => throw new InvalidOperationException("down"));

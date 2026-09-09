@@ -50,6 +50,10 @@ public sealed class PersonaRunner : IPersonaRunner
                 .ToList();
             return new PersonaVerdict(role, findings);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw; // user cancellation must surface, not be swallowed into a null persona result
+        }
         catch (Exception)
         {
             return null;
