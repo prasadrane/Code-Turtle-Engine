@@ -21,7 +21,7 @@ public sealed class AnthropicMessagesChatClient : IChatClient
     private readonly int _maxTokens;
 
     public AnthropicMessagesChatClient(string baseUrl, string apiKey, string model,
-        int maxTokens = 4096, HttpMessageHandler? handler = null)
+        int maxTokens = 8192, HttpMessageHandler? handler = null)
     {
         _http = handler is null ? new HttpClient() : new HttpClient(handler);
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);

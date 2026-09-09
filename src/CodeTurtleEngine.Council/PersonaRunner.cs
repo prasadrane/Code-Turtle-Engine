@@ -54,8 +54,11 @@ public sealed class PersonaRunner : IPersonaRunner
         {
             throw; // user cancellation must surface, not be swallowed into a null persona result
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Observability: surface why a persona failed (the final review flagged the silent swallow).
+            // TODO Phase 2: replace Console.Error with a proper ILogger.
+            Console.Error.WriteLine($"[turtle] persona {role} failed: {ex.GetType().Name}: {ex.Message}");
             return null;
         }
     }
