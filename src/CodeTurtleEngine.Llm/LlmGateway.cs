@@ -1,7 +1,6 @@
 using Microsoft.Extensions.AI;
 using Polly;
 using Polly.CircuitBreaker;
-using Polly.Retry;
 
 namespace CodeTurtleEngine.Llm;
 
@@ -54,13 +53,7 @@ public sealed class LlmGateway : ILlmGateway
 
     private static ResiliencePipeline DefaultPipeline() =>
         new ResiliencePipelineBuilder()
-            .AddRetry(new RetryStrategyOptions
-            {
-                MaxRetryAttempts = 1,
-                BackoffType = DelayBackoffType.Exponential,
-                Delay = TimeSpan.FromMilliseconds(200)
-            })
-            .AddTimeout(TimeSpan.FromSeconds(60))
+            .AddTimeout(TimeSpan.FromSeconds(120))
             .AddCircuitBreaker(new CircuitBreakerStrategyOptions
             {
                 FailureRatio = 0.5,
