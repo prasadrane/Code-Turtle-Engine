@@ -56,11 +56,11 @@ public sealed class LlmGateway : ILlmGateway
         new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions
             {
-                MaxRetryAttempts = 2,
+                MaxRetryAttempts = 1,
                 BackoffType = DelayBackoffType.Exponential,
                 Delay = TimeSpan.FromMilliseconds(200)
             })
-            .AddTimeout(TimeSpan.FromSeconds(90))
+            .AddTimeout(TimeSpan.FromSeconds(60))
             .AddCircuitBreaker(new CircuitBreakerStrategyOptions
             {
                 FailureRatio = 0.5,
