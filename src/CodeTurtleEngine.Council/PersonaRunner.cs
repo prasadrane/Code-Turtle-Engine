@@ -57,8 +57,12 @@ public sealed class PersonaRunner : IPersonaRunner
         catch (Exception ex)
         {
             // Observability: surface why a persona failed (the final review flagged the silent swallow).
+            // For ProviderException, include the per-route attempt log — the real transport cause.
             // TODO Phase 2: replace Console.Error with a proper ILogger.
-            Console.Error.WriteLine($"[turtle] persona {role} failed: {ex.GetType().Name}: {ex.Message}");
+            var detail = ex is ProviderException pe && pe.AttemptLog.Count > 0
+                ? string.Join(" | ", pe.AttemptLog)
+                : ex.Message;
+            Console.Error.WriteLine($"[turtle] persona {role} failed: {ex.GetType().Name}: {detail}");
             return null;
         }
     }
