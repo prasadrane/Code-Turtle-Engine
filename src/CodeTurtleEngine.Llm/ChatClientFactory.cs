@@ -18,6 +18,9 @@ public sealed class BailianChatClientFactory : IChatClientFactory
         var apiKey = Environment.GetEnvironmentVariable(route.ApiKeyEnv)
             ?? throw new ProviderException($"Missing env '{route.ApiKeyEnv}'.", Array.Empty<string>());
 
+        if (string.Equals(route.Protocol, "anthropic", StringComparison.OrdinalIgnoreCase))
+            return new AnthropicMessagesChatClient(baseUrl, apiKey, model);
+
         var openAi = new OpenAIClient(
             new ApiKeyCredential(apiKey),
             new OpenAIClientOptions { Endpoint = new Uri(baseUrl) });

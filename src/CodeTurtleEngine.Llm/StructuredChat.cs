@@ -16,9 +16,16 @@ public sealed class StructuredChatClient : IStructuredChatClient
 
     public StructuredChatClient(ILlmGateway gateway) => _gateway = gateway;
 
+    /// <summary>
+    /// The JSON-schema instruction is ALWAYS part of the prompt: it is the only reliable structured-output
+    /// path for the Anthropic-Messages protocol (no response_format), and the relay has no grammar guarantee,
+    /// so client-side Parse+validate is mandatory. The OpenAI response_format attempt is kept as a bonus for
+    /// "openai" routes; if it is rejected we degrade to the prompt-only call without it.
+    /// </summary>
     public async Task<T> CompleteStructuredAsync<T>(string role, IReadOnlyList<ChatMessage> messages,
         string jsonSchema, CancellationToken ct = default)
     {
+        var instructed = WithSchemaInstruction(messages, jsonSchema);
         try
         {
             var opts = new ChatOptions
@@ -26,19 +33,22 @@ public sealed class StructuredChatClient : IStructuredChatClient
                 ResponseFormat = ChatResponseFormat.ForJsonSchema(
                     JsonDocument.Parse(jsonSchema).RootElement, schemaName: "schema")
             };
-            var raw = await _gateway.CompleteAsync(role, messages, opts, ct);
+            var raw = await _gateway.CompleteAsync(role, instructed, opts, ct);
             return Parse<T>(raw);
         }
         catch (Exception ex) when (ex is not ModelException)
         {
-            var degrade = new List<ChatMessage>(messages)
-            {
-                new(ChatRole.User, $"Respond with ONLY a JSON value matching this schema, no prose:\n{jsonSchema}")
-            };
-            var raw = await _gateway.CompleteAsync(role, degrade, null, ct);
+            var raw = await _gateway.CompleteAsync(role, instructed, null, ct);
             return Parse<T>(raw);
         }
     }
+
+    private static IReadOnlyList<ChatMessage> WithSchemaInstruction(
+        IReadOnlyList<ChatMessage> messages, string jsonSchema)
+        => new List<ChatMessage>(messages)
+        {
+            new(ChatRole.User, $"Respond with ONLY a JSON value matching this schema, no prose:\n{jsonSchema}")
+        };
 
     private static T Parse<T>(string raw)
     {

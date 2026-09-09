@@ -37,6 +37,26 @@ public class ChatClientFactoryTests : IDisposable
     }
 
     [Fact]
+    public void Anthropic_Protocol_Builds_Anthropic_Client()
+    {
+        Environment.SetEnvironmentVariable("TURTLE_TEST_BASE", "https://relay.test/apps/anthropic");
+        Environment.SetEnvironmentVariable("TURTLE_TEST_KEY", "k");
+        var route = Route();
+        route.Protocol = "anthropic";
+        IChatClient client = new BailianChatClientFactory().Create(route, "qwen3.8-flash");
+        Assert.IsType<AnthropicMessagesChatClient>(client);
+    }
+
+    [Fact]
+    public void Default_Protocol_Builds_OpenAI_Client()
+    {
+        Environment.SetEnvironmentVariable("TURTLE_TEST_BASE", "https://localhost/v1");
+        Environment.SetEnvironmentVariable("TURTLE_TEST_KEY", "k");
+        IChatClient client = new BailianChatClientFactory().Create(Route(), "qwen3.8-flash");
+        Assert.IsNotType<AnthropicMessagesChatClient>(client);
+    }
+
+    [Fact]
     public async Task MockChatClient_Returns_Canned_And_Counts()
     {
         var mock = new MockChatClient("{\"ok\":true}");

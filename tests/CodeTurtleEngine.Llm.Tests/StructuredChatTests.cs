@@ -35,6 +35,27 @@ public class StructuredChatTests
     }
 
     [Fact]
+    public async Task Schema_Instruction_Always_In_Prompt()
+    {
+        var calls = new List<IReadOnlyList<ChatMessage>>();
+        var gw = new FakeGateway((_, m, o) =>
+        {
+            calls.Add(m);
+            // First call carries the OpenAI response_format attempt; degrade path drops it.
+            return o?.ResponseFormat is not null
+                ? throw new InvalidOperationException("schema unsupported")
+                : Task.FromResult("{\"Title\":\"x\",\"Severity\":1}");
+        });
+        var sc = new StructuredChatClient(gw);
+        await sc.CompleteStructuredAsync<Dto>("fast", Msgs(), "{\"type\":\"object\"}");
+
+        Assert.Equal(2, calls.Count);
+        foreach (var sent in calls)
+            Assert.Contains(sent, m => (m.Text ?? "").Contains("JSON")
+                && (m.Text ?? "").Contains("{\"type\":\"object\"}"));
+    }
+
+    [Fact]
     public async Task Degrades_When_Schema_Mode_Unsupported()
     {
         var gw = new FakeGateway((_, _, o) => o?.ResponseFormat is not null

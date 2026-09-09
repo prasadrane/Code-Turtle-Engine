@@ -60,7 +60,7 @@ public sealed class LlmGateway : ILlmGateway
                 BackoffType = DelayBackoffType.Exponential,
                 Delay = TimeSpan.FromMilliseconds(200)
             })
-            .AddTimeout(TimeSpan.FromSeconds(30))
+            .AddTimeout(TimeSpan.FromSeconds(90))
             .AddCircuitBreaker(new CircuitBreakerStrategyOptions
             {
                 FailureRatio = 0.5,

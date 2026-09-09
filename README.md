@@ -25,11 +25,14 @@ severity, then severity ordering). LLM-based conflict resolution is Phase 2.
 ## Prerequisites
 - .NET 10 SDK
 - A C# repository to review (must compile)
-- Alibaba Bailian (Token Plan) OpenAI-compatible endpoint credentials
+- Alibaba Bailian (Token Plan) credentials — the routes in `appsettings.json` speak the
+  **Anthropic Messages protocol** (`Protocol: "anthropic"` → `POST {base}/v1/messages`);
+  `"openai"` (default) routes use the OpenAI-compatible chat/completions path instead.
 
 ## Setup
 ```bash
-export TURTLE_LLM_BASE_URL="https://<bailian-compatible-endpoint>/v1"
+# Token Plan relay exposes Anthropic Messages only; point the base at the .../apps/anthropic endpoint:
+export TURTLE_LLM_BASE_URL="https://token-plan.<region>.maas.aliyuncs.com/apps/anthropic"
 export TURTLE_LLM_API_KEY="<key>"
 # optional: export TURTLE_HOME="$HOME/.turtle"
 ```

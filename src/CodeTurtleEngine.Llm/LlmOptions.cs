@@ -6,6 +6,8 @@ public sealed class RouteOptions
     public string BaseUrlEnv { get; set; } = "";
     public string ApiKeyEnv { get; set; } = "";
     public string Model { get; set; } = "";
+    /// <summary>Wire protocol for this route: "openai" (chat/completions) or "anthropic" (Messages).</summary>
+    public string Protocol { get; set; } = "openai";
 }
 
 public sealed class LlmOptions
