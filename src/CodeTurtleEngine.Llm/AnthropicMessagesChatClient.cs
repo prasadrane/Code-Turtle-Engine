@@ -38,8 +38,8 @@ public sealed class AnthropicMessagesChatClient : IChatClient
         {
             Content = new StringContent(BuildRequest(messages), Encoding.UTF8, "application/json")
         };
-        using var response = await _http.SendAsync(request, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Anthropic Messages relay returned HTTP {(int)response.StatusCode}: {Truncate(body)}",
@@ -52,7 +52,7 @@ public sealed class AnthropicMessagesChatClient : IChatClient
         IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
         yield break;
     }
 
@@ -61,10 +61,15 @@ public sealed class AnthropicMessagesChatClient : IChatClient
 
     public void Dispose() => _http.Dispose();
 
+    private sealed record AnthropicMessage(string role, string content);
+
+    private sealed record AnthropicRequest(
+        string model, int max_tokens, List<AnthropicMessage> messages, string? system);
+
     private string BuildRequest(IEnumerable<ChatMessage> messages)
     {
         var system = new StringBuilder();
-        var turns = new List<object>();
+        var turns = new List<AnthropicMessage>();
         foreach (var m in messages)
         {
             if (m.Role == ChatRole.System)
@@ -74,22 +79,15 @@ public sealed class AnthropicMessagesChatClient : IChatClient
             }
             else
             {
-                turns.Add(new
-                {
-                    role = m.Role == ChatRole.Assistant ? "assistant" : "user",
-                    content = m.Text ?? ""
-                });
+                turns.Add(new AnthropicMessage(
+                    m.Role == ChatRole.Assistant ? "assistant" : "user",
+                    m.Text ?? ""));
             }
         }
 
-        var payload = new Dictionary<string, object>
-        {
-            ["model"] = _model,
-            ["max_tokens"] = _maxTokens,
-            ["messages"] = turns
-        };
-        if (system.Length > 0) payload["system"] = system.ToString();
-        return JsonSerializer.Serialize(payload);
+        var payload = new AnthropicRequest(
+            _model, _maxTokens, turns, system.Length > 0 ? system.ToString() : null);
+        return JsonSerializer.Serialize(payload, CodeTurtleEngine.Core.TurtleJson.Options);
     }
 
     /// <summary>Concatenates only the type=="text" content blocks; thinking blocks are ignored.</summary>

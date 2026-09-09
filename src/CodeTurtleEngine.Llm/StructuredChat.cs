@@ -33,12 +33,12 @@ public sealed class StructuredChatClient : IStructuredChatClient
                 ResponseFormat = ChatResponseFormat.ForJsonSchema(
                     JsonDocument.Parse(jsonSchema).RootElement, schemaName: "schema")
             };
-            var raw = await _gateway.CompleteAsync(role, instructed, opts, ct);
+            var raw = await _gateway.CompleteAsync(role, instructed, opts, ct).ConfigureAwait(false);
             return Parse<T>(raw);
         }
         catch (Exception ex) when (ex is not ModelException)
         {
-            var raw = await _gateway.CompleteAsync(role, instructed, null, ct);
+            var raw = await _gateway.CompleteAsync(role, instructed, null, ct).ConfigureAwait(false);
             return Parse<T>(raw);
         }
     }

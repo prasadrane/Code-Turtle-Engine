@@ -18,11 +18,11 @@ public sealed class MsBuildCompilationLoader : ICompilationLoader
         try
         {
             Project project = path.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
-                ? (await workspace.OpenSolutionAsync(path, cancellationToken: ct)).Projects.FirstOrDefault()
+                ? (await workspace.OpenSolutionAsync(path, cancellationToken: ct).ConfigureAwait(false)).Projects.FirstOrDefault()
                     ?? throw new CompilationException($"No projects in solution '{path}'.")
-                : await workspace.OpenProjectAsync(path, cancellationToken: ct);
+                : await workspace.OpenProjectAsync(path, cancellationToken: ct).ConfigureAwait(false);
 
-            var compilation = await project.GetCompilationAsync(ct)
+            var compilation = await project.GetCompilationAsync(ct).ConfigureAwait(false)
                 ?? throw new CompilationException($"Compilation was null for '{path}'.");
 
             return new LoadedCompilation(compilation, workspace);

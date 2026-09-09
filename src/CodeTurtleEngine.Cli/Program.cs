@@ -26,7 +26,7 @@ review.SetAction(async (parseResult, ct) =>
         var pipeline = services.GetRequiredService<ReviewPipeline>();
         var projectPath = project ?? Composition.DiscoverProject(repo);
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await pipeline.RunAsync(repo, projectPath, diff, ct);
+        var result = await pipeline.RunAsync(repo, projectPath, diff, ct).ConfigureAwait(false);
         sw.Stop();
 
         Console.Out.WriteLine(result.Markdown);
@@ -44,4 +44,4 @@ review.SetAction(async (parseResult, ct) =>
 
 var root = new RootCommand("Code Turtle Engine - AI PR reviewer grounded in Roslyn compiler truths");
 root.Subcommands.Add(review);
-return await root.Parse(args).InvokeAsync();
+return await root.Parse(args).InvokeAsync().ConfigureAwait(false);

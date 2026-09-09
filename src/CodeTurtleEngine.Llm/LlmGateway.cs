@@ -38,7 +38,8 @@ public sealed class LlmGateway : ILlmGateway
             {
                 var client = _factory.Create(route, model);
                 var resp = await _pipeline.ExecuteAsync(
-                    async token => await client.GetResponseAsync(messages, options, token), ct);
+                    async token => await client.GetResponseAsync(messages, options, token).ConfigureAwait(false), ct)
+                    .ConfigureAwait(false);
                 return resp.Text;
             }
             catch (Exception ex)

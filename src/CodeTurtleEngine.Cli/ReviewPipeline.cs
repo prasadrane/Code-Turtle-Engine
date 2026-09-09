@@ -27,13 +27,13 @@ public sealed class ReviewPipeline
     public async Task<ReviewResult> RunAsync(string repoPath, string projectPath, string? baselineRef, CancellationToken ct = default)
     {
         var changed = _diff.GetChangedCSharpFiles(repoPath, baselineRef);
-        var loaded = await _loader.LoadAsync(projectPath, ct);
+        var loaded = await _loader.LoadAsync(projectPath, ct).ConfigureAwait(false);
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
             var payload = new PayloadGenerator(loaded.Compilation).Build(repoSlug, baselineRef ?? "working-tree", changed);
             var rubric = _rubricLoader.Load(ResolveRubric());
-            var verdicts = await _personas.RunAsync(payload, rubric, ct);
+            var verdicts = await _personas.RunAsync(payload, rubric, ct).ConfigureAwait(false);
             var merged = _arbiter.Merge(verdicts);
             var guarded = _guard.Verify(merged, payload);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);

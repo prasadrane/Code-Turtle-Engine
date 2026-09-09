@@ -28,7 +28,7 @@ public sealed class PersonaRunner : IPersonaRunner
 
     public async Task<IReadOnlyList<PersonaVerdict>> RunAsync(RoslynPayload payload, string rubric, CancellationToken ct = default)
     {
-        var results = await Task.WhenAll(ReviewPersonas.Select(role => RunOneAsync(role, payload, rubric, ct)));
+        var results = await Task.WhenAll(ReviewPersonas.Select(role => RunOneAsync(role, payload, rubric, ct))).ConfigureAwait(false);
         var succeeded = results.Where(r => r is not null).Select(r => r!).ToList();
 
         if (succeeded.Count < _options.Quorum)
@@ -44,7 +44,7 @@ public sealed class PersonaRunner : IPersonaRunner
         try
         {
             var msgs = PromptBuilder.Build(role, payload, rubric);
-            var dto = await _chat.CompleteStructuredAsync<VerdictDto>(ModelRoleFor(role), msgs, PromptBuilder.VerdictSchema, ct);
+            var dto = await _chat.CompleteStructuredAsync<VerdictDto>(ModelRoleFor(role), msgs, PromptBuilder.VerdictSchema, ct).ConfigureAwait(false);
             var findings = dto.Findings
                 .Select(f => new ReviewFinding(role, f.Severity, f.Title, f.Detail, f.Location, f.CitedSymbolFqns))
                 .ToList();
