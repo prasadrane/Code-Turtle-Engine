@@ -40,5 +40,20 @@ Final whole-branch review (opus, 16b1f18..9aa62d6): Ready-to-merge WITH FIXES, N
 ## Known minors (deferred, logged in SDD ledger)
 PathsMatch cross-boundary false-positive; ~~ArtifactWriter same-second overwrite + CurrentCulture dir stamp~~ (fixed pre-merge wave); ResolvedSymbols includes System.Object (benign); null-compilation path leaks workspace dispose; branch-name baseline untested; Cli.Tests trailing newline + template csproj property redeclaration.
 
+## Anthropic-Messages adapter + LIVE verification (2026-09-09, branch feat/anthropic-adapter)
+WHY: the only LLM access on this machine = Aliyun Token Plan gateway, **Anthropic-Messages protocol ONLY** (no OpenAI-compatible path; Content-Machine spike proved the token-plan key is rejected on the DashScope OpenAI endpoint). The MVP gateway spoke OpenAI-compatible → added an Anthropic adapter (gateway already `IChatClient`-abstract, so an added adapter not a rewrite). Design: `docs/superpowers/specs/2026-09-09-anthropic-adapter-design.md`.
+- Spike (curl): `POST {base}/v1/messages`, `Authorization: Bearer` + `anthropic-version: 2023-06-01` → 200. Response `content[]` carries a `thinking` block + a `text` block; the client extracts ONLY `text`. qwen3.8-max returns clean JSON (reasoning stays in `thinking`).
+- `AnthropicMessagesChatClient : IChatClient` (HttpClient, injectable handler for offline tests); `RouteOptions.Protocol` (openai|anthropic) + factory branch; `StructuredChat` ALWAYS injects the JSON-schema instruction into the prompt (Anthropic has no `response_format`) + client-side validate; appsettings route Protocol=anthropic, env-by-name.
+
+LIVE VERIFIED — 3 runs reviewing the engine's own Llm project (diff vs master), creds sourced at runtime from Content-Machine/.env (never echoed/committed):
+- **Zero-hallucination HELD on live LLM output:** ~50 cited symbols across runs, ALL `Verified:true`, 0 false. Models cited only real compiler-resolved symbols; nothing ungrounded reached the review.
+- **Real findings (dogfooded):** missing `ConfigureAwait(false)` across the adapter, boxing at `AnthropicMessagesChatClient.cs:88`. SecurityAuditor correctly returned 0 findings (no false positives).
+- **Resilience:** degraded-banner + quorum worked (one run 2/3 — qwen flash returns malformed JSON ~1/3 per Content-Machine spike; quorum 2 held, review completed).
+- **LATENCY tuning:** 570s (qwen3.8-max, Polly retry2 × 2 routes × 90s) → 188s (all-flash, retry1, single route) → **130s** (all-flash, no-retry, timeout 120s). Still >60s target: Token Plan relay + Qwen reasoning ≈ 100-120s/persona on a real multi-file payload (Content-Machine logged similar).
+- Config now: `ModelRoles` deep=fast=`qwen3.8-flash`; single Token Plan route; Polly = no-retry + 120s timeout + circuit breaker. Full suite 53/53 green offline.
+
+PHASE-2 tuning queue (from live): payload trim (cap ResolvedSymbols + findings per method/file) to target <60s; single JSON-focused retry on `ModelException` for consistent 3/3 personas; per-route circuit breakers; OCE propagation.
+
 ## Commands
 `dotnet build` · `dotnet test` (offline) · `TURTLE_LIVE=1 dotnet test` · `dotnet run --project src/CodeTurtleEngine.Cli -- review <repo> [--diff <ref>] [--project <path>] [--out <file>]`
+(Live: source Bailian/Token-Plan creds into `TURTLE_LLM_BASE_URL` + `TURTLE_LLM_API_KEY` first. NOTE: after master→main rename, use `--diff main`.)
