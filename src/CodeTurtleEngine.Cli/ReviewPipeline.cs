@@ -33,7 +33,10 @@ public sealed class ReviewPipeline
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
             var payload = new PayloadGenerator(loaded.Compilation).Build(repoSlug, baselineRef ?? "working-tree", changed);
             var rubric = _rubricLoader.Load(ResolveRubric());
-            var verdicts = await _personas.RunAsync(payload, rubric, ct).ConfigureAwait(false);
+            // THE INVARIANT: trimming applies ONLY to the LLM prompt projection. The guard
+            // must keep verifying against the FULL payload's ResolvedSymbols allow-list.
+            var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _options.Council);
+            var verdicts = await _personas.RunAsync(promptPayload, rubric, ct).ConfigureAwait(false);
             var merged = _arbiter.Merge(verdicts);
             var guarded = _guard.Verify(merged, payload);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);

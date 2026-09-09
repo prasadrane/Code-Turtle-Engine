@@ -37,4 +37,18 @@ public class PromptBuilderTests
     [Fact]
     public void VerdictSchema_Requires_Findings()
         => Assert.Contains("\"Findings\"", PromptBuilder.VerdictSchema);
+
+    [Fact]
+    public void System_Prompt_Contains_Findings_Cap()
+    {
+        var msgs = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "RUBRIC-TEXT", 7);
+        Assert.Contains(msgs, m => m.Role == ChatRole.System && m.Text.Contains("AT MOST 7 findings"));
+    }
+
+    [Fact]
+    public void ThreeArg_Build_Defaults_Findings_Cap()
+    {
+        var msgs = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "RUBRIC-TEXT");
+        Assert.Contains(msgs, m => m.Role == ChatRole.System && m.Text.Contains("AT MOST 5 findings"));
+    }
 }

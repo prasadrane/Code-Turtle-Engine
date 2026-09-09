@@ -19,9 +19,15 @@ public static class PromptBuilder
       "required":["Findings"]}
     """;
 
-    public static IReadOnlyList<ChatMessage> Build(PersonaRole role, RoslynPayload payload, string rubric)
+    /// <summary>Default cap matching CouncilOptions.MaxFindingsPerPersona.</summary>
+    private const int DefaultMaxFindings = 5;
+
+    public static IReadOnlyList<ChatMessage> Build(PersonaRole role, RoslynPayload payload, string rubric) =>
+        Build(role, payload, rubric, DefaultMaxFindings);
+
+    public static IReadOnlyList<ChatMessage> Build(PersonaRole role, RoslynPayload payload, string rubric, int maxFindings)
     {
-        var system = $"{PersonaInstruction(role)}\n\n# Review Rubric\n{rubric}\n\n{GroundingRules}";
+        var system = $"{PersonaInstruction(role)}\n\n# Review Rubric\n{rubric}\n\n{GroundingRules(maxFindings)}";
         var user = JsonSerializer.Serialize(payload, TurtleJson.Options);
         return new[]
         {
@@ -30,9 +36,10 @@ public static class PromptBuilder
         };
     }
 
-    private const string GroundingRules =
+    private static string GroundingRules(int maxFindings) =>
         "You are given a minified JSON semantic payload extracted by Roslyn. " +
         "Do NOT invent symbols. Every finding MUST cite symbol FQNs that appear in the payload's ResolvedSymbols. " +
+        $"Return AT MOST {maxFindings} findings, highest severity first. " +
         "Return ONLY JSON matching the schema.";
 
     private static string PersonaInstruction(PersonaRole role) => role switch

@@ -43,7 +43,7 @@ public sealed class PersonaRunner : IPersonaRunner
     {
         try
         {
-            var msgs = PromptBuilder.Build(role, payload, rubric);
+            var msgs = PromptBuilder.Build(role, payload, rubric, _options.MaxFindingsPerPersona);
             var dto = await _chat.CompleteStructuredAsync<VerdictDto>(ModelRoleFor(role), msgs, PromptBuilder.VerdictSchema, ct).ConfigureAwait(false);
             var findings = dto.Findings
                 .Select(f => new ReviewFinding(role, f.Severity, f.Title, f.Detail, f.Location, f.CitedSymbolFqns))
