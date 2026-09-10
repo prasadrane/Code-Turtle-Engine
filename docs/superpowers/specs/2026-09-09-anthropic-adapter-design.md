@@ -1,5 +1,7 @@
 # Code-Turtle-Engine — Anthropic-Messages Adapter Design
 
+> **Historical design snapshot (2026-09-09).** Some values superseded during Phase 2 Inc 1 (Polly timeout now 300s; max_tokens now 8192). As-built reference: [ARCHITECTURE.md](../../../ARCHITECTURE.md).
+
 **Date:** 2026-09-09
 **Status:** Approved (build) — post-MVP feature enabling live runs on the Aliyun Token Plan gateway.
 

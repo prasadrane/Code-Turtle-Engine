@@ -1,5 +1,7 @@
 # Code-Turtle-Engine MVP Implementation Plan
 
+> **Historical implementation plan (TDD work-order).** Some stack details (NSubstitute, Semantic Kernel, model roles) were superseded during implementation; as-built reference: [ARCHITECTURE.md](../../../ARCHITECTURE.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a local .NET 10 CLI that reviews a C# repo's diff by grounding an AI agent council in deterministic Roslyn facts, with a guard that enforces zero-hallucination output.

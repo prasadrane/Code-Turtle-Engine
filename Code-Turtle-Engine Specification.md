@@ -1,5 +1,7 @@
 # **Code-Turtle-Engine: Autonomous Architectural Review Council**
 
+> **Original vision document (aspirational).** Describes the full product concept (cloud API, CI integrations); the shipped MVP is the local CLI subset — see [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+
 **Lead Architect:** Prasad Sudhir Rane  
 **Technology Stack:** C\#, .NET Core, ASP.NET Core Web API, Microsoft CodeAnalysis (Roslyn), Semantic Kernel, AWS ECS Fargate, Docker, GitHub Actions
 

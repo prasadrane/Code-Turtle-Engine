@@ -1,5 +1,7 @@
 # Code-Turtle-Engine — MVP Design
 
+> **Historical design snapshot (2026-09-08).** As-built reference: [ARCHITECTURE.md](../../../ARCHITECTURE.md); the 60s latency target proved unreachable on the Token Plan relay (measured ~282s, reasoning-bound).
+
 **Date:** 2026-09-08
 **Lead Architect:** Prasad Sudhir Rane
 **Status:** Approved (design phase) — ready for implementation planning

@@ -27,5 +27,5 @@ Dependency flow: Cli -> {Council, Gatekeeper, Llm} -> Core; Council -> Gatekeepe
 
 ## Agent protocol
 1. Query codebase-memory MCP / graph tools before reading files broadly.
-2. Check `NOTES.md` for current build state.
+2. Check `git log` and `docs/superpowers/plans/` for current build state (NOTES.md is an untracked internal log).
 3. Tests-first; run the offline suite; keep it green before committing.
