@@ -11,6 +11,8 @@
     <ProjectReference Include="..\CodeTurtleEngine.Core\CodeTurtleEngine.Core.csproj" />
     <ProjectReference Include="..\CodeTurtleEngine.Gatekeeper\CodeTurtleEngine.Gatekeeper.csproj" />
     <ProjectReference Include="..\CodeTurtleEngine.Cli\CodeTurtleEngine.Cli.csproj" />
+    <ProjectReference Include="..\CodeTurtleEngine.Council\CodeTurtleEngine.Council.csproj" />
+    <ProjectReference Include="..\CodeTurtleEngine.Llm\CodeTurtleEngine.Llm.csproj" />
   </ItemGroup>
 
 </Project>
