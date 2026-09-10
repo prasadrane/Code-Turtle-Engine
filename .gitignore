@@ -27,3 +27,6 @@ reviews/
 # OS
 .DS_Store
 Thumbs.db
+
+# Internal build log — not published
+NOTES.md
