@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the current `main` branch. There are no released versions yet.
+Only the current `main` branch. Release tags (e.g. `v0.1.0-mvp`) are point-in-time snapshots and do not receive security updates.
 
 ## Reporting a vulnerability
 

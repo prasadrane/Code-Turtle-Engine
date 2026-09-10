@@ -5,6 +5,7 @@ An AI code reviewer whose cited symbols are verified against a real Roslyn compi
 Scope of the guarantee: the Turtle Shell guard audits the **citation channel** — every fully-qualified symbol a finding cites is checked (Ordinal exact match) against the set of symbols Roslyn actually resolved. Findings that cite no symbols pass through as advisory; the guard does not verify prose, descriptions, or file:line locations.
 
 [![CI](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/prasadrane/Code-Turtle-Engine)](https://github.com/prasadrane/Code-Turtle-Engine/releases)
 ![.NET](https://img.shields.io/badge/.NET-10.0.100-512BD4)
 ![Tests](https://img.shields.io/badge/tests-64%20offline-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
