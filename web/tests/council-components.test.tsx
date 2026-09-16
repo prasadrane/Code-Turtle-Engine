@@ -75,6 +75,21 @@ describe('TurtleAvatar Component', () => {
     expect(avatar.getAttribute('height')).toBe('96');
     expect(avatar.getAttribute('class')).toContain('shadow-lg');
   });
+
+  it('correctly maps named string sizes and string numbers', () => {
+    const { unmount: u1 } = render(<TurtleAvatar character="speedy" size="sm" />);
+    const avatarSm = screen.getByTestId('turtle-avatar-speedy');
+    expect(avatarSm.getAttribute('width')).toBe('22');
+    expect(avatarSm.getAttribute('height')).toBe('22');
+    expect(avatarSm.style.width).toBe('22px');
+    u1();
+
+    const { unmount: u2 } = render(<TurtleAvatar character="judge" size="32" />);
+    const avatar32 = screen.getByTestId('turtle-avatar-judge');
+    expect(avatar32.getAttribute('width')).toBe('32');
+    expect(avatar32.getAttribute('height')).toBe('32');
+    u2();
+  });
 });
 
 describe('PersonaCard Component', () => {

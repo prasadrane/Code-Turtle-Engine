@@ -77,6 +77,23 @@ const ANIMATION_VARIANTS: Record<TurtleAvatarState, { animate: TargetAndTransiti
   },
 };
 
+const SIZE_MAP: Record<string, number> = {
+  xs: 18,
+  sm: 22,
+  md: 40,
+  lg: 64,
+  xl: 80,
+};
+
+export function resolveDimension(size: number | string | undefined): number {
+  if (typeof size === 'number') return size;
+  if (!size) return 64;
+  const key = String(size).toLowerCase().trim();
+  if (SIZE_MAP[key]) return SIZE_MAP[key];
+  const parsed = parseInt(key, 10);
+  return isNaN(parsed) ? 64 : parsed;
+}
+
 export function TurtleAvatar({
   character,
   state = 'idle',
@@ -85,7 +102,7 @@ export function TurtleAvatar({
 }: TurtleAvatarProps) {
   const charId = resolveCharacterId(character);
   const variant = ANIMATION_VARIANTS[state] || ANIMATION_VARIANTS.idle;
-  const dimension = typeof size === 'number' ? size : undefined;
+  const dimension = resolveDimension(size);
 
   return (
     <motion.svg
@@ -95,7 +112,13 @@ export function TurtleAvatar({
       viewBox="0 0 100 100"
       width={dimension}
       height={dimension}
-      className={`shrink-0 select-none overflow-visible ${className}`}
+      style={{
+        width: `${dimension}px`,
+        height: `${dimension}px`,
+        minWidth: `${dimension}px`,
+        minHeight: `${dimension}px`,
+      }}
+      className={`shrink-0 select-none ${className}`}
       {...variant}
     >
       <defs>

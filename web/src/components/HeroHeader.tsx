@@ -37,15 +37,15 @@ export function HeroHeader({ className = '' }: HeroHeaderProps) {
       </div>
 
       {/* Mini character avatars row */}
-      <div className="flex items-center justify-center gap-3 pt-1">
+      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
         {characters.map((char) => (
           <div
             key={char.id}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 border border-slate-800 shadow-sm"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 shadow-sm hover:border-slate-700 transition-colors"
             title={`${char.name}: ${char.title}`}
           >
             <TurtleAvatar character={char} size="sm" />
-            <span className="text-xs font-medium text-slate-300 hidden sm:inline">{char.name}</span>
+            <span className="text-xs font-medium text-slate-300 whitespace-nowrap">{char.name}</span>
           </div>
         ))}
       </div>
