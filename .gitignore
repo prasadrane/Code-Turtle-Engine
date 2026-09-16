@@ -11,7 +11,11 @@ artifacts/
 # Secrets & local env
 .env
 .env.*
+!.env.example
 *.pfx
+
+# Vercel output
+.vercel/
 
 # Runtime artifacts (TURTLE_HOME default)
 .turtle/
@@ -28,5 +32,5 @@ reviews/
 .DS_Store
 Thumbs.db
 
-# Internal build log â€” not published
+# Internal build log — not published
 NOTES.md
