@@ -1,16 +1,30 @@
-# 🐢 Code Turtle Engine
-
-An AI code reviewer whose cited symbols are verified against a real Roslyn compilation — hallucinated API citations are stripped before the review reaches you. The engineering challenge: LLM reviewers invent symbols that do not exist, and nothing downstream can tell invented from real without a compiler.
-
-Scope of the guarantee: the Turtle Shell guard audits the **citation channel** — every fully-qualified symbol a finding cites is checked (Ordinal exact match) against the set of symbols Roslyn actually resolved. Findings that cite no symbols pass through as advisory; the guard does not verify prose, descriptions, or file:line locations.
+# Code Turtle Engine
 
 [![CI](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/prasadrane/Code-Turtle-Engine)](https://github.com/prasadrane/Code-Turtle-Engine/releases)
 ![.NET](https://img.shields.io/badge/.NET-10.0.100-512BD4)
-![Tests](https://img.shields.io/badge/tests-64%20offline-brightgreen)
+![Tests](https://img.shields.io/badge/tests-158%20offline%20.NET-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-<!-- TODO: record a demo GIF of a live review run -->
+**Live site:** <https://code-turtle-engine.vercel.app> (interactive council UI; runs in offline demo-replay mode unless a backend is configured — see [web/README.md](web/README.md))
+
+**Problem.** LLM code reviewers confidently cite methods and types that do not exist in your codebase, and nothing downstream can tell invented from real without a compiler.
+
+**Guarantee.** Every changed C# project is compiled with Roslyn, and every fully-qualified symbol a review finding cites is checked (ordinal exact match) against the set of symbols the compiler actually resolved. Findings whose citations all fail are stripped before the review reaches you.
+
+**Scope.** The guard audits the **citation channel**, not every claim in a finding. Findings that cite no symbols pass through as advisory; prose, descriptions, and `file:line` locations are not verified.
+
+## Quick start
+
+```bash
+export TURTLE_LLM_BASE_URL="https://<your-endpoint>"   # Anthropic-Messages or OpenAI-compatible
+export TURTLE_LLM_API_KEY="<key>"
+dotnet run --project src/CodeTurtleEngine.Cli -- review /path/to/csharp/repo --diff main --out review.md
+```
+
+No credentials? `dotnet test` runs the full hermetic suite (158 offline .NET tests, mock LLM, real Roslyn compile of a seeded fixture repo). Requires the .NET 10 SDK; see [Quick start details](#quick-start-details) for prerequisites and configuration.
+
+> A recorded demo of a real review run is tracked in a GitHub issue; this README intentionally ships no mock-up in its place.
 
 ## Review output shape
 
@@ -40,7 +54,7 @@ LLM-based reviewers produce confident findings about methods and types that were
 - **Turtle Shell guard** — Ordinal exact-match audit of every cited FQN; `Strip` mode drops findings whose citations all fail verification and prunes false citations from mixed findings; `Flag` mode records the audit in `audit.json` and keeps findings untouched.
 - **Deterministic arbiter** — dedupes by lowercased title + location keeping max severity, orders severity-descending then location; no LLM in the merge path.
 - **Dual-protocol LLM gateway** — OpenAI-compatible path (Microsoft.Extensions.AI) and a raw Anthropic Messages adapter; ordered route fallback, Polly 300 s timeout + circuit breaker, JSON-schema structured output with client-side validation and one malformed-JSON retry.
-- **Hermetic test suite** — 64 offline tests: mock `IChatClient`, injected `HttpMessageHandler` for the adapter, a fixture repo compiled by the real Roslyn loader with 6 seeded defect classes; live tests opt-in via `TURTLE_LIVE=1`.
+- **Hermetic test suite** — 158 offline .NET tests: mock `IChatClient`, injected `HttpMessageHandler` for the adapter, a fixture repo compiled by the real Roslyn loader with 6 seeded defect classes; live tests opt-in via `TURTLE_LIVE=1`.
 - **Audit artifacts** — every run writes `payload.json` (full, untrimmed), `verdicts.json` (raw, pre-guard), `review.md`, and `audit.json` (verified true/false per citation).
 
 ## Architecture snapshot
@@ -90,16 +104,18 @@ src/
   CodeTurtleEngine.Llm/         gateway (fallback + Polly) · OpenAI & Anthropic adapters · structured output
   CodeTurtleEngine.Council/     rubric · prompts · persona runner · arbiter · Turtle Shell guard · payload trimmer
   CodeTurtleEngine.Cli/         review command · pipeline orchestration · DI composition · artifacts
-tests/                          6 projects (Core 2 · Gatekeeper 8 · Llm 31 · Council 18 · Cli 3 · Integration 2)
+  CodeTurtleEngine.Web/         ASP.NET Core backend for the live demo: GitHub PR fetch, SSE streaming review jobs
+web/                            Next.js client (Vercel); 62 vitest tests, run with `npm test` in web/
+tests/                          7 projects (Core 2 · Gatekeeper 8 · Llm 31 · Council 18 · Cli 3 · Integration 2 · Web 94)
 turtle/rubric_v1.md             council rubric (severity ladder, grounding rules, persona focus)
-docs/                           design specs, implementation plans, ADR candidates
+docs/                           design specs and plans (design/), ADR candidates, agent contract (AGENTS.md)
 spikes/                         evidence-backed tech decisions (RESULTS.md + probe code)
 .github/workflows/ci.yml        build + offline test suite on push/PR
 ```
 
 Project references flow one way: `Core` ← {`Gatekeeper`, `Llm`} ← `Council` ← `Cli`.
 
-## Quick start
+## Quick start details
 
 Prerequisites:
 
@@ -113,7 +129,7 @@ export TURTLE_LLM_BASE_URL="https://token-plan.<region>.maas.aliyuncs.com/apps/a
 export TURTLE_LLM_API_KEY="<key>"
 
 dotnet build
-dotnet test                   # 64 offline tests, no credentials needed
+dotnet test                   # 158 offline tests, no credentials needed
 TURTLE_LIVE=1 dotnet test     # adds live smoke tests (requires credentials)
 
 dotnet run --project src/CodeTurtleEngine.Cli -- review /path/to/repo \
@@ -152,7 +168,8 @@ turtle review <repo> [--diff <ref>] [--project <path.csproj|.sln>] [--out <file>
 | Council.Tests | 18 | Prompts, quorum, arbiter dedupe/order, guard Strip/Flag, trimmer |
 | Cli.Tests | 3 | DI composition, pipeline orchestration, artifact writing |
 | Integration.Tests | 2 | Hermetic e2e + live smoke (opt-in) |
-| **Total** | **64** | All green offline (verified 2026-09-09) |
+| Web.Tests | 94 | ASP.NET Core web backend: GitHub PR fetch/diff, repo cloning, SSE streaming, job store, API endpoints |
+| **Total** | **158** | All green offline (verified 2026-10-12) |
 
 Hermetic by construction: `MockChatClient` replaces the LLM; `tests/fixtures/SampleRepo` is compiled by the real loader and seeds six defect classes (SQL-string concat, missing `ConfigureAwait`, LINQ closure, boxing, unawaited task, captive DI). The e2e test proves the guard strips a hallucinated citation (`SampleRepo.DoesNotExist`) while keeping a grounded one (`IPaymentGateway`). Live smoke skips via early return unless `TURTLE_LIVE=1` — it passes vacuously offline. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs build + the offline suite on push and PR.
 
@@ -175,9 +192,9 @@ Roadmap (from the design specs): custom Roslyn analyzers for dangerous casts, un
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — as-built architecture: components, runtime flows, reliability, invariants, tradeoffs
 - [docs/adr/README.md](docs/adr/README.md) — candidate ADRs (decisions visible in code, rationale awaiting owner confirmation)
-- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [AGENTS.md](AGENTS.md)
-- Design specs and implementation plans under [docs/superpowers/](docs/superpowers/) — dated snapshots of the design process; ARCHITECTURE.md is the as-built reference
-- [spikes/RESULTS.md](spikes/RESULTS.md) — Spike A evidence for the MSBuildWorkspace-over-Buildalyzer decision (relay protocol evidence lives in the [adapter spec](docs/superpowers/specs/2026-09-09-anthropic-adapter-design.md))
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [AGENTS.md](docs/AGENTS.md)
+- Design specs and implementation plans under [docs/design/](docs/design/) — dated snapshots of the design process; ARCHITECTURE.md is the as-built reference
+- [spikes/RESULTS.md](spikes/RESULTS.md) — Spike A evidence for the MSBuildWorkspace-over-Buildalyzer decision (relay protocol evidence lives in the [adapter spec](docs/design/specs/2026-09-09-anthropic-adapter-design.md))
 - [turtle/rubric_v1.md](turtle/rubric_v1.md) — the council rubric
 
 ## Contributing

@@ -4,7 +4,7 @@
 
 **Goal:** Make the live-verified reviewer practical — cut wall-clock latency toward the <60s target and make council runs consistently return 3/3 personas — without weakening the zero-hallucination guarantee.
 
-**Spec:** `docs/superpowers/specs/2026-09-08-code-turtle-engine-design.md` (MVP) + `docs/superpowers/specs/2026-09-09-anthropic-adapter-design.md` + `NOTES.md` (live findings: ~130s, occasional degraded 2/3 from ~1/3 malformed-JSON rate on qwen flash).
+**Spec:** `docs/design/specs/2026-09-08-code-turtle-engine-design.md` (MVP) + `docs/design/specs/2026-09-09-anthropic-adapter-design.md` + `NOTES.md` (live findings: ~130s, occasional degraded 2/3 from ~1/3 malformed-JSON rate on qwen flash).
 
 **Branch:** `feat/phase2-inc1`. Inherits all MVP global constraints (net10.0, `CodeTurtleEngine` root, ≤300 lines/file, TreatWarningsAsErrors, secrets env-by-name only, offline-first tests, TDD, conventional commits).
 

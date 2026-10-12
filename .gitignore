@@ -34,3 +34,11 @@ Thumbs.db
 
 # Internal build log — not published
 NOTES.md
+
+# Local agent-tool output / config (not part of the product)
+graphify-out/
+.agents/
+.claude/
+.conductor/
+CLAUDE.md
+GEMINI.md

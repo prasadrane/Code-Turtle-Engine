@@ -5,7 +5,7 @@
 **Date:** 2026-09-08
 **Lead Architect:** Prasad Sudhir Rane
 **Status:** Approved (design phase) — ready for implementation planning
-**Source spec:** `Code-Turtle-Engine Specification.md`
+**Source spec:** `docs/SPECIFICATION.md`
 
 ## 1. Overview
 
@@ -56,7 +56,7 @@ were Python. Their *conventions* are reused; their *code* is not.
 | Deterministic verification layer (CareerGraph `FactGuard`, Content-Machine verification) | **Turtle Shell guard:** every cited symbol must resolve to a Roslyn `ISymbol` in the compilation, else it is stripped or flagged |
 | Secrets-as-env-references in committed config; typed settings; HOME-dir state isolation | `appsettings.json` + `IOptions<TurtleOptions>`; secrets only in env vars referenced by name; artifacts under `TURTLE_HOME` |
 | Frozen versioned rubric (`council/rubric_v1.md`) | `turtle/rubric_v1.md` review criteria, treated as data not code |
-| Offline-first tests, 1:1 subsystem↔test-file naming, live smoke gated by env var; `spikes/` + `RESULTS.md`; `docs/superpowers/{specs,plans}`; `NOTES.md` build log | xUnit + NSubstitute, same layout and conventions |
+| Offline-first tests, 1:1 subsystem↔test-file naming, live smoke gated by env var; `spikes/` + `RESULTS.md`; `docs/design/{specs,plans}`; `NOTES.md` build log | xUnit + NSubstitute, same layout and conventions |
 | ≤300-lines-per-file invariant | same |
 | Pure `classify_status()` for HTTP/error mapping (Content-Machine) | pure `ClassifyStatus()` static, unit-tested without network |
 
@@ -83,8 +83,8 @@ tests/
   fixtures/SampleRepo/           # small buildable repo with seeded defects for gatekeeper/e2e tests
 spikes/                          # throwaway capability probes + RESULTS.md
 turtle/rubric_v1.md              # frozen review rubric
-docs/superpowers/specs/          # this document
-docs/superpowers/plans/          # implementation plan (next step)
+docs/design/specs/          # this document
+docs/design/plans/          # implementation plan (next step)
 NOTES.md                         # chronological build/spike log
 AGENTS.md                        # agent-ops contract (architecture map, commands, invariants)
 ```

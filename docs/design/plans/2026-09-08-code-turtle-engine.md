@@ -10,7 +10,7 @@
 
 **Tech Stack:** .NET 10 (C# 13), Roslyn (`Microsoft.CodeAnalysis.CSharp.Workspaces`, `Microsoft.CodeAnalysis.Workspaces.MSBuild`), LibGit2Sharp, `Microsoft.Extensions.AI` + `Microsoft.Extensions.AI.OpenAI`, Semantic Kernel, Polly v8, System.CommandLine, xUnit + NSubstitute.
 
-**Spec:** `docs/superpowers/specs/2026-09-08-code-turtle-engine-design.md`
+**Spec:** `docs/design/specs/2026-09-08-code-turtle-engine-design.md`
 
 ## Global Constraints
 
@@ -3198,8 +3198,8 @@ dotnet run --project src/CodeTurtleEngine.Cli -- review /path/to/repo \
 ```
 
 ## Docs
-- Design spec: `docs/superpowers/specs/2026-09-08-code-turtle-engine-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-09-08-code-turtle-engine.md`
+- Design spec: `docs/design/specs/2026-09-08-code-turtle-engine-design.md`
+- Implementation plan: `docs/design/plans/2026-09-08-code-turtle-engine.md`
 - Agent-ops contract: `AGENTS.md`
 ```
 
