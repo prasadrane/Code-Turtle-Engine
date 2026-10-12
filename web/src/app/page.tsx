@@ -18,7 +18,7 @@ export default function HomePage() {
   const [mode, setMode] = useState<ReviewMode>('idle');
   const [activePrUrl, setActivePrUrl] = useState<string>('');
 
-  const demo = useDemoReplay({ speedMultiplier: 1.5 });
+  const demo = useDemoReplay({ speedMultiplier: 1 });
   const live = useReviewStream();
 
   const handleStartDemo = () => {
@@ -80,7 +80,7 @@ export default function HomePage() {
             {isDemo ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
                 <Sparkles className="w-3.5 h-3.5" />
-                Demo Replay Mode
+                Demo Replay Mode — pre-recorded sample, no LLM called
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">

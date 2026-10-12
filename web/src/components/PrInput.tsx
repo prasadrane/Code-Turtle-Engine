@@ -146,7 +146,7 @@ export function PrInput({
           <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
           <span>Try Demo</span>
           <span className="ml-0.5 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-200">
-            Instant
+            Sample run
           </span>
         </button>
 

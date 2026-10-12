@@ -5,42 +5,121 @@
       "type": "phase",
       "phase": "validating",
       "message": "Validating pull request... https://github.com/code-turtle/sample-service/pull/42",
-      "progress": 0.1
+      "progress": 0.04
     }
   },
   {
-    "delay": 1000,
+    "delay": 1200,
+    "event": {
+      "type": "phase",
+      "phase": "validating",
+      "message": "Fetching PR metadata and changed-file list (4 C# files)...",
+      "progress": 0.08
+    }
+  },
+  {
+    "delay": 2600,
     "event": {
       "type": "phase",
       "phase": "cloning",
       "message": "Cloning code-turtle/sample-service (shallow)...",
-      "progress": 0.3
+      "progress": 0.14
     }
   },
   {
-    "delay": 2500,
+    "delay": 4800,
+    "event": {
+      "type": "phase",
+      "phase": "cloning",
+      "message": "Checking out base and head refs, computing tree diff...",
+      "progress": 0.22
+    }
+  },
+  {
+    "delay": 6500,
+    "event": {
+      "type": "phase",
+      "phase": "compiling",
+      "message": "Locating solution and project files...",
+      "progress": 0.28
+    }
+  },
+  {
+    "delay": 8000,
+    "event": {
+      "type": "phase",
+      "phase": "compiling",
+      "message": "Loading MSBuildWorkspace...",
+      "progress": 0.34
+    }
+  },
+  {
+    "delay": 10500,
     "event": {
       "type": "phase",
       "phase": "compiling",
       "message": "Compiling Roslyn workspace...",
-      "progress": 0.5,
-      "stats": { "files": 4, "methods": 6, "symbols": 142 }
+      "progress": 0.42
     }
   },
   {
-    "delay": 3500,
-    "event": { "type": "persona_started", "persona": "AllocationsPerformance", "character": "Speedy" }
+    "delay": 13000,
+    "event": {
+      "type": "phase",
+      "phase": "compiling",
+      "message": "Extracting per-method facts and resolved-symbol allow-list...",
+      "progress": 0.5,
+      "stats": {
+        "files": 4,
+        "methods": 6,
+        "symbols": 142
+      }
+    }
   },
   {
-    "delay": 3700,
-    "event": { "type": "persona_started", "persona": "SecurityAuditor", "character": "Sheldon" }
+    "delay": 14500,
+    "event": {
+      "type": "phase",
+      "phase": "deliberating",
+      "message": "Trimming payload for prompt budget (guard keeps the full allow-list)...",
+      "progress": 0.56
+    }
   },
   {
-    "delay": 3900,
-    "event": { "type": "persona_started", "persona": "IdiomaticArchitect", "character": "Sensei" }
+    "delay": 16000,
+    "event": {
+      "type": "phase",
+      "phase": "deliberating",
+      "message": "Dispatching payload to 3 personas in parallel...",
+      "progress": 0.6
+    }
   },
   {
-    "delay": 5200,
+    "delay": 16500,
+    "event": {
+      "type": "persona_started",
+      "persona": "AllocationsPerformance",
+      "character": "Speedy"
+    }
+  },
+  {
+    "delay": 17100,
+    "event": {
+      "type": "persona_started",
+      "persona": "SecurityAuditor",
+      "character": "Sheldon"
+    }
+  },
+  {
+    "delay": 17800,
+    "event": {
+      "type": "persona_started",
+      "persona": "IdiomaticArchitect",
+      "character": "Sensei"
+    }
+  },
+  {
+    "delay": 22000,
     "event": {
       "type": "persona_finding",
       "persona": "AllocationsPerformance",
@@ -51,12 +130,15 @@
         "title": "LINQ Closure Heap Allocation",
         "detail": "Captured local variable 'threshold' causes heap allocation of a closure class instance on every invocation.",
         "location": "PaymentService.cs:21",
-        "citedSymbolFqns": ["SampleRepo.PaymentService.ProcessPaymentAsync", "System.Linq.Enumerable.Where"]
+        "citedSymbolFqns": [
+          "SampleRepo.PaymentService.ProcessPaymentAsync",
+          "System.Linq.Enumerable.Where"
+        ]
       }
     }
   },
   {
-    "delay": 6500,
+    "delay": 26500,
     "event": {
       "type": "persona_finding",
       "persona": "SecurityAuditor",
@@ -67,12 +149,15 @@
         "title": "SQL Injection Vector in User Query",
         "detail": "Direct string concatenation into SQL command. User-controlled input 'userName' flows unsanitized into WHERE clause.",
         "location": "DataAccess.cs:8",
-        "citedSymbolFqns": ["SampleRepo.DataAccess.BuildQuery", "SampleRepo.NonExistentHelper.Sanitize"]
+        "citedSymbolFqns": [
+          "SampleRepo.DataAccess.BuildQuery",
+          "SampleRepo.NonExistentHelper.Sanitize"
+        ]
       }
     }
   },
   {
-    "delay": 7800,
+    "delay": 29500,
     "event": {
       "type": "persona_finding",
       "persona": "IdiomaticArchitect",
@@ -83,12 +168,15 @@
         "title": "Captive Dependency Lifetime Violation",
         "detail": "SingletonOrchestrator holds a direct reference to TransientWorker, capturing a transient service in singleton scope.",
         "location": "DiRegistration.cs:18",
-        "citedSymbolFqns": ["SampleRepo.SingletonOrchestrator", "SampleRepo.TransientWorker"]
+        "citedSymbolFqns": [
+          "SampleRepo.SingletonOrchestrator",
+          "SampleRepo.TransientWorker"
+        ]
       }
     }
   },
   {
-    "delay": 9000,
+    "delay": 31000,
     "event": {
       "type": "persona_finding",
       "persona": "AllocationsPerformance",
@@ -99,12 +187,14 @@
         "title": "Implicit Value Type Boxing",
         "detail": "Assigning 'large.Count' (int) to 'object boxed' triggers boxing allocation on the GC managed heap.",
         "location": "PaymentService.cs:24",
-        "citedSymbolFqns": ["SampleRepo.PaymentService.ProcessPaymentAsync"]
+        "citedSymbolFqns": [
+          "SampleRepo.PaymentService.ProcessPaymentAsync"
+        ]
       }
     }
   },
   {
-    "delay": 10200,
+    "delay": 33000,
     "event": {
       "type": "persona_finding",
       "persona": "AllocationsPerformance",
@@ -115,22 +205,15 @@
         "title": "Unawaited Task & Missing ConfigureAwait",
         "detail": "Call to 'NotifyAsync()' is not awaited, dropping unhandled exceptions. Also missing ConfigureAwait(false) on gateway charge.",
         "location": "PaymentService.cs:28",
-        "citedSymbolFqns": ["SampleRepo.IPaymentGateway.ChargeAsync", "SampleRepo.PaymentService.ProcessPaymentAsync"]
+        "citedSymbolFqns": [
+          "SampleRepo.IPaymentGateway.ChargeAsync",
+          "SampleRepo.PaymentService.ProcessPaymentAsync"
+        ]
       }
     }
   },
   {
-    "delay": 11000,
-    "event": {
-      "type": "persona_completed",
-      "persona": "AllocationsPerformance",
-      "character": "Speedy",
-      "findingCount": 3,
-      "quip": "3 allocation(s) found! My stopwatch is crying."
-    }
-  },
-  {
-    "delay": 11500,
+    "delay": 34000,
     "event": {
       "type": "persona_completed",
       "persona": "SecurityAuditor",
@@ -140,7 +223,7 @@
     }
   },
   {
-    "delay": 12000,
+    "delay": 35500,
     "event": {
       "type": "persona_completed",
       "persona": "IdiomaticArchitect",
@@ -150,7 +233,17 @@
     }
   },
   {
-    "delay": 13000,
+    "delay": 36500,
+    "event": {
+      "type": "persona_completed",
+      "persona": "AllocationsPerformance",
+      "character": "Speedy",
+      "findingCount": 3,
+      "quip": "3 allocation(s) found! My stopwatch is crying."
+    }
+  },
+  {
+    "delay": 38000,
     "event": {
       "type": "arbiter_merge",
       "character": "Judge Shellsworth",
@@ -160,7 +253,16 @@
     }
   },
   {
-    "delay": 14500,
+    "delay": 39000,
+    "event": {
+      "type": "phase",
+      "phase": "auditing",
+      "message": "Verifying every cited symbol against the Roslyn allow-list...",
+      "progress": 0.9
+    }
+  },
+  {
+    "delay": 42000,
     "event": {
       "type": "guard_audit",
       "character": "Judge Shellsworth",
@@ -168,18 +270,48 @@
       "stripped": 1,
       "total": 7,
       "auditDetails": [
-        { "citedFqn": "SampleRepo.PaymentService.ProcessPaymentAsync", "verified": true },
-        { "citedFqn": "System.Linq.Enumerable.Where", "verified": true },
-        { "citedFqn": "SampleRepo.IPaymentGateway.ChargeAsync", "verified": true },
-        { "citedFqn": "SampleRepo.DataAccess.BuildQuery", "verified": true },
-        { "citedFqn": "SampleRepo.SingletonOrchestrator", "verified": true },
-        { "citedFqn": "SampleRepo.TransientWorker", "verified": true },
-        { "citedFqn": "SampleRepo.NonExistentHelper.Sanitize", "verified": false }
+        {
+          "citedFqn": "SampleRepo.PaymentService.ProcessPaymentAsync",
+          "verified": true
+        },
+        {
+          "citedFqn": "System.Linq.Enumerable.Where",
+          "verified": true
+        },
+        {
+          "citedFqn": "SampleRepo.IPaymentGateway.ChargeAsync",
+          "verified": true
+        },
+        {
+          "citedFqn": "SampleRepo.DataAccess.BuildQuery",
+          "verified": true
+        },
+        {
+          "citedFqn": "SampleRepo.SingletonOrchestrator",
+          "verified": true
+        },
+        {
+          "citedFqn": "SampleRepo.TransientWorker",
+          "verified": true
+        },
+        {
+          "citedFqn": "SampleRepo.NonExistentHelper.Sanitize",
+          "verified": false
+        }
       ]
     }
   },
   {
-    "delay": 16000,
+    "delay": 43500,
+    "event": {
+      "type": "phase",
+      "phase": "complete",
+      "message": "Synthesizing final report...",
+      "progress": 1
+    }
+  },
+  {
+    "delay": 44000,
     "event": {
       "type": "completed",
       "markdown": "# 🐢 Code-Turtle Review Report\n\n**Verdict:** Changes require revision.\n\n### ⚡ Performance & Allocations (Speedy)\n- **[Warning]** LINQ closure heap allocation (`PaymentService.cs:21`)\n- **[Nit]** Implicit boxing of integer count (`PaymentService.cs:24`)\n- **[Warning]** Unawaited `NotifyAsync()` fire-and-forget task (`PaymentService.cs:28`)\n\n### 🔒 Security Audit (Sheldon)\n- **[Critical]** Raw SQL string concatenation injection (`DataAccess.cs:8`)\n\n### 🏯 Architectural Review (Sensei)\n- **[Error]** Captive dependency: Singleton capturing Transient (`DiRegistration.cs:18`)\n\n### ⚖️ Trust Audit (Judge Shellsworth)\n- 6/7 citations verified against Roslyn AST.\n- 1 hallucinated citation (`SampleRepo.NonExistentHelper.Sanitize`) stripped by Turtle Shell Guard.",
@@ -188,39 +320,156 @@
           {
             "persona": "AllocationsPerformance",
             "findings": [
-              { "persona": "AllocationsPerformance", "severity": "Warning", "title": "LINQ Closure Heap Allocation", "detail": "Captured local variable 'threshold' causes heap allocation.", "location": "PaymentService.cs:21", "citedSymbolFqns": ["SampleRepo.PaymentService.ProcessPaymentAsync", "System.Linq.Enumerable.Where"] },
-              { "persona": "AllocationsPerformance", "severity": "Nit", "title": "Implicit Value Type Boxing", "detail": "Assigning 'large.Count' to object boxed.", "location": "PaymentService.cs:24", "citedSymbolFqns": ["SampleRepo.PaymentService.ProcessPaymentAsync"] },
-              { "persona": "AllocationsPerformance", "severity": "Warning", "title": "Unawaited Task & Missing ConfigureAwait", "detail": "Call to NotifyAsync() is not awaited.", "location": "PaymentService.cs:28", "citedSymbolFqns": ["SampleRepo.IPaymentGateway.ChargeAsync", "SampleRepo.PaymentService.ProcessPaymentAsync"] }
+              {
+                "persona": "AllocationsPerformance",
+                "severity": "Warning",
+                "title": "LINQ Closure Heap Allocation",
+                "detail": "Captured local variable 'threshold' causes heap allocation.",
+                "location": "PaymentService.cs:21",
+                "citedSymbolFqns": [
+                  "SampleRepo.PaymentService.ProcessPaymentAsync",
+                  "System.Linq.Enumerable.Where"
+                ]
+              },
+              {
+                "persona": "AllocationsPerformance",
+                "severity": "Nit",
+                "title": "Implicit Value Type Boxing",
+                "detail": "Assigning 'large.Count' to object boxed.",
+                "location": "PaymentService.cs:24",
+                "citedSymbolFqns": [
+                  "SampleRepo.PaymentService.ProcessPaymentAsync"
+                ]
+              },
+              {
+                "persona": "AllocationsPerformance",
+                "severity": "Warning",
+                "title": "Unawaited Task & Missing ConfigureAwait",
+                "detail": "Call to NotifyAsync() is not awaited.",
+                "location": "PaymentService.cs:28",
+                "citedSymbolFqns": [
+                  "SampleRepo.IPaymentGateway.ChargeAsync",
+                  "SampleRepo.PaymentService.ProcessPaymentAsync"
+                ]
+              }
             ]
           },
           {
             "persona": "SecurityAuditor",
             "findings": [
-              { "persona": "SecurityAuditor", "severity": "Critical", "title": "SQL Injection Vector in User Query", "detail": "Direct string concatenation into SQL command.", "location": "DataAccess.cs:8", "citedSymbolFqns": ["SampleRepo.DataAccess.BuildQuery"] }
+              {
+                "persona": "SecurityAuditor",
+                "severity": "Critical",
+                "title": "SQL Injection Vector in User Query",
+                "detail": "Direct string concatenation into SQL command.",
+                "location": "DataAccess.cs:8",
+                "citedSymbolFqns": [
+                  "SampleRepo.DataAccess.BuildQuery"
+                ]
+              }
             ]
           },
           {
             "persona": "IdiomaticArchitect",
             "findings": [
-              { "persona": "IdiomaticArchitect", "severity": "Error", "title": "Captive Dependency Lifetime Violation", "detail": "Singleton captures TransientWorker.", "location": "DiRegistration.cs:18", "citedSymbolFqns": ["SampleRepo.SingletonOrchestrator", "SampleRepo.TransientWorker"] }
+              {
+                "persona": "IdiomaticArchitect",
+                "severity": "Error",
+                "title": "Captive Dependency Lifetime Violation",
+                "detail": "Singleton captures TransientWorker.",
+                "location": "DiRegistration.cs:18",
+                "citedSymbolFqns": [
+                  "SampleRepo.SingletonOrchestrator",
+                  "SampleRepo.TransientWorker"
+                ]
+              }
             ]
           }
         ],
         "synthesized": [
-          { "persona": "SecurityAuditor", "severity": "Critical", "title": "SQL Injection Vector in User Query", "detail": "Direct string concatenation into SQL command.", "location": "DataAccess.cs:8", "citedSymbolFqns": ["SampleRepo.DataAccess.BuildQuery"] },
-          { "persona": "IdiomaticArchitect", "severity": "Error", "title": "Captive Dependency Lifetime Violation", "detail": "Singleton captures TransientWorker.", "location": "DiRegistration.cs:18", "citedSymbolFqns": ["SampleRepo.SingletonOrchestrator", "SampleRepo.TransientWorker"] },
-          { "persona": "AllocationsPerformance", "severity": "Warning", "title": "LINQ Closure Heap Allocation", "detail": "Captured local variable 'threshold' causes heap allocation.", "location": "PaymentService.cs:21", "citedSymbolFqns": ["SampleRepo.PaymentService.ProcessPaymentAsync", "System.Linq.Enumerable.Where"] },
-          { "persona": "AllocationsPerformance", "severity": "Warning", "title": "Unawaited Task & Missing ConfigureAwait", "detail": "Call to NotifyAsync() is not awaited.", "location": "PaymentService.cs:28", "citedSymbolFqns": ["SampleRepo.IPaymentGateway.ChargeAsync", "SampleRepo.PaymentService.ProcessPaymentAsync"] },
-          { "persona": "AllocationsPerformance", "severity": "Nit", "title": "Implicit Value Type Boxing", "detail": "Assigning 'large.Count' to object boxed.", "location": "PaymentService.cs:24", "citedSymbolFqns": ["SampleRepo.PaymentService.ProcessPaymentAsync"] }
+          {
+            "persona": "SecurityAuditor",
+            "severity": "Critical",
+            "title": "SQL Injection Vector in User Query",
+            "detail": "Direct string concatenation into SQL command.",
+            "location": "DataAccess.cs:8",
+            "citedSymbolFqns": [
+              "SampleRepo.DataAccess.BuildQuery"
+            ]
+          },
+          {
+            "persona": "IdiomaticArchitect",
+            "severity": "Error",
+            "title": "Captive Dependency Lifetime Violation",
+            "detail": "Singleton captures TransientWorker.",
+            "location": "DiRegistration.cs:18",
+            "citedSymbolFqns": [
+              "SampleRepo.SingletonOrchestrator",
+              "SampleRepo.TransientWorker"
+            ]
+          },
+          {
+            "persona": "AllocationsPerformance",
+            "severity": "Warning",
+            "title": "LINQ Closure Heap Allocation",
+            "detail": "Captured local variable 'threshold' causes heap allocation.",
+            "location": "PaymentService.cs:21",
+            "citedSymbolFqns": [
+              "SampleRepo.PaymentService.ProcessPaymentAsync",
+              "System.Linq.Enumerable.Where"
+            ]
+          },
+          {
+            "persona": "AllocationsPerformance",
+            "severity": "Warning",
+            "title": "Unawaited Task & Missing ConfigureAwait",
+            "detail": "Call to NotifyAsync() is not awaited.",
+            "location": "PaymentService.cs:28",
+            "citedSymbolFqns": [
+              "SampleRepo.IPaymentGateway.ChargeAsync",
+              "SampleRepo.PaymentService.ProcessPaymentAsync"
+            ]
+          },
+          {
+            "persona": "AllocationsPerformance",
+            "severity": "Nit",
+            "title": "Implicit Value Type Boxing",
+            "detail": "Assigning 'large.Count' to object boxed.",
+            "location": "PaymentService.cs:24",
+            "citedSymbolFqns": [
+              "SampleRepo.PaymentService.ProcessPaymentAsync"
+            ]
+          }
         ],
         "guardAudit": [
-          { "citedFqn": "SampleRepo.PaymentService.ProcessPaymentAsync", "verified": true },
-          { "citedFqn": "System.Linq.Enumerable.Where", "verified": true },
-          { "citedFqn": "SampleRepo.IPaymentGateway.ChargeAsync", "verified": true },
-          { "citedFqn": "SampleRepo.DataAccess.BuildQuery", "verified": true },
-          { "citedFqn": "SampleRepo.SingletonOrchestrator", "verified": true },
-          { "citedFqn": "SampleRepo.TransientWorker", "verified": true },
-          { "citedFqn": "SampleRepo.NonExistentHelper.Sanitize", "verified": false }
+          {
+            "citedFqn": "SampleRepo.PaymentService.ProcessPaymentAsync",
+            "verified": true
+          },
+          {
+            "citedFqn": "System.Linq.Enumerable.Where",
+            "verified": true
+          },
+          {
+            "citedFqn": "SampleRepo.IPaymentGateway.ChargeAsync",
+            "verified": true
+          },
+          {
+            "citedFqn": "SampleRepo.DataAccess.BuildQuery",
+            "verified": true
+          },
+          {
+            "citedFqn": "SampleRepo.SingletonOrchestrator",
+            "verified": true
+          },
+          {
+            "citedFqn": "SampleRepo.TransientWorker",
+            "verified": true
+          },
+          {
+            "citedFqn": "SampleRepo.NonExistentHelper.Sanitize",
+            "verified": false
+          }
         ]
       },
       "stats": {
