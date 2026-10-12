@@ -8,13 +8,13 @@ Rationale recorded at the time; treat these as the project's existing decision r
 
 ### MSBuildWorkspace over Buildalyzer (Roslyn compilation loader)
 
-- **Status:** Rationale recorded — [spikes/RESULTS.md](../../spikes/RESULTS.md) (Spike A, 2026-09-08) and the [MVP design spec](../superpowers/specs/2026-09-08-code-turtle-engine-design.md)
+- **Status:** Rationale recorded — [spikes/RESULTS.md](../../spikes/RESULTS.md) (Spike A, 2026-09-08) and the [MVP design spec](../design/specs/2026-09-08-code-turtle-engine-design.md)
 - **Decision:** Load compilations with `MSBuildWorkspace` (Roslyn 5.9.0) directly; no Buildalyzer dependency, no separate build roundtrip.
 - **Evidence:** spike measured ~3s warm load, 0 compilation errors on a self-probe; no measured benefit from Buildalyzer.
 
 ### Anthropic-Messages adapter (Bearer auth, text-only extraction)
 
-- **Status:** Rationale recorded — [adapter design spec](../superpowers/specs/2026-09-09-anthropic-adapter-design.md)
+- **Status:** Rationale recorded — [adapter design spec](../design/specs/2026-09-09-anthropic-adapter-design.md)
 - **Decision:** Add a raw `HttpClient` adapter speaking the Anthropic Messages protocol (`Authorization: Bearer`, `anthropic-version: 2023-06-01`, `thinking` blocks ignored, `text` blocks extracted) as an additional `IChatClient` implementation behind the existing gateway abstraction.
 - **Evidence:** the available relay (Aliyun Token Plan) exposes the Anthropic Messages protocol only; a curl spike confirmed the protocol before implementation.
 

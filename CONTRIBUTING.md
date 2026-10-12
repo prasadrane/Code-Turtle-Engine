@@ -9,7 +9,7 @@
 
 ```bash
 dotnet build          # warnings are errors (TreatWarningsAsErrors in Directory.Build.props)
-dotnet test           # 64 offline tests — hermetic, no network, no credentials
+dotnet test           # 158 offline tests — hermetic, no network, no credentials
 TURTLE_LIVE=1 dotnet test   # adds live smoke tests against a real LLM endpoint
 ```
 
@@ -17,7 +17,7 @@ CI runs `dotnet build --configuration Release` + `dotnet test --configuration Re
 
 ## Conventions
 
-From [AGENTS.md](AGENTS.md) — the same contract the project's agents work under:
+From [AGENTS.md](docs/AGENTS.md) — the same contract the project's agents work under:
 
 - Source files ≤ 300 lines
 - Fail closed: no compilation ⇒ no review

@@ -10,7 +10,7 @@ namespace CodeTurtleEngine.Llm;
 /// Speaks the Anthropic Messages protocol (POST {baseUrl}/v1/messages) so the gateway can
 /// use relays that expose only that protocol (e.g. the Aliyun Token Plan endpoint). Non-streaming;
 /// thinking blocks in the response are ignored, only type=="text" blocks form the reply.
-/// Protocol shape confirmed by the 2026-09-09 curl spike (see docs/superpowers/specs/
+/// Protocol shape confirmed by the 2026-09-09 curl spike (see docs/design/specs/
 /// 2026-09-09-anthropic-adapter-design.md).
 /// </summary>
 public sealed class AnthropicMessagesChatClient : IChatClient
