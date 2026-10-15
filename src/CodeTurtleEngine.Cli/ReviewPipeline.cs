@@ -1,10 +1,11 @@
 using CodeTurtleEngine.Core;
 using CodeTurtleEngine.Council;
 using CodeTurtleEngine.Gatekeeper;
+using Microsoft.CodeAnalysis;
 
 namespace CodeTurtleEngine.Cli;
 
-public sealed record ReviewResult(string Markdown, CouncilVerdict Verdict, string ArtifactDir);
+public sealed record ReviewResult(string Markdown, CouncilVerdict Verdict, string ArtifactDir, RoslynPayload Payload);
 
 public sealed class ReviewPipeline
 {
@@ -36,7 +37,10 @@ public sealed class ReviewPipeline
             // THE INVARIANT: trimming applies ONLY to the LLM prompt projection. The guard
             // must keep verifying against the FULL payload's ResolvedSymbols allow-list.
             var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _options.Council);
-            var verdicts = await _personas.RunAsync(promptPayload, Array.Empty<SourceFile>(), rubric, ct).ConfigureAwait(false);
+            var sources = _options.Council.PromptMode == PromptMode.Naive
+                ? CollectSources(loaded.Compilation, changed, _options.Council.MaxFiles)
+                : Array.Empty<SourceFile>();
+            var verdicts = await _personas.RunAsync(promptPayload, sources, rubric, ct).ConfigureAwait(false);
             var merged = _arbiter.Merge(verdicts);
             var guarded = _guard.Verify(merged, payload);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
@@ -45,13 +49,21 @@ public sealed class ReviewPipeline
                 markdown = $"> Degraded review: {verdicts.Count}/{ExpectedReviewPersonas} council personas succeeded.\n\n" + markdown;
             var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit);
             var dir = _artifacts.Write(repoSlug, payload, verdict, markdown);
-            return new ReviewResult(markdown, verdict, dir);
+            return new ReviewResult(markdown, verdict, dir, payload);
         }
         finally
         {
             loaded.Workspace.Dispose();
         }
     }
+
+    private static IReadOnlyList<SourceFile> CollectSources(Compilation compilation, IReadOnlyList<string> changed, int maxFiles) =>
+        changed
+            .Select(rel => (rel, tree: compilation.SyntaxTrees.FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, rel))))
+            .Where(x => x.tree is not null)
+            .Take(maxFiles)
+            .Select(x => new SourceFile(x.rel, x.tree!.GetText().ToString()))
+            .ToList();
 
     private string ResolveRubric() =>
         Path.IsPathRooted(_options.RubricPath)

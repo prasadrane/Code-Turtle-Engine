@@ -26,7 +26,7 @@ public class ReviewJobStoreTests
     }
 
     private static ReviewResult CreateTestResult(string markdown = "# Review") =>
-        new(markdown, CreateTestVerdict(), "artifacts/sample");
+        new(markdown, CreateTestVerdict(), "artifacts/sample", new RoslynPayload("r", "HEAD", Array.Empty<FileFacts>()));
 
     [Fact]
     public void CreateJob_GeneratesUniqueNonEmptyGuids()

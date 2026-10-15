@@ -8,7 +8,7 @@ namespace CodeTurtleEngine.Cli;
 
 public static class Composition
 {
-    public static IServiceProvider BuildServices(string repoPath)
+    public static IServiceProvider BuildServices(string repoPath, Action<TurtleOptions>? configure = null, string? home = null)
     {
         var config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
@@ -18,7 +18,8 @@ public static class Composition
 
         var llm = config.GetSection(LlmOptions.SectionName).Get<LlmOptions>() ?? new LlmOptions();
         var turtle = config.GetSection(TurtleOptions.SectionName).Get<TurtleOptions>() ?? new TurtleOptions();
-        var home = Environment.GetEnvironmentVariable("TURTLE_HOME")
+        configure?.Invoke(turtle);
+        home ??= Environment.GetEnvironmentVariable("TURTLE_HOME")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".turtle");
 
         var sc = new ServiceCollection();

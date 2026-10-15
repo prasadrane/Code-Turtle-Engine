@@ -187,7 +187,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     await writer.WriteAsync(SseEvent.Completed(markdown, finalVerdict, stats), ct).ConfigureAwait(false);
 
                     // 15. Store result in ReviewJobStore
-                    var reviewResult = new ReviewResult(markdown, finalVerdict, clonedDir);
+                    var reviewResult = new ReviewResult(markdown, finalVerdict, clonedDir, payload);
                     _jobStore.SetResult(jobId, reviewResult);
                 }
             }
