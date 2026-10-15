@@ -22,7 +22,7 @@ internal sealed class FakeLoader : ICompilationLoader
 
 internal sealed class FakePersonas : IPersonaRunner
 {
-    public Task<IReadOnlyList<PersonaVerdict>> RunAsync(RoslynPayload payload, string rubric, CancellationToken ct = default)
+    public Task<IReadOnlyList<PersonaVerdict>> RunAsync(RoslynPayload payload, IReadOnlyList<SourceFile> sources, string rubric, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<PersonaVerdict>>(new[]
         {
             new PersonaVerdict(PersonaRole.SecurityAuditor, new[]

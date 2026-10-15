@@ -23,7 +23,7 @@ public class PersonaRunnerTests
         }));
         var runner = new PersonaRunner(chat, new CouncilOptions { Quorum = 2 });
 
-        var verdicts = await runner.RunAsync(Payload(), "rubric");
+        var verdicts = await runner.RunAsync(Payload(), Array.Empty<SourceFile>(), "rubric");
 
         Assert.Equal(3, verdicts.Count);
         Assert.Contains(verdicts, v => v.Persona == PersonaRole.SecurityAuditor);
@@ -43,7 +43,7 @@ public class PersonaRunnerTests
         });
         var runner = new PersonaRunner(chat, new CouncilOptions { Quorum = 2 });
 
-        var verdicts = await runner.RunAsync(Payload(), "rubric");
+        var verdicts = await runner.RunAsync(Payload(), Array.Empty<SourceFile>(), "rubric");
 
         Assert.Equal(2, verdicts.Count);
     }
@@ -57,7 +57,7 @@ public class PersonaRunnerTests
         var runner = new PersonaRunner(chat, new CouncilOptions { Quorum = 2 });
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => runner.RunAsync(Payload(), "rubric", cts.Token));
+            () => runner.RunAsync(Payload(), Array.Empty<SourceFile>(), "rubric", cts.Token));
     }
 
     [Fact]
@@ -66,6 +66,6 @@ public class PersonaRunnerTests
         var chat = new FakeStructuredChat((_, _) => throw new InvalidOperationException("down"));
         var runner = new PersonaRunner(chat, new CouncilOptions { Quorum = 2 });
 
-        await Assert.ThrowsAsync<ProviderException>(() => runner.RunAsync(Payload(), "rubric"));
+        await Assert.ThrowsAsync<ProviderException>(() => runner.RunAsync(Payload(), Array.Empty<SourceFile>(), "rubric"));
     }
 }
