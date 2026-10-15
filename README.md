@@ -43,6 +43,22 @@ LLM-based reviewers produce confident findings about methods and types that were
 - **Hermetic test suite** — 64 offline tests: mock `IChatClient`, injected `HttpMessageHandler` for the adapter, a fixture repo compiled by the real Roslyn loader with 6 seeded defect classes; live tests opt-in via `TURTLE_LIVE=1`.
 - **Audit artifacts** — every run writes `payload.json` (full, untrimmed), `verdicts.json` (raw, pre-guard), `review.md`, and `audit.json` (verified true/false per citation).
 
+## Benchmark
+
+`turtle bench` measures what grounding buys. Each corpus entry is reviewed by two arms on the same model:
+**Naive** (changed source only, the way most AI reviewers work) and **Grounded** (the Roslyn payload).
+A third arm, **Code Turtle**, is the grounded output after the guard's `Strip` pass.
+
+- **Invented rate:** cited names that resolve to nothing in the compilation (the hallucination measure).
+- **Unverified rate:** cited names outside the guard allow-list.
+- **Precision / recall:** findings matched to labeled defects (same file, line ±3, persona by defect class).
+
+```bash
+dotnet run --project src/CodeTurtleEngine.Cli -- bench --corpus bench/corpus.json --repeat 3
+```
+
+Run from the repository root (the rubric path is relative). Requires the LLM route env variables; writes `bench-results.json` and `bench-report.md`.
+
 ## Architecture snapshot
 
 ```mermaid

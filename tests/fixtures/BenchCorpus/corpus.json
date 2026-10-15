@@ -1,0 +1,7 @@
+{
+  "classPersonas": { "BoxingAllocation": "AllocationsPerformance" },
+  "entries": [
+    { "id": "boxing", "kind": "Seeded", "project": "Mini.csproj", "baseDir": "base", "headDir": "boxing" },
+    { "id": "clean", "kind": "Seeded", "project": "Mini.csproj", "baseDir": "base", "headDir": "clean" }
+  ]
+}
