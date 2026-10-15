@@ -1,0 +1,3 @@
+bench-out/
+seeded/**/bin/
+seeded/**/obj/

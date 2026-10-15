@@ -14,7 +14,12 @@ public class CorpusLoaderTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, "seeded", "base", "Shop.csproj"), "<Project />");
     }
 
-    public void Dispose() => Directory.Delete(_dir, true);
+    public void Dispose()
+    {
+        // git object files are read-only on Windows
+        foreach (var f in Directory.EnumerateFiles(_dir, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
+        Directory.Delete(_dir, true);
+    }
 
     private string Write(string json)
     {
@@ -55,5 +60,22 @@ public class CorpusLoaderTests : IDisposable
     {
         var ex = Assert.Throws<BenchException>(() => CorpusLoader.Load(Write(json)));
         Assert.Contains(messageFragment, ex.Message);
+    }
+
+    [Fact]
+    public async Task Shipped_Seeded_Corpus_Is_Valid_And_Every_Entry_Has_Expected_Markers()
+    {
+        var repoRoot = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(repoRoot, "CodeTurtleEngine.sln"))) repoRoot = Path.GetDirectoryName(repoRoot)!;
+        var corpus = CorpusLoader.Load(Path.Combine(repoRoot, "bench", "corpus.json"));
+        var preparer = new CorpusPreparer(Path.Combine(_dir, "work"), (_, _) => Task.CompletedTask);
+
+        foreach (var e in corpus.Entries)
+        {
+            var p = await preparer.PrepareAsync(e, default);
+            if (e.Id == "clean-refactor") Assert.Empty(p.Expected!);
+            else Assert.Single(p.Expected!);
+            Assert.All(p.Expected!, d => Assert.True(corpus.ClassPersonas.ContainsKey(d.Class), d.Class));
+        }
     }
 }
