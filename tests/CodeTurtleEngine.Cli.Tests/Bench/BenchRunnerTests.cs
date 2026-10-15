@@ -133,4 +133,36 @@ public class BenchRunnerTests : IDisposable
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runner.RunAsync(Corpus, 1, Array.Empty<string>(), cts.Token));
     }
+
+    [Fact]
+    public async Task IO_Failure_During_Prepare_Skips_The_Entry()
+    {
+        var runner = new BenchRunner(mode => Pipeline(mode, new ScriptedPersonas(() => Cites())),
+            new FakeLoader(_compilation), (_, _) => throw new IOException("disk gone"), TextWriter.Null);
+
+        var r = await runner.RunAsync(Corpus, 1, Array.Empty<string>(), default);
+
+        Assert.Empty(r.Rows);
+        Assert.Contains("disk gone", Assert.Single(r.Skipped).Reason);
+    }
+
+    [Fact]
+    public async Task Expected_Defects_Are_Enriched_With_Enclosing_Method()
+    {
+        var runner = new BenchRunner(mode => Pipeline(mode, new ScriptedPersonas(() => new[]
+            {
+                new PersonaVerdict(PersonaRole.SecurityAuditor, new[]
+                {
+                    new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Warning, "bug in Run", "d", "A.cs", Array.Empty<string>())
+                })
+            })),
+            new FakeLoader(_compilation),
+            (_, _) => Prepared(new[] { new ExpectedDefect("A.cs", 8, "SqlInjection") }),
+            TextWriter.Null);
+
+        var r = await runner.RunAsync(Corpus, 1, Array.Empty<string>(), default);
+
+        // location has no line; only the enriched method name (Run) can produce the match
+        Assert.Equal(1, r.Rows.First(x => x.Arm == BenchArm.Grounded).Score!.Matched);
+    }
 }

@@ -51,7 +51,7 @@ A third arm, **Code Turtle**, is the grounded output after the guard's `Strip` p
 
 - **Invented rate:** cited names that resolve to nothing in the compilation (the hallucination measure).
 - **Unverified rate:** cited names outside the guard allow-list.
-- **Precision / recall:** findings matched to labeled defects (same file, line ±3, persona by defect class).
+- **Precision / recall:** findings matched to labeled defects (persona by defect class; same file and (line ±3 or the enclosing method named)).
 
 ```bash
 dotnet run --project src/CodeTurtleEngine.Cli -- bench --corpus bench/corpus.json --repeat 3

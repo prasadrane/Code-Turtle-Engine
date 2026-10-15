@@ -35,14 +35,18 @@ public class BenchScorerTests
         Assert.Equal(2, s.Unverified);
         Assert.Equal(1, s.Invented);
         Assert.Equal(1, s.FindingsWithInvented);
-        Assert.Equal(1.0 / 3, s.InventedRate, 6);
+        Assert.Equal(1.0 / 3, s.InventedRate!.Value, 6);
         Assert.Null(s.Matched);
         Assert.Null(s.Precision);
     }
 
     [Fact]
-    public void Zero_Citations_Gives_Zero_Rates() =>
-        Assert.Equal(0, Score(Array.Empty<ReviewFinding>()).InventedRate);
+    public void Zero_Citations_Gives_Null_Rates()
+    {
+        var s = Score(Array.Empty<ReviewFinding>());
+        Assert.Null(s.InventedRate);
+        Assert.Null(s.UnverifiedRate);
+    }
 
     [Theory]
     [InlineData("src/Repo.cs:42", true)]
@@ -52,7 +56,7 @@ public class BenchScorerTests
     [InlineData(@"src\Repo.cs:42", true)]
     [InlineData("Repo.cs:42-50", true)]
     [InlineData("OtherRepo.cs:42", false)] // suffix collision is not a match
-    [InlineData("src/Repo.cs", false)]     // no line
+    [InlineData("src/Repo.cs", false)]     // no line, no method
     [InlineData("line 42 of Repo.cs", false)]
     [InlineData("", false)]
     public void Matches_By_File_And_Line_Tolerance(string location, bool matched)
@@ -88,5 +92,52 @@ public class BenchScorerTests
         Assert.Equal(0, s.Matched);
         Assert.Equal(0.0, s.Precision);
         Assert.Null(s.Recall);
+    }
+
+    private static ReviewFinding Ft(string location, string title, PersonaRole persona = PersonaRole.SecurityAuditor) =>
+        new(persona, Severity.Error, title, "d", location, Array.Empty<string>());
+
+    private static readonly ExpectedDefect WithMethod = new("src/Repo.cs", 42, "SqlInjection", "FindByCustomer");
+
+    [Fact]
+    public void Method_Name_In_Location_Matches_Without_Line()
+    {
+        var s = Score(new[] { Ft("src/Repo.cs (FindByCustomer)", "SQL injection") }, new[] { WithMethod });
+        Assert.Equal(1, s.Matched);
+    }
+
+    [Fact]
+    public void Method_Name_In_Title_Matches_With_Wrong_Line()
+    {
+        var s = Score(new[] { Ft("Repo.cs:300", "Unsafe query in FindByCustomer") }, new[] { WithMethod });
+        Assert.Equal(1, s.Matched);
+    }
+
+    [Fact]
+    public void Method_Name_As_Substring_Of_Other_Identifier_Does_Not_Match()
+    {
+        var s = Score(new[] { Ft("Repo.cs:300", "Problem in FindByCustomerAsync") }, new[] { WithMethod });
+        Assert.Equal(0, s.Matched);
+    }
+
+    [Fact]
+    public void Null_Method_Falls_Back_To_Line_Rule_Only()
+    {
+        var d = new ExpectedDefect("src/Repo.cs", 42, "SqlInjection");
+        Assert.Equal(0, Score(new[] { Ft("Repo.cs:300", "FindByCustomer") }, new[] { d }).Matched);
+    }
+
+    [Fact]
+    public void Location_Without_Line_And_No_Method_Does_Not_Match()
+    {
+        var d = new ExpectedDefect("src/Repo.cs", 42, "SqlInjection");
+        Assert.Equal(0, Score(new[] { Ft("Repo.cs", "x") }, new[] { d }).Matched);
+    }
+
+    [Fact]
+    public void Method_Match_Still_Requires_File_And_Persona()
+    {
+        Assert.Equal(0, Score(new[] { Ft("Other.cs", "FindByCustomer") }, new[] { WithMethod }).Matched);
+        Assert.Equal(0, Score(new[] { Ft("Repo.cs", "FindByCustomer", PersonaRole.IdiomaticArchitect) }, new[] { WithMethod }).Matched);
     }
 }

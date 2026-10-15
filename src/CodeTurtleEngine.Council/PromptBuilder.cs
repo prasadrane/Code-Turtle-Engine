@@ -47,7 +47,7 @@ public static class PromptBuilder
         var system = $"{PersonaInstruction(role)}\n\n# Review Rubric\n{rubric}\n\n{NaiveRules(maxFindings)}";
         var user = new StringBuilder();
         foreach (var s in sources)
-            user.Append("## File: ").Append(s.Path).Append("\n```csharp\n").Append(s.Text).Append("\n```\n\n");
+            user.Append("## File: ").Append(s.Path).Append("\n```csharp\n").Append(NumberLines(s.Text)).Append("\n```\n\n");
         return new[]
         {
             new ChatMessage(ChatRole.System, system),
@@ -55,8 +55,21 @@ public static class PromptBuilder
         };
     }
 
+    private static string NumberLines(string text)
+    {
+        var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var sb = new StringBuilder();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (i > 0) sb.Append('\n');
+            sb.Append((i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture).PadLeft(4)).Append(": ").Append(lines[i]);
+        }
+        return sb.ToString();
+    }
+
     private static string NaiveRules(int maxFindings) =>
-        "You are given the full source of the changed C# files. " +
+        "You are given the full source of the changed C# files. Source lines are prefixed with their line numbers; " +
+        "report each finding location as File.cs:LINE. " +
         "For every finding, list in CitedSymbolFqns the fully-qualified names of the types or members it concerns " +
         "(for example System.Net.Http.HttpClient or MyApp.Services.PaymentService.ProcessAsync). Cite only symbols that exist. " +
         $"Return AT MOST {maxFindings} findings, highest severity first. " +

@@ -14,8 +14,8 @@ public sealed record RunScore(
     int? Matched,
     int? ExpectedCount)
 {
-    public double UnverifiedRate => Citations == 0 ? 0 : (double)Unverified / Citations;
-    public double InventedRate => Citations == 0 ? 0 : (double)Invented / Citations;
+    public double? UnverifiedRate => Citations == 0 ? null : (double)Unverified / Citations;
+    public double? InventedRate => Citations == 0 ? null : (double)Invented / Citations;
     public double? Precision => Matched is null || Findings == 0 ? null : (double)Matched.Value / Findings;
     public double? Recall => Matched is null || ExpectedCount is null or 0 ? null : (double)Matched.Value / ExpectedCount.Value;
 }
@@ -62,6 +62,25 @@ public static partial class BenchScorer
         return int.TryParse(m.Groups["line"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out line);
     }
 
+    [GeneratedRegex(@"(?<![\w./\\-])(?<file>[\w./\\-]*[\w-]\.cs)(?![\w])", RegexOptions.IgnoreCase)]
+    private static partial Regex FileTokenPattern();
+
+    private static bool ContainsIdentifier(string text, string identifier)
+    {
+        var start = 0;
+        while (start <= text.Length - identifier.Length)
+        {
+            var i = text.IndexOf(identifier, start, StringComparison.OrdinalIgnoreCase);
+            if (i < 0) return false;
+            var before = i == 0 || !(char.IsLetterOrDigit(text[i - 1]) || text[i - 1] == '_');
+            var end = i + identifier.Length;
+            var after = end >= text.Length || !(char.IsLetterOrDigit(text[end]) || text[end] == '_');
+            if (before && after) return true;
+            start = i + 1;
+        }
+        return false;
+    }
+
     private static int Match(IReadOnlyList<ReviewFinding> findings, IReadOnlyList<ExpectedDefect> expected,
         IReadOnlyDictionary<string, PersonaRole> classPersonas)
     {
@@ -75,8 +94,18 @@ public static partial class BenchScorer
             foreach (var (f, i) in ordered)
             {
                 if (used.Contains(i) || f.Persona != persona) continue;
-                if (!TryParseLocation(f.Location, out var file, out var line)) continue;
-                if (!SameFile(file, d.File) || Math.Abs(line - d.Line) > LineTolerance) continue;
+                var hasLine = TryParseLocation(f.Location, out var file, out var line);
+                if (!hasLine)
+                {
+                    var tok = FileTokenPattern().Match(f.Location);
+                    if (!tok.Success) continue;
+                    file = tok.Groups["file"].Value;
+                }
+                if (!SameFile(file, d.File)) continue;
+                var byLine = hasLine && Math.Abs(line - d.Line) <= LineTolerance;
+                var byMethod = d.Method is not null
+                    && (ContainsIdentifier(f.Location, d.Method) || ContainsIdentifier(f.Title, d.Method));
+                if (!byLine && !byMethod) continue;
                 used.Add(i);
                 matched++;
                 break;

@@ -89,6 +89,11 @@ bench.SetAction(async (parseResult, ct) =>
         Console.Error.WriteLine($"error: {ex.Message}");
         return 1;
     }
+    catch (Exception ex) when (ex is not OperationCanceledException)
+    {
+        Console.Error.WriteLine($"error: {ex.Message}");
+        return 1;
+    }
 });
 
 var root = new RootCommand("Code Turtle Engine - AI PR reviewer grounded in Roslyn compiler truths");

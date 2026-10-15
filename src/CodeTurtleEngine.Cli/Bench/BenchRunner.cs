@@ -54,8 +54,10 @@ public sealed class BenchRunner
                 if (unknown is not null)
                     throw new BenchException($"{entry.Id}: defect class '{unknown.Class}' missing from classPersonas.");
                 loaded = await _loader.LoadAsync(prepared.ProjectPath, ct).ConfigureAwait(false);
+                prepared = prepared with { Expected = ExpectedDefectEnricher.Enrich(loaded.Compilation, prepared.Expected) };
             }
-            catch (Exception ex) when (ex is BenchException or CompilationException or DiffException)
+            catch (Exception ex) when (ex is BenchException or CompilationException or DiffException
+                or LibGit2Sharp.LibGit2SharpException or IOException)
             {
                 skipped.Add(new SkippedEntry(entry.Id, ex.Message));
                 _log.WriteLine($"[bench] skip {entry.Id}: {ex.Message}");

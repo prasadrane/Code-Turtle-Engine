@@ -8,6 +8,9 @@ namespace CodeTurtleEngine.Gatekeeper;
 /// in the compilation (source or references)? Broader than the guard allow-list, which holds
 /// only the types a changed method touches. Accepts common display variants: global:: prefix,
 /// parameter lists, generic arguments, C# keyword aliases, nullable and array suffixes.
+/// Members are resolved on the type, its base-type chain and all implemented interfaces; a member
+/// named like its type resolves to a constructor. Namespaces are not symbols: only types and
+/// members count as existing.
 /// </summary>
 public sealed class SymbolOracle
 {
@@ -39,7 +42,18 @@ public sealed class SymbolOracle
         var member = name[(dot + 1)..];
         var angle = member.IndexOf('<');
         if (angle >= 0) member = member[..angle];
-        return type.GetMembers(member).Length > 0;
+        return HasMember(type, member);
+    }
+
+    private static bool HasMember(INamedTypeSymbol type, string member)
+    {
+        var simple = type.Name;
+        if (string.Equals(member, simple, StringComparison.Ordinal) && type.Constructors.Length > 0) return true;
+        for (INamedTypeSymbol? t = type; t is not null; t = t.BaseType)
+            if (t.GetMembers(member).Length > 0) return true;
+        foreach (var i in type.AllInterfaces)
+            if (i.GetMembers(member).Length > 0) return true;
+        return false;
     }
 
     private static string Normalize(string fqn)

@@ -27,18 +27,21 @@ public static class BenchReport
         sb.AppendLine();
         sb.AppendLine("## Summary by arm");
         sb.AppendLine();
-        sb.AppendLine("| Arm | Runs | Errors | Degraded | Citations | Invented rate (mean, min–max) | Unverified rate (mean) | Findings w/ invented | Precision (mean) | Recall (mean) | Median latency |");
-        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|");
+        sb.AppendLine("| Arm | Runs | Errors | Degraded | Citations | Invented rate (mean, min–max) | Pooled invented rate | Unverified rate (mean) | Findings w/ invented | Precision (mean) | Recall (mean) | Median latency |");
+        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
         foreach (var arm in Enum.GetValues<BenchArm>())
         {
             var rows = r.Rows.Where(x => x.Arm == arm).ToList();
             if (rows.Count == 0) continue;
             var scored = rows.Where(x => x.Score is not null).Select(x => x.Score!).ToList();
-            var invented = scored.Select(s => s.InventedRate).ToList();
+            var invented = scored.Where(s => s.InventedRate is not null).Select(s => s.InventedRate!.Value).ToList();
+            var totalCites = scored.Sum(s => s.Citations);
+            double? pooled = totalCites == 0 ? null : (double)scored.Sum(s => s.Invented) / totalCites;
             sb.AppendLine(Inv,
                 $"| {arm} | {rows.Count} | {rows.Count(x => x.Error is not null)} | {rows.Count(x => x.Degraded)} | {scored.Sum(s => s.Citations)} | " +
-                $"{Pct(Mean(invented))} ({Pct(invented.DefaultIfEmpty().Min())}–{Pct(invented.DefaultIfEmpty().Max())}) | " +
-                $"{Pct(Mean(scored.Select(s => s.UnverifiedRate)))} | {scored.Sum(s => s.FindingsWithInvented)} | " +
+                $"{Pct(Mean(invented))} ({(invented.Count == 0 ? "n/a" : Pct(invented.Min()))}–{(invented.Count == 0 ? "n/a" : Pct(invented.Max()))}) | " +
+                $"{Pct(pooled)} | " +
+                $"{Pct(Mean(scored.Where(s => s.UnverifiedRate is not null).Select(s => s.UnverifiedRate!.Value)))} | {scored.Sum(s => s.FindingsWithInvented)} | " +
                 $"{Pct(Mean(scored.Where(s => s.Precision is not null).Select(s => s.Precision!.Value)))} | " +
                 $"{Pct(Mean(scored.Where(s => s.Recall is not null).Select(s => s.Recall!.Value)))} | " +
                 $"{Median(rows.Where(x => x.Error is null).Select(x => x.ElapsedMs))} ms |");
@@ -71,7 +74,8 @@ public static class BenchReport
         sb.AppendLine("- Invented = cited name resolves to no type or member in the compilation (SymbolOracle). Unverified = not in the guard allow-list, which holds only types the changed methods touch.");
         sb.AppendLine("- Small corpus; seeded defects are authored by this project; a single model family per run.");
         sb.AppendLine("- The guard covers the citation channel only; prose and locations are not verified.");
-        sb.AppendLine("- Precision/recall use deterministic matching (same file, line ±3, persona mapped from defect class); valid findings outside the labels count as false positives.");
+        sb.AppendLine("- Precision/recall use deterministic matching (same file and either line ±3 or the enclosing method named; persona mapped from defect class); valid findings outside the labels count as false positives.");
+        sb.AppendLine("- The arbiter merges findings by (title, location) and keeps the first persona, so a defect mapped to a dropped persona can be undercounted.");
         return sb.ToString();
     }
 

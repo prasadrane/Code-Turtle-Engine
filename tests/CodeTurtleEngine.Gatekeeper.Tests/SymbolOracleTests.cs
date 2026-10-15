@@ -38,12 +38,21 @@ public class SymbolOracleTests
     [InlineData("int[]")]
     [InlineData("System.Collections.Generic.List<string>")]
     [InlineData("System.Collections.Generic.Dictionary<string, int>.TryGetValue")]
+    [InlineData("System.Collections.Generic.IReadOnlyList<string>.Count")]
+    [InlineData("System.Threading.Tasks.Task<int>.Wait")]
+    [InlineData("System.InvalidOperationException.Message")]
+    [InlineData("Demo.Outer.GetHashCode")]
+    [InlineData("Demo.Outer.ToString")]
+    [InlineData("Demo.Outer.Outer")]
+    [InlineData("System.Collections.Generic.List<string>.List")]
     public void Existing_Symbols_In_Any_Common_Display_Format_Exist(string fqn) =>
         Assert.True(Oracle.Exists(fqn), fqn);
 
     [Theory]
     [InlineData("Demo.Ghost")]
     [InlineData("Demo.Outer.Fly")]
+    [InlineData("Demo")]
+    [InlineData("System.Collections.Generic")]
     [InlineData("Demo.Outer.Inner.Deeper")]
     [InlineData("System.Net.Http.HttpClientFactoryOfDoom")]
     [InlineData("")]

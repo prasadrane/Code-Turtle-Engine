@@ -7,7 +7,7 @@ namespace CodeTurtleEngine.Cli.Bench;
 
 public enum CorpusKind { Seeded, Oss }
 
-public sealed record ExpectedDefect(string File, int Line, string Class);
+public sealed record ExpectedDefect(string File, int Line, string Class, string? Method = null);
 
 public sealed record CorpusEntry(
     string Id,

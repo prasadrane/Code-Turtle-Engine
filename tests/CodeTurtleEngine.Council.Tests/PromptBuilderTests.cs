@@ -73,6 +73,19 @@ public class PromptBuilderTests
     }
 
     [Fact]
+    public void BuildNaive_Prefixes_Source_Lines_With_Line_Numbers()
+    {
+        var sources = new[] { new SourceFile("A.cs", "first\nsecond") };
+
+        var msgs = PromptBuilder.BuildNaive(PersonaRole.SecurityAuditor, sources, "r", 5);
+
+        Assert.Contains("   1: first", msgs[1].Text);
+        Assert.Contains("   2: second", msgs[1].Text);
+        Assert.Contains("prefixed with their line numbers", msgs[0].Text);
+        Assert.Contains("File.cs:LINE", msgs[0].Text);
+    }
+
+    [Fact]
     public void CouncilOptions_Defaults_To_Grounded() =>
         Assert.Equal(PromptMode.Grounded, new CouncilOptions().PromptMode);
 }
