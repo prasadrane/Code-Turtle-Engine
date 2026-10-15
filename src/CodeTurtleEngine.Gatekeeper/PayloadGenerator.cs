@@ -19,7 +19,7 @@ public sealed class PayloadGenerator
         var files = new List<FileFacts>();
         foreach (var rel in changedRelativePaths)
         {
-            var tree = _compilation.SyntaxTrees.FirstOrDefault(t => PathsMatch(t.FilePath, rel));
+            var tree = _compilation.SyntaxTrees.FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, rel));
             if (tree is null) continue;
 
             var methods = _analyzer.AnalyzeTree(tree);
@@ -28,12 +28,5 @@ public sealed class PayloadGenerator
             files.Add(new FileFacts(rel, methods));
         }
         return new RoslynPayload(repoSlug, diffBaseline, files);
-    }
-
-    private static bool PathsMatch(string treePath, string rel)
-    {
-        var a = treePath.Replace('\\', '/');
-        var b = rel.Replace('\\', '/');
-        return a.EndsWith(b, StringComparison.OrdinalIgnoreCase);
     }
 }

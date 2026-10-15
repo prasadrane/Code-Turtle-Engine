@@ -58,4 +58,23 @@ public class TurtleShellGuardTests
 
         Assert.Single(outcome.KeptFindings);
     }
+
+    [Fact]
+    public void BuildAllowList_Collects_All_Resolved_Symbols_Ordinal()
+    {
+        var payload = new RoslynPayload("r", "HEAD", new[]
+        {
+            new FileFacts("A.cs", new[]
+            {
+                new MethodFacts("M1", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "Demo.A", "Demo.B" }),
+                new MethodFacts("M2", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "Demo.B" })
+            })
+        });
+
+        var allow = TurtleShellGuard.BuildAllowList(payload);
+
+        Assert.Equal(2, allow.Count);
+        Assert.Contains("Demo.A", allow);
+        Assert.DoesNotContain("demo.a", allow);
+    }
 }

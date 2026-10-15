@@ -17,12 +17,15 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
     public TurtleShellGuard(CouncilOptions options) => _options = options;
 
-    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload)
-    {
-        var allow = payload.Files
+    public static HashSet<string> BuildAllowList(RoslynPayload payload) =>
+        payload.Files
             .SelectMany(f => f.Methods)
             .SelectMany(m => m.ResolvedSymbols)
             .ToHashSet(StringComparer.Ordinal);
+
+    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload)
+    {
+        var allow = BuildAllowList(payload);
 
         var audit = new List<GuardResult>();
         var kept = new List<ReviewFinding>();
