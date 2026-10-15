@@ -15,3 +15,6 @@ public sealed record RoslynPayload(
     string RepoSlug,
     string DiffBaseline,
     IReadOnlyList<FileFacts> Files);
+
+/// <summary>Changed-file source text; used only by the naive (benchmark baseline) prompt.</summary>
+public sealed record SourceFile(string Path, string Text);

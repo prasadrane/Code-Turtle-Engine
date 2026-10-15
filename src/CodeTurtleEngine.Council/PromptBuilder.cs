@@ -1,5 +1,6 @@
 using CodeTurtleEngine.Core;
 using Microsoft.Extensions.AI;
+using System.Text;
 using System.Text.Json;
 
 namespace CodeTurtleEngine.Council;
@@ -35,6 +36,31 @@ public static class PromptBuilder
             new ChatMessage(ChatRole.User, user)
         };
     }
+
+    /// <summary>
+    /// Benchmark baseline: what a typical diff-only reviewer sees. Same persona, rubric and verdict
+    /// schema as the grounded prompt, but no Roslyn payload and no allow-list rule. It still asks for
+    /// accurate fully-qualified citations so the baseline is fair, not a strawman.
+    /// </summary>
+    public static IReadOnlyList<ChatMessage> BuildNaive(PersonaRole role, IReadOnlyList<SourceFile> sources, string rubric, int maxFindings)
+    {
+        var system = $"{PersonaInstruction(role)}\n\n# Review Rubric\n{rubric}\n\n{NaiveRules(maxFindings)}";
+        var user = new StringBuilder();
+        foreach (var s in sources)
+            user.Append("## File: ").Append(s.Path).Append("\n```csharp\n").Append(s.Text).Append("\n```\n\n");
+        return new[]
+        {
+            new ChatMessage(ChatRole.System, system),
+            new ChatMessage(ChatRole.User, user.ToString())
+        };
+    }
+
+    private static string NaiveRules(int maxFindings) =>
+        "You are given the full source of the changed C# files. " +
+        "For every finding, list in CitedSymbolFqns the fully-qualified names of the types or members it concerns " +
+        "(for example System.Net.Http.HttpClient or MyApp.Services.PaymentService.ProcessAsync). Cite only symbols that exist. " +
+        $"Return AT MOST {maxFindings} findings, highest severity first. " +
+        "Return ONLY JSON matching the schema.";
 
     private static string GroundingRules(int maxFindings) =>
         "You are given a minified JSON semantic payload extracted by Roslyn. " +

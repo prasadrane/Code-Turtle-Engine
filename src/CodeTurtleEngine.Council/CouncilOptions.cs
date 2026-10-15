@@ -14,4 +14,7 @@ public sealed class CouncilOptions
     public int MaxMethodsPerFile { get; set; } = 40;
     public int MaxFiles { get; set; } = 40;
     public int MaxFindingsPerPersona { get; set; } = 5;
+
+    /// <summary>Grounded = Roslyn payload prompt (product). Naive = changed source only (benchmark baseline).</summary>
+    public PromptMode PromptMode { get; set; } = PromptMode.Grounded;
 }

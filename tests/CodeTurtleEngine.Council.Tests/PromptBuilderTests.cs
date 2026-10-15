@@ -51,4 +51,28 @@ public class PromptBuilderTests
         var msgs = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "RUBRIC-TEXT");
         Assert.Contains(msgs, m => m.Role == ChatRole.System && m.Text.Contains("AT MOST 5 findings"));
     }
+
+    [Fact]
+    public void BuildNaive_Sends_Source_Not_Payload_And_Omits_Grounding_Rules()
+    {
+        var sources = new[] { new SourceFile("src/PaymentService.cs", "public class PaymentService { }") };
+
+        var msgs = PromptBuilder.BuildNaive(PersonaRole.SecurityAuditor, sources, "# Rubric", 5);
+
+        Assert.Equal(2, msgs.Count);
+        var system = msgs[0].Text;
+        var user = msgs[1].Text;
+        Assert.Contains("security auditor", system);
+        Assert.Contains("# Rubric", system);
+        Assert.Contains("CitedSymbolFqns", system);
+        Assert.Contains("AT MOST 5 findings", system);
+        Assert.DoesNotContain("ResolvedSymbols", system);
+        Assert.DoesNotContain("payload", system, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("## File: src/PaymentService.cs", user);
+        Assert.Contains("public class PaymentService { }", user);
+    }
+
+    [Fact]
+    public void CouncilOptions_Defaults_To_Grounded() =>
+        Assert.Equal(PromptMode.Grounded, new CouncilOptions().PromptMode);
 }
