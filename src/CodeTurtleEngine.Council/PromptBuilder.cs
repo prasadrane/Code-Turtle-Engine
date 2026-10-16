@@ -77,19 +77,21 @@ public static class PromptBuilder
 
     private static string GroundingRules(int maxFindings) =>
         "You are given a minified JSON semantic payload extracted by Roslyn. " +
-        "Use StartLine/EndLine and line numbers annotated in Allocations, AsyncHealth, and Risks to report accurate File.cs:LINE locations. " +
-        "Do NOT invent symbols. Every finding MUST cite symbol FQNs that appear in the payload's ResolvedSymbols. " +
+        "Analyze the provided facts: inspect each method's Risks, Allocations, AsyncHealth, and StartLine/EndLine " +
+        "to report accurate File.cs:LINE locations. " +
+        "Do NOT invent symbols. Every finding MUST cite symbol FQNs that appear in the payload's ResolvedSymbols " +
+        "(preferring method or member FQNs, or containing class FQN). " +
         $"Return AT MOST {maxFindings} findings, highest severity first. " +
         "Return ONLY JSON matching the schema.";
 
     private static string PersonaInstruction(PersonaRole role) => role switch
     {
         PersonaRole.AllocationsPerformance =>
-            "You are a C# allocations and performance reviewer. Scrutinize memory leaks, large-object-heap (LOH) risk, unawaited tasks, and thread-safety issues in concurrent collections.",
+            "You are a C# allocations and performance reviewer. Scrutinize missing ConfigureAwait(false), unawaited tasks (fire-and-forget), sync-over-async (.Result or .Wait()), boxing allocations, closure captures, LOH risks, and thread-safety risks in non-thread-safe collections (e.g., static Dictionary).",
         PersonaRole.SecurityAuditor =>
-            "You are a C# security auditor. Evaluate input sanitization, SQL-injection vectors (raw string concatenation bypassing EF Core parameters), and authentication-bypass risks on REST/GraphQL endpoints.",
+            "You are a C# security auditor. Evaluate input sanitization, dynamic SQL injection (raw string concatenation/interpolation into CommandText or queries), path traversal risks, hardcoded secrets/passwords, and authentication-bypass risks.",
         PersonaRole.IdiomaticArchitect =>
-            "You are an idiomatic C# architect. Enforce modern C# language features, clean-architecture boundaries, and correct Dependency Injection lifecycles (e.g., capturing Transient services inside Singleton classes).",
+            "You are an idiomatic C# architect. Enforce modern C# language features, clean-architecture boundaries, proper exception handling (flag swallowed/empty catch blocks), correct Dependency Injection lifecycles (e.g., captive scoped/transient dependencies inside singletons), and avoid service locator anti-patterns (IServiceProvider.GetService).",
         _ => "You are a C# code reviewer."
     };
 }

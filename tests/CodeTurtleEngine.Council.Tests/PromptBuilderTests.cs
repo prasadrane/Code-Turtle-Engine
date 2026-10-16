@@ -88,4 +88,28 @@ public class PromptBuilderTests
     [Fact]
     public void CouncilOptions_Defaults_To_Grounded() =>
         Assert.Equal(PromptMode.Grounded, new CouncilOptions().PromptMode);
+
+    [Fact]
+    public void PersonaInstructions_Cover_All_Seeded_Defect_Classes()
+    {
+        var perf = PromptBuilder.Build(PersonaRole.AllocationsPerformance, SamplePayload(), "R");
+        var sec = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "R");
+        var arch = PromptBuilder.Build(PersonaRole.IdiomaticArchitect, SamplePayload(), "R");
+
+        var perfSystem = perf[0].Text;
+        Assert.Contains("ConfigureAwait", perfSystem);
+        Assert.Contains("unawaited", perfSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sync-over-async", perfSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("boxing", perfSystem, StringComparison.OrdinalIgnoreCase);
+
+        var secSystem = sec[0].Text;
+        Assert.Contains("SQL", secSystem);
+        Assert.Contains("path traversal", secSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("hardcoded secret", secSystem, StringComparison.OrdinalIgnoreCase);
+
+        var archSystem = arch[0].Text;
+        Assert.Contains("swallowed", archSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("service locator", archSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("captive", archSystem, StringComparison.OrdinalIgnoreCase);
+    }
 }

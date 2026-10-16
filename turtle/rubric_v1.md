@@ -13,6 +13,6 @@ Grounding rules:
 - Prefer the highest applicable severity; never inflate.
 
 Persona focus:
-- Allocations & Performance: LOH risk, closures, boxing, unawaited tasks, concurrency.
-- Security: injection vectors, input sanitization, authentication bypass.
-- Idiomatic: modern C#, DI lifetimes (captive dependencies), clean-architecture boundaries.
+- Allocations & Performance: Missing ConfigureAwait(false), unawaited tasks (fire-and-forget), sync-over-async (.Result/.Wait()), boxing allocations, LINQ closure captures, thread-unsafe collections (e.g. non-thread-safe Dictionary across tasks), and LOH allocations.
+- Security: SQL injection (dynamic interpolation or concatenation into DbCommand/queries), path traversal (unvalidated Path.Combine or absolute path overrides), hardcoded credentials/secrets, and authentication/authorization bypass.
+- Idiomatic: Modern C#, DI lifetimes (captive scoped/transient dependencies in singletons), service locator anti-patterns (IServiceProvider), swallowed/empty exception handling, and clean-architecture boundaries.
