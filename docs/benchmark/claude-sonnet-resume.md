@@ -1,8 +1,34 @@
-# Claude benchmark checkpoint
+# Benchmark checkpoint (mixed-model, 3 repetitions)
 
-The Claude-only experiment is incomplete. The saved responses came from Claude
-Code Sonnet subagents, according to the original session transcript (session
-`6ec4653f-779a-4de5-b5b5-2354d721c6ee`). No Codex responses have been added.
+**Status: complete, but NOT a single-model experiment.** Repetition 1 (75
+answers) and 20 repetition-2 answers came from Claude Sonnet subagents in session
+`6ec4653f-779a-4de5-b5b5-2354d721c6ee`. Because Claude was unavailable, the other
+130 answers (55 repetition-2, 75 repetition-3) were written by Antigravity
+subagents running a non-Claude model, each told to read only its `prompt.md`.
+That isolation was by instruction only and was not technically enforced.
+
+Consequence: the variation table mixes model families across repetitions, so it
+measures model-to-model plus sampling difference, not sampling variance of one
+model. Do not cite it as repeatability of Claude Sonnet.
+
+## Three-repetition results (mixed-model; 13 entries, 3 repetitions)
+
+| Arm | Pooled invented | Pooled precision | Pooled recall |
+|---|---|---|---|
+| Naive | 4.3% (23/531) | 14.8% (30/203) | 83.3% (30/36) |
+| Grounded | 0.0% (0/217) | 21.2% (22/104) | 61.1% (22/36) |
+| Code Turtle | 0.0% (0/217) | 21.2% (22/104) | 61.1% (22/36) |
+
+- Grounding removed invented citations in every repetition (0/217), while the
+  naive arm's rate varied from 0.0% to 14.2% across repetitions.
+- Precision favoured grounded (~1.4x pooled), but the one-repetition ~2x gap
+  shrank.
+- **Recall favoured naive (83.3% vs 61.1%).** The earlier "equal recall" result
+  did not hold: restricting input to the semantic payload cost seeded-defect
+  recall here (e.g. hardcoded-secret and swallowed-exception: grounded found
+  almost nothing). This is the tradeoff the project set out to measure.
+- Guard (Code Turtle) vs Grounded: identical in all 39 rows; no additional effect.
+- The corpus is 13 project-authored seeded entries; labels are matcher-based.
 
 ## Saved progress
 
