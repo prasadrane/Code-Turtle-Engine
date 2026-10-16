@@ -11,6 +11,7 @@ public sealed class CouncilOptions
     // personas. The Turtle Shell guard always verifies against the FULL payload.
     public int MaxSymbolsPerMethod { get; set; } = 20;
     public int MaxAllocationsPerMethod { get; set; } = 10;
+    public int MaxRisksPerMethod { get; set; } = 10;
     public int MaxMethodsPerFile { get; set; } = 40;
     public int MaxFiles { get; set; } = 40;
     public int MaxFindingsPerPersona { get; set; } = 5;

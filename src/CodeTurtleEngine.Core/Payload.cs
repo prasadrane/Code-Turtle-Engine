@@ -5,7 +5,10 @@ public sealed record MethodFacts(
     IReadOnlyList<string> Allocations,
     string? AsyncHealth,
     IReadOnlyList<string> Dependencies,
-    IReadOnlyList<string> ResolvedSymbols);
+    IReadOnlyList<string> ResolvedSymbols,
+    int StartLine = 0,
+    int EndLine = 0,
+    IReadOnlyList<string>? Risks = null);
 
 public sealed record FileFacts(
     string FilePath,
