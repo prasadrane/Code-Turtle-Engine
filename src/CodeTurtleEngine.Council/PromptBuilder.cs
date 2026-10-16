@@ -77,6 +77,7 @@ public static class PromptBuilder
 
     private static string GroundingRules(int maxFindings) =>
         "You are given a minified JSON semantic payload extracted by Roslyn. " +
+        "Use StartLine/EndLine and line numbers annotated in Allocations, AsyncHealth, and Risks to report accurate File.cs:LINE locations. " +
         "Do NOT invent symbols. Every finding MUST cite symbol FQNs that appear in the payload's ResolvedSymbols. " +
         $"Return AT MOST {maxFindings} findings, highest severity first. " +
         "Return ONLY JSON matching the schema.";

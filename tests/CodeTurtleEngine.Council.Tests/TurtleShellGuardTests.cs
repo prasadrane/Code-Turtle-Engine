@@ -77,4 +77,37 @@ public class TurtleShellGuardTests
         Assert.Contains("Demo.A", allow);
         Assert.DoesNotContain("demo.a", allow);
     }
+
+    [Fact]
+    public void Verify_Accepts_Member_Citations_And_Oracle_Fallback()
+    {
+        var payload = PayloadWith("SampleRepo.IPaymentGateway.ChargeAsync");
+        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip });
+        var findings = new[]
+        {
+            Finding("Exact member", "SampleRepo.IPaymentGateway.ChargeAsync"),
+            Finding("Parent type of member", "SampleRepo.IPaymentGateway"),
+            Finding("Oracle verified type", "System.Threading.Tasks.Task")
+        };
+
+        var outcome = guard.Verify(findings, payload, cite => cite == "System.Threading.Tasks.Task");
+
+        Assert.Equal(3, outcome.KeptFindings.Count);
+        Assert.All(outcome.Audit, a => Assert.True(a.Verified));
+    }
+
+    [Fact]
+    public void Strip_Drops_Uncited_Finding_When_RequireCitationsInStripMode_Is_True()
+    {
+        var findings = new[] { Finding("Uncited advisory") };
+        var guard = new TurtleShellGuard(new CouncilOptions
+        {
+            Guard = GuardMode.Strip,
+            RequireCitationsInStripMode = true
+        });
+
+        var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
+
+        Assert.Empty(outcome.KeptFindings);
+    }
 }

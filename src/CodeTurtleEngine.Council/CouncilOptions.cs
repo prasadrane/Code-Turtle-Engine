@@ -6,6 +6,7 @@ public sealed class CouncilOptions
 {
     public int Quorum { get; set; } = 2;
     public GuardMode Guard { get; set; } = GuardMode.Strip;
+    public bool RequireCitationsInStripMode { get; set; } = false;
 
     // Prompt-payload trim caps: applied ONLY to the payload projection sent to the
     // personas. The Turtle Shell guard always verifies against the FULL payload.

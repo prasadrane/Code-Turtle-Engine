@@ -182,7 +182,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     {
                         personasSucceeded = verdicts.Count,
                         findingsKept = guarded.KeptFindings.Count,
-                        findingsStripped = stripped
+                        findingsStripped = merged.Count - guarded.KeptFindings.Count
                     };
                     await writer.WriteAsync(SseEvent.Completed(markdown, finalVerdict, stats), ct).ConfigureAwait(false);
 
