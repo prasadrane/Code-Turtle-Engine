@@ -68,4 +68,54 @@ public class SemanticAnalyzerTests(SampleRepoCompilationFixture fx) : IClassFixt
         Assert.Contains(facts, f => f.Method == "Value" && f.StartLine == 9 && f.EndLine == 9);
         Assert.Contains(facts, f => f.Method == "Execute" && f.StartLine == 10 && f.EndLine == 13);
     }
+
+    [Fact]
+    public void Does_Not_Flag_Pure_Linq_Lambda_As_Closure_Capture()
+    {
+        const string src = """
+        using System.Collections.Generic;
+        using System.Linq;
+        namespace Demo;
+        public class Pure
+        {
+            public int CountPositive(IEnumerable<int> items)
+            {
+                return items.Where(x => x > 0).Count();
+            }
+        }
+        """;
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(src, path: "Pure.cs");
+        var refs = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
+            .Select(a => MetadataReference.CreateFromFile(a.Location))
+            .ToList();
+        var comp = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Demo", new[] { tree }, refs);
+
+        var facts = new SemanticAnalyzer(comp).AnalyzeTree(tree);
+        var m = facts.First(f => f.Method == "CountPositive");
+
+        Assert.Empty(m.Allocations);
+    }
+
+    [Fact]
+    public void ResolvedSymbols_Includes_Constructor_Fqn_With_Class_Name()
+    {
+        const string src = """
+        namespace Demo;
+        public class Sample
+        {
+            public Sample() { }
+        }
+        """;
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(src, path: "Sample.cs");
+        var mscorlib = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
+        var comp = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Demo", new[] { tree }, new[] { mscorlib });
+
+        var facts = new SemanticAnalyzer(comp).AnalyzeTree(tree);
+        var m = facts.First(f => f.Method == "Sample");
+
+        Assert.Contains("Demo.Sample.Sample", m.ResolvedSymbols);
+    }
 }
+
+

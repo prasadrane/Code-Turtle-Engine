@@ -34,16 +34,25 @@ public static class RiskDetector
     {
         foreach (var stmt in member.DescendantNodes().OfType<ExpressionStatementSyntax>())
         {
-            if (stmt.Expression is AwaitExpressionSyntax or AssignmentExpressionSyntax) continue;
-            var type = model.GetTypeInfo(stmt.Expression).Type;
-            if (type is null && stmt.Expression is InvocationExpressionSyntax inv)
+            if (stmt.Expression is AwaitExpressionSyntax) continue;
+            var exprToCheck = stmt.Expression;
+            if (stmt.Expression is AssignmentExpressionSyntax assign)
+            {
+                if (assign.Left is IdentifierNameSyntax { Identifier.Text: "_" })
+                    exprToCheck = assign.Right;
+                else
+                    continue;
+            }
+
+            var type = model.GetTypeInfo(exprToCheck).Type;
+            if (type is null && exprToCheck is InvocationExpressionSyntax inv)
                 type = (model.GetSymbolInfo(inv).Symbol as IMethodSymbol)?.ReturnType;
 
             if (IsTaskType(type))
             {
-                var symbolName = (stmt.Expression is InvocationExpressionSyntax i && model.GetSymbolInfo(i).Symbol is IMethodSymbol ms)
+                var symbolName = (exprToCheck is InvocationExpressionSyntax i && model.GetSymbolInfo(i).Symbol is IMethodSymbol ms)
                     ? (ms.ContainingType is not null ? $"{ms.ContainingType.Name}.{ms.Name}" : ms.Name)
-                    : stmt.Expression.ToString();
+                    : exprToCheck.ToString();
                 var line = stmt.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
                 addRisk($"Unawaited Task (fire-and-forget) on {symbolName} (Line {line})");
             }
@@ -104,29 +113,15 @@ public static class RiskDetector
         if (classDecl is not null)
         {
             foreach (var field in classDecl.Members.OfType<FieldDeclarationSyntax>())
-            {
                 foreach (var v in field.Declaration.Variables)
-                {
                     if (IsSecretName(v.Identifier.Text) && HasStringLiteral(v.Initializer?.Value))
-                    {
-                        var line = v.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-                        addRisk($"Hardcoded secret/credential in '{v.Identifier.Text}' (Line {line})");
-                    }
-                }
-            }
+                        addRisk($"Hardcoded secret/credential in '{v.Identifier.Text}' (Line {v.GetLocation().GetLineSpan().StartLinePosition.Line + 1})");
         }
 
         foreach (var local in member.DescendantNodes().OfType<LocalDeclarationStatementSyntax>())
-        {
             foreach (var v in local.Declaration.Variables)
-            {
                 if (IsSecretName(v.Identifier.Text) && HasStringLiteral(v.Initializer?.Value))
-                {
-                    var line = v.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-                    addRisk($"Hardcoded secret/credential in '{v.Identifier.Text}' (Line {line})");
-                }
-            }
-        }
+                    addRisk($"Hardcoded secret/credential in '{v.Identifier.Text}' (Line {v.GetLocation().GetLineSpan().StartLinePosition.Line + 1})");
     }
 
     private static bool IsSecretName(string name) =>
@@ -179,7 +174,9 @@ public static class RiskDetector
     }
 
     private static bool IsSqlName(string text) =>
-        text.Contains("sql", StringComparison.OrdinalIgnoreCase) || text.Contains("query", StringComparison.OrdinalIgnoreCase);
+        text.Contains("sql", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("query", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("commandtext", StringComparison.OrdinalIgnoreCase);
 
     private static void DetectPathTraversal(SyntaxNode member, SemanticModel model, Action<string> addRisk)
     {
@@ -189,11 +186,14 @@ public static class RiskDetector
 
             foreach (var arg in inv.ArgumentList.Arguments)
             {
-                var sym = model.GetSymbolInfo(arg.Expression).Symbol;
-                if (sym is IParameterSymbol param)
+                var param = arg.Expression.DescendantNodesAndSelf()
+                    .Select(n => model.GetSymbolInfo(n).Symbol).OfType<IParameterSymbol>().FirstOrDefault();
+                if (param is not null)
                 {
                     var hasCheck = member.DescendantNodes().OfType<InvocationExpressionSyntax>()
-                        .Any(i => i.Expression.ToString().Contains("GetFullPath") || i.Expression.ToString().Contains("StartsWith"));
+                        .Any(i => i.Expression.ToString().Contains("GetFullPath")
+                               || i.Expression.ToString().Contains("StartsWith")
+                               || i.Expression.ToString().Contains("GetFileName"));
                     if (!hasCheck)
                     {
                         var line = inv.GetLocation().GetLineSpan().StartLinePosition.Line + 1;

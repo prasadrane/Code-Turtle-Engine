@@ -93,4 +93,66 @@ public class RiskDetectorTests
         Assert.Contains("Demo.Hazard.Run", m.ResolvedSymbols);
         Assert.Contains("Demo.ReportSvc", m.ResolvedSymbols);
     }
+
+    [Fact]
+    public void Detects_PathTraversal_When_Parameter_Is_Transformed_Or_Interpolated()
+    {
+        const string code = """
+        using System.IO;
+        namespace Demo;
+        public class PathHazard
+        {
+            private readonly string _root;
+            public PathHazard(string root) => _root = root;
+            public void Export(string fileName)
+            {
+                var full = Path.Combine(_root, fileName.Trim());
+                File.WriteAllText(full, "data");
+            }
+        }
+        """;
+        var m = Analyze(code).First(f => f.Method == "Export");
+        Assert.NotNull(m.Risks);
+        Assert.Contains(m.Risks!, r => r.Contains("Path.Combine") && r.Contains("fileName"));
+    }
+
+    [Fact]
+    public void Detects_Unawaited_Task_When_Discarded_With_Underscore()
+    {
+        const string code = """
+        using System.Threading.Tasks;
+        namespace Demo;
+        public class FireDiscard
+        {
+            public void Send()
+            {
+                _ = DoWorkAsync();
+            }
+            private Task DoWorkAsync() => Task.CompletedTask;
+        }
+        """;
+        var m = Analyze(code).First(f => f.Method == "Send");
+        Assert.NotNull(m.Risks);
+        Assert.Contains(m.Risks!, r => r.Contains("Unawaited Task"));
+    }
+
+    [Fact]
+    public void Detects_SqlInjection_When_Assigned_To_CommandText()
+    {
+        const string code = """
+        namespace Demo;
+        public class DbHazard
+        {
+            public void Exec(string input)
+            {
+                var cmd = new FakeCmd();
+                cmd.CommandText = "SELECT * FROM Users WHERE Name = '" + input + "'";
+            }
+        }
+        public class FakeCmd { public string CommandText { get; set; } = ""; }
+        """;
+        var m = Analyze(code).First(f => f.Method == "Exec");
+        Assert.NotNull(m.Risks);
+        Assert.Contains(m.Risks!, r => r.Contains("Dynamic SQL"));
+    }
 }

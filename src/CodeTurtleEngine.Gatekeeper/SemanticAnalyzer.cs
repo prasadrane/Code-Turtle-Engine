@@ -88,9 +88,23 @@ public sealed class SemanticAnalyzer
         }
     }
 
-    private static bool CapturesLocal(LambdaExpressionSyntax lambda, SemanticModel model) =>
-        lambda.DescendantNodes().OfType<IdentifierNameSyntax>()
-            .Any(id => model.GetSymbolInfo(id).Symbol is ILocalSymbol or IParameterSymbol or IFieldSymbol);
+    private static bool CapturesLocal(LambdaExpressionSyntax lambda, SemanticModel model)
+    {
+        foreach (var id in lambda.DescendantNodes().OfType<IdentifierNameSyntax>())
+        {
+            var sym = model.GetSymbolInfo(id).Symbol;
+            if (sym is ILocalSymbol or IParameterSymbol)
+            {
+                var isDeclaredInside = sym.DeclaringSyntaxReferences.Any(r => lambda.Span.Contains(r.Span));
+                if (!isDeclaredInside) return true;
+            }
+            else if (sym is IFieldSymbol field && !field.IsStatic && !field.IsConst)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private static IReadOnlyList<string> ResolvedSymbols(SyntaxNode member, SemanticModel model)
     {
@@ -101,14 +115,18 @@ public sealed class SemanticAnalyzer
         {
             symbols.Add(type.ToDisplayString());
             if (declaredSym is not null)
+            {
                 symbols.Add($"{type.ToDisplayString()}.{declaredSym.Name}");
+                if (declaredSym is IMethodSymbol { MethodKind: MethodKind.Constructor })
+                    symbols.Add($"{type.ToDisplayString()}.{type.Name}");
+            }
 
             foreach (var ctor in type.Constructors)
                 foreach (var p in ctor.Parameters)
-                    if (p.Type is not null) symbols.Add(p.Type.ToDisplayString());
+                    AddTypeAndArgs(symbols, p.Type);
 
             foreach (var field in type.GetMembers().OfType<IFieldSymbol>())
-                if (field.Type is not null) symbols.Add(field.Type.ToDisplayString());
+                AddTypeAndArgs(symbols, field.Type);
         }
 
         foreach (var inv in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
@@ -138,5 +156,13 @@ public sealed class SemanticAnalyzer
         return symbols.Where(s => !string.IsNullOrWhiteSpace(s))
             .OrderBy(s => s, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static void AddTypeAndArgs(HashSet<string> set, ITypeSymbol? type)
+    {
+        if (type is null) return;
+        set.Add(type.ToDisplayString());
+        if (type is INamedTypeSymbol nts && nts.IsGenericType)
+            foreach (var ta in nts.TypeArguments) set.Add(ta.ToDisplayString());
     }
 }

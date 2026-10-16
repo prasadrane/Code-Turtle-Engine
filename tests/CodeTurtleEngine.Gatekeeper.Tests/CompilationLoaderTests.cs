@@ -25,4 +25,16 @@ public class CompilationLoaderTests
         Assert.Contains(treePaths, p => p.EndsWith("ServiceA.cs"));
         Assert.Contains(treePaths, p => p.EndsWith("ServiceB.cs"));
     }
+
+    [Fact]
+    public async Task Loads_MultiProject_Sln_Deduplicates_Metadata_References()
+    {
+        var loader = new MsBuildCompilationLoader();
+        var loaded = await loader.LoadAsync(TestPaths.MultiProjectSln);
+
+        var refDisplays = loaded.Compilation.References.Select(r => r.Display).Where(d => !string.IsNullOrEmpty(d)).ToList();
+        var duplicates = refDisplays.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        Assert.Empty(duplicates);
+    }
 }
+
