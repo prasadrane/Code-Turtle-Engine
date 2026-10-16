@@ -1,3 +1,5 @@
 bench-out/
+bench-v2/
+recorded-prompts-v2/
 seeded/**/bin/
 seeded/**/obj/
