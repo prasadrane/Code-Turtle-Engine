@@ -19,6 +19,7 @@ public class BenchRunnerTests : IDisposable
                 public Outer(Dep d) { _d = d; }
                 public void Run() { _d.Go(); }
             }
+            public class Other { }
         }
         """;
 
@@ -70,7 +71,7 @@ public class BenchRunnerTests : IDisposable
         var selected = new List<int>();
         var runner = new BenchRunner(
             mode => Pipeline(mode, new ScriptedPersonas(() => mode == PromptMode.Naive
-                ? Cites("Demo.Outer", "Demo.Ghost")
+                ? Cites("Demo.Other", "Demo.Ghost")
                 : Cites("Demo.Dep", "Demo.Ghost"))),
             new FakeLoader(_compilation),
             (_, _) => Prepared(new[] { new ExpectedDefect("A.cs", 8, "SqlInjection") }),
@@ -81,7 +82,7 @@ public class BenchRunnerTests : IDisposable
         Assert.Equal(6, r.Rows.Count); // 2 reps x 3 arms
         Assert.Equal(new[] { 1, 2 }, selected);
         var naive = r.Rows.First(x => x.Arm == BenchArm.Naive).Score!;
-        Assert.Equal(2, naive.Unverified); // neither Demo.Outer nor Demo.Ghost is in the allow-list
+        Assert.Equal(2, naive.Unverified); // neither Demo.Other nor Demo.Ghost is in the allow-list
         Assert.Equal(1, naive.Invented);   // only Demo.Ghost does not exist
         var grounded = r.Rows.First(x => x.Arm == BenchArm.Grounded).Score!;
         Assert.Equal(1, grounded.Invented);
