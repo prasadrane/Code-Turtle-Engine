@@ -18,29 +18,29 @@ public sealed class SemanticAnalyzer
         walker.Visit(tree.GetRoot());
 
         var facts = new List<MethodFacts>();
-        foreach (var method in walker.Methods)
+        foreach (var member in walker.Members)
         {
-            var dependencies = ConstructorDependencies(method, model);
-            var allocations = DetectBoxing(method, model).Concat(DetectLinqClosures(method, model)).ToList();
-            var asyncHealth = DetectAsyncHealth(method, model);
-            var resolved = ResolvedSymbols(method, model);
-            facts.Add(new MethodFacts(method.Identifier.Text, allocations, asyncHealth, dependencies, resolved));
+            var dependencies = ConstructorDependencies(member.Node, model);
+            var allocations = DetectBoxing(member.Node, model).Concat(DetectLinqClosures(member.Node, model)).ToList();
+            var asyncHealth = DetectAsyncHealth(member.Node, model);
+            var resolved = ResolvedSymbols(member.Node, model);
+            facts.Add(new MethodFacts(member.Name, allocations, asyncHealth, dependencies, resolved, member.StartLine, member.EndLine));
         }
         return facts;
     }
 
-    private static IReadOnlyList<string> ConstructorDependencies(MethodDeclarationSyntax method, SemanticModel model)
+    private static IReadOnlyList<string> ConstructorDependencies(SyntaxNode member, SemanticModel model)
     {
-        var type = model.GetDeclaredSymbol(method)?.ContainingType;
+        var type = model.GetDeclaredSymbol(member)?.ContainingType;
         return type is null
             ? Array.Empty<string>()
             : type.Constructors.SelectMany(c => c.Parameters).Select(p => p.Type.Name).Distinct().ToList();
     }
 
-    private string? DetectAsyncHealth(MethodDeclarationSyntax method, SemanticModel model)
+    private string? DetectAsyncHealth(SyntaxNode member, SemanticModel model)
     {
-        if (!method.Modifiers.Any(SyntaxKind.AsyncKeyword)) return null;
-        foreach (var awaitExpr in method.DescendantNodes().OfType<AwaitExpressionSyntax>())
+        if (member is MethodDeclarationSyntax m && !m.Modifiers.Any(SyntaxKind.AsyncKeyword)) return null;
+        foreach (var awaitExpr in member.DescendantNodes().OfType<AwaitExpressionSyntax>())
         {
             if (awaitExpr.Expression is InvocationExpressionSyntax inv
                 && inv.Expression is MemberAccessExpressionSyntax ma
@@ -53,11 +53,11 @@ public sealed class SemanticAnalyzer
         return null;
     }
 
-    private IEnumerable<string> DetectBoxing(MethodDeclarationSyntax method, SemanticModel model)
+    private IEnumerable<string> DetectBoxing(SyntaxNode member, SemanticModel model)
     {
         var objectType = _compilation.GetSpecialType(SpecialType.System_Object);
         var seen = new HashSet<int>();
-        foreach (var expr in method.DescendantNodes().OfType<ExpressionSyntax>())
+        foreach (var expr in member.DescendantNodes().OfType<ExpressionSyntax>())
         {
             var info = model.GetTypeInfo(expr);
             if (info.Type is { IsValueType: true }
@@ -69,9 +69,9 @@ public sealed class SemanticAnalyzer
         }
     }
 
-    private static IEnumerable<string> DetectLinqClosures(MethodDeclarationSyntax method, SemanticModel model)
+    private static IEnumerable<string> DetectLinqClosures(SyntaxNode member, SemanticModel model)
     {
-        foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        foreach (var inv in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
             if (model.GetSymbolInfo(inv).Symbol is not IMethodSymbol sym) continue;
             if (sym.ContainingNamespace?.ToDisplayString() != "System.Linq") continue;
@@ -89,16 +89,16 @@ public sealed class SemanticAnalyzer
         lambda.DescendantNodes().OfType<IdentifierNameSyntax>()
             .Any(id => model.GetSymbolInfo(id).Symbol is ILocalSymbol);
 
-    private static IReadOnlyList<string> ResolvedSymbols(MethodDeclarationSyntax method, SemanticModel model)
+    private static IReadOnlyList<string> ResolvedSymbols(SyntaxNode member, SemanticModel model)
     {
         var symbols = new HashSet<string>(StringComparer.Ordinal);
-        var type = model.GetDeclaredSymbol(method)?.ContainingType;
+        var type = model.GetDeclaredSymbol(member)?.ContainingType;
         if (type is not null)
             foreach (var ctor in type.Constructors)
                 foreach (var p in ctor.Parameters)
                     if (p.Type is not null) symbols.Add(p.Type.ToDisplayString());
 
-        foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        foreach (var inv in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
             if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol m && m.ContainingType is not null)
                 symbols.Add(m.ContainingType.ToDisplayString());
 

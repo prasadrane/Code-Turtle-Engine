@@ -38,4 +38,34 @@ public class SemanticAnalyzerTests(SampleRepoCompilationFixture fx) : IClassFixt
         Assert.Contains(m.Allocations, a => a.Contains("Boxing"));
         Assert.Contains(m.Allocations, a => a.Contains("LINQ Closure"));
     }
+
+    [Fact]
+    public void Records_StartLine_And_EndLine_And_Walks_Constructors_And_Properties()
+    {
+        const string src = """
+        namespace Demo;
+        public class Sample
+        {
+            private readonly string _s;
+            public Sample(string s)
+            {
+                _s = s;
+            }
+            public string Value => _s.Trim();
+            public void Execute()
+            {
+                _ = _s.Length;
+            }
+        }
+        """;
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(src, path: "Sample.cs");
+        var mscorlib = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
+        var comp = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Demo", new[] { tree }, new[] { mscorlib });
+
+        var facts = new SemanticAnalyzer(comp).AnalyzeTree(tree);
+
+        Assert.Contains(facts, f => f.Method == "Sample" && f.StartLine == 5 && f.EndLine == 8);
+        Assert.Contains(facts, f => f.Method == "Value" && f.StartLine == 9 && f.EndLine == 9);
+        Assert.Contains(facts, f => f.Method == "Execute" && f.StartLine == 10 && f.EndLine == 13);
+    }
 }
