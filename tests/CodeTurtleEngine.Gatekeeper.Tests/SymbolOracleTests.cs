@@ -44,6 +44,8 @@ public class SymbolOracleTests
     [InlineData("Demo.Outer.GetHashCode")]
     [InlineData("Demo.Outer.ToString")]
     [InlineData("Demo.Outer.Outer")]
+    [InlineData("Demo.Outer..ctor")]
+    [InlineData("Demo.Outer.ctor")]
     [InlineData("System.Collections.Generic.List<string>.List")]
     public void Existing_Symbols_In_Any_Common_Display_Format_Exist(string fqn) =>
         Assert.True(Oracle.Exists(fqn), fqn);

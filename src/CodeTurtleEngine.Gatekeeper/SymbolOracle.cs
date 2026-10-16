@@ -34,6 +34,17 @@ public sealed class SymbolOracle
         if (name.Length == 0) return false;
         if (ResolveType(name) is not null) return true;
 
+        if (name.EndsWith("..ctor", StringComparison.Ordinal))
+        {
+            var t = ResolveType(name[..^"..ctor".Length]);
+            if (t is not null && t.Constructors.Length > 0) return true;
+        }
+        else if (name.EndsWith(".ctor", StringComparison.Ordinal))
+        {
+            var t = ResolveType(name[..^".ctor".Length]);
+            if (t is not null && t.Constructors.Length > 0) return true;
+        }
+
         var dot = LastTopLevelDot(name);
         if (dot <= 0) return false;
         var type = ResolveType(name[..dot]);
