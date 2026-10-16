@@ -94,24 +94,19 @@ bench.SetAction(async (parseResult, ct) =>
             preparer.PrepareAsync, Console.Error, beginRepetition: replayer is null ? null : replayer.SelectRepetition);
         var routes = offlineChat is null
             ? llm.Routes.Select(r => $"{r.Name}:{r.Model}").ToList()
-            : new List<string> { recordDir is not null ? "record-prompts" : $"replay:{Path.GetFileName(Path.GetFullPath(replayDir!))}" };
+            : new List<string> { recordDir is not null ? "record-prompts" : replayer!.DescribeRoute() };
         var results = await runner.RunAsync(corpus, repeat, routes, ct).ConfigureAwait(false);
 
         if (recorder is not null)
         {
             Console.Error.WriteLine($"Recorded {recorder.PromptCount} unique prompts under {Path.GetFullPath(recordDir!)}");
-            return results.Skipped.Count == 0 && results.Rows.All(r => r.Error is null && !r.Degraded) ? 0 : 1;
+            return results.IsComplete ? 0 : 1;
         }
 
         var (json, md) = BenchReport.Write(results, outDir);
         Console.Out.WriteLine(File.ReadAllText(md));
         Console.Error.WriteLine($"Results: {json}");
-        if (replayer is not null && (results.Skipped.Count > 0 || results.Rows.Any(r => r.Error is not null || r.Degraded)))
-        {
-            Console.Error.WriteLine("Replay is incomplete; see error/degraded rows and skipped entries. Supply independent answers for every requested repetition.");
-            return 1;
-        }
-        return 0;
+        return results.EvaluateExitCode(replayer is not null, Console.Error);
     }
     catch (BenchException ex)
     {

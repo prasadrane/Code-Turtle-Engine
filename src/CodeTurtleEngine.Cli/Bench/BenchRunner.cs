@@ -18,7 +18,20 @@ public sealed record SkippedEntry(string EntryId, string Reason);
 
 public sealed record BenchMetadata(DateTimeOffset StartedUtc, int Repeat, IReadOnlyList<string> Routes, IReadOnlyDictionary<string, string> EntryHeads);
 
-public sealed record BenchResults(BenchMetadata Metadata, IReadOnlyList<BenchRow> Rows, IReadOnlyList<SkippedEntry> Skipped);
+public sealed record BenchResults(BenchMetadata Metadata, IReadOnlyList<BenchRow> Rows, IReadOnlyList<SkippedEntry> Skipped)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsComplete => Skipped.Count == 0 && Rows.Count > 0 && Rows.All(r => r.Error is null && !r.Degraded);
+
+    public int EvaluateExitCode(bool isReplay, TextWriter err)
+    {
+        if (IsComplete) return 0;
+        err.WriteLine(isReplay
+            ? "Replay is incomplete; see error/degraded rows and skipped entries. Supply independent answers for every requested repetition."
+            : "Benchmark run is incomplete; see error/degraded rows and skipped entries.");
+        return 1;
+    }
+}
 
 public sealed class BenchRunner
 {

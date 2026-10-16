@@ -28,8 +28,8 @@ public static class BenchReport
         sb.AppendLine();
         sb.AppendLine("## Summary by arm");
         sb.AppendLine();
-        sb.AppendLine("| Arm | Runs | Errors | Degraded | Citations | Invented rate (mean, min–max) | Pooled invented rate | Unverified rate (mean) | Findings w/ invented | Precision (mean) | Recall (mean) | Median latency |");
-        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
+        sb.AppendLine("| Arm | Runs | Errors | Degraded | Citations | Invented rate (mean, min–max) | Pooled invented rate | Unverified rate (mean) | Findings w/ invented | Pooled precision | Precision (mean) | Pooled recall | Recall (mean) | Median latency |");
+        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
         foreach (var arm in Enum.GetValues<BenchArm>())
         {
             var rows = r.Rows.Where(x => x.Arm == arm).ToList();
@@ -37,14 +37,26 @@ public static class BenchReport
             var scored = rows.Where(x => x.Score is not null).Select(x => x.Score!).ToList();
             var invented = scored.Where(s => s.InventedRate is not null).Select(s => s.InventedRate!.Value).ToList();
             var totalCites = scored.Sum(s => s.Citations);
-            double? pooled = totalCites == 0 ? null : (double)scored.Sum(s => s.Invented) / totalCites;
+            var totalInvented = scored.Sum(s => s.Invented);
+            var pooledInv = totalCites == 0 ? "n/a" : $"{Pct((double)totalInvented / totalCites)} ({totalInvented}/{totalCites})";
+            var labeled = scored.Where(s => s.Matched is not null).ToList();
+            var totalMatched = labeled.Sum(s => s.Matched!.Value);
+            var totalFindings = labeled.Sum(s => s.Findings);
+            var pooledPrec = totalFindings == 0 ? "n/a" : $"{Pct((double)totalMatched / totalFindings)} ({totalMatched}/{totalFindings})";
+            var precisions = scored.Where(s => s.Precision is not null).Select(s => s.Precision!.Value).ToList();
+            var meanPrec = precisions.Count == 0 ? "n/a" : $"{Pct(Mean(precisions))} ({precisions.Count}/{scored.Count})";
+            var withExpected = scored.Where(s => s.Matched is not null && s.ExpectedCount is > 0).ToList();
+            var totalExpMatched = withExpected.Sum(s => s.Matched!.Value);
+            var totalExpected = withExpected.Sum(s => s.ExpectedCount!.Value);
+            var pooledRec = totalExpected == 0 ? "n/a" : $"{Pct((double)totalExpMatched / totalExpected)} ({totalExpMatched}/{totalExpected})";
+            var recalls = scored.Where(s => s.Recall is not null).Select(s => s.Recall!.Value).ToList();
+            var meanRec = recalls.Count == 0 ? "n/a" : $"{Pct(Mean(recalls))} ({recalls.Count}/{scored.Count})";
             sb.AppendLine(Inv,
-                $"| {arm} | {rows.Count} | {rows.Count(x => x.Error is not null)} | {rows.Count(x => x.Degraded)} | {scored.Sum(s => s.Citations)} | " +
+                $"| {arm} | {rows.Count} | {rows.Count(x => x.Error is not null)} | {rows.Count(x => x.Degraded)} | {totalCites} | " +
                 $"{Pct(Mean(invented))} ({(invented.Count == 0 ? "n/a" : Pct(invented.Min()))}–{(invented.Count == 0 ? "n/a" : Pct(invented.Max()))}) | " +
-                $"{Pct(pooled)} | " +
+                $"{pooledInv} | " +
                 $"{Pct(Mean(scored.Where(s => s.UnverifiedRate is not null).Select(s => s.UnverifiedRate!.Value)))} | {scored.Sum(s => s.FindingsWithInvented)} | " +
-                $"{Pct(Mean(scored.Where(s => s.Precision is not null).Select(s => s.Precision!.Value)))} | " +
-                $"{Pct(Mean(scored.Where(s => s.Recall is not null).Select(s => s.Recall!.Value)))} | " +
+                $"{pooledPrec} | {meanPrec} | {pooledRec} | {meanRec} | " +
                 $"{(replay ? "n/a (replay)" : Median(rows.Where(x => x.Error is null).Select(x => x.ElapsedMs)) + " ms")} |");
         }
 

@@ -19,6 +19,7 @@ public static class Composition
 
         var llm = config.GetSection(LlmOptions.SectionName).Get<LlmOptions>() ?? new LlmOptions();
         var turtle = config.GetSection(TurtleOptions.SectionName).Get<TurtleOptions>() ?? new TurtleOptions();
+        turtle.Council.PromptMode = Core.PromptMode.Grounded;
         configure?.Invoke(turtle);
         home ??= Environment.GetEnvironmentVariable("TURTLE_HOME")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".turtle");

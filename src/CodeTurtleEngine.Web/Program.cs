@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Configuration
 var llmOptions = builder.Configuration.GetSection(LlmOptions.SectionName).Get<LlmOptions>() ?? new LlmOptions();
 var turtleOptions = builder.Configuration.GetSection(TurtleOptions.SectionName).Get<TurtleOptions>() ?? new TurtleOptions();
+turtleOptions.Council.PromptMode = CodeTurtleEngine.Core.PromptMode.Grounded;
 
 // CORS
 builder.Services.AddCors(options =>

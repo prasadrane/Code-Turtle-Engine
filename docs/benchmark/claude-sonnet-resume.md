@@ -14,11 +14,15 @@ answers, and first-run report. It contains:
 - 75 first-repetition answers, 20 second-repetition answers, no third-repetition
   answers: 95 saved answers and 130 still needed for three repetitions.
 - `inventory.json`: prompt SHA-256 hashes and available/missing repetitions.
+- `prompts/provenance.json`: model, harness, session provenance (`reconstructed-from-session`), and SHA-256 hashes for every saved prompt and answer, verified automatically during replay.
 - `replay-out/`: the original report and machine-readable results.
 - `verified-replay/`: first-repetition results regenerated with strict replay.
 
 The response files parsed successfully as JSON with a Findings array when this
-checkpoint was created. The answers and inventory remain local; this document
+checkpoint was created. Existing answers' provenance is labeled as reconstructed
+from Claude's session transcript (`6ec4653f-779a-4de5-b5b5-2354d721c6ee`);
+retroactive metadata verifies file integrity but cannot independently prove
+sampling independence. The answers and inventory remain local; this document
 does not make the checkpoint available in a fresh clone. Back up the checkpoint
 directory along with the working repository.
 
@@ -26,14 +30,17 @@ The strict first-repetition replay completed with 13 entries, 39 arm rows, no
 errors, no degraded councils, and no skipped entries. Its preliminary results
 match the original report:
 
-| Arm | Pooled invented citation rate | Mean precision | Mean recall |
-|---|---|---|---|
-| Naive | 14.2% | 12.9% | 66.7% |
-| Grounded | 0.0% | 31.5% | 66.7% |
-| Code Turtle | 0.0% | 31.5% | 66.7% |
+| Arm | Pooled invented citation rate | Pooled precision | Mean precision (defined entries) | Pooled recall | Mean recall (defined entries) |
+|---|---|---|---|---|---|
+| Naive | 14.2% (18/127) | 12.9% (8/62) | 12.9% (13/13) | 66.7% (8/12) | 66.7% (12/13) |
+| Grounded | 0.0% (0/53) | 25.8% (8/31) | 31.5% (9/13) | 66.7% (8/12) | 66.7% (12/13) |
+| Code Turtle | 0.0% (0/53) | 25.8% (8/31) | 31.5% (9/13) | 66.7% (8/12) | 66.7% (12/13) |
 
-These are one-repetition results. Sample variance remains n/a. The tooling's
-offline suite passed all 264 tests after the replay and variance fixes.
+Under the deterministic label matcher, Grounded and Code Turtle matched 8 of 31
+findings (**25.8% pooled precision**, ~2.0× Naive's **12.9% (8/62)**). Mean
+precision (**31.5%**) averages only the 9 of 13 entries where Grounded produced
+at least one finding. These are one-repetition results; sample variance remains
+n/a.
 
 ## Resume with Claude
 
@@ -41,8 +48,9 @@ For each missing answer in `inventory.json`, start an independent Claude Sonnet
 review that receives only that key's `prompt.md`. Follow its persona, input, and
 output schema. Do not expose other answers, labels, scoring results, or repository
 files. Save only the response JSON as `<repetition>.json` beside the prompt.
-Keep the model and harness consistent with the original run and record their
-identity. Do not overwrite existing answers or copy a prior answer to fill a gap.
+Keep the model and harness consistent with the original run and update
+`prompts/provenance.json` with the new answer SHA-256 hashes. Do not overwrite
+existing answers or copy a prior answer to fill a gap.
 
 Once all three answers exist for every key, run from the repository root:
 
@@ -54,16 +62,17 @@ dotnet run --project src/CodeTurtleEngine.Cli -- bench `
   --work bench/bench-out/claude-sonnet-checkpoint/work
 ```
 
-Replay uses the explicit benchmark repetition number, so byte-identical prompts
+Replay requires an explicit benchmark repetition number, so byte-identical prompts
 across entries share the same repetition's answer. Missing responses fail rather
-than cycle. Incomplete replay returns a nonzero exit code and retains diagnostics
-in the report. A degraded council excludes that entire arm/repetition from the
-variation calculation.
+than cycle. Both live and replay runs return a nonzero exit code when any entry
+is skipped or any row errors or degrades, while still writing the report.
 
-The variance table compares complete repetitions of the same prepared corpus,
-using sample variance (n−1), rather than treating differences between seeded
-entries as model variance. Fewer than two complete repetitions gives n/a variance.
-Replay timings measure local processing and do not measure model inference.
+The variance table includes only repetitions that are complete across all three
+arms and all prepared entries, separating complete repetition counts from
+non-null defined metric samples. It reports both pooled and mean metrics using
+sample variance (n−1) rather than treating differences between seeded entries as
+model variance. Fewer than two defined samples gives n/a variance. Replay timings
+measure local processing and do not measure model inference.
 
 ## Export new prompts
 

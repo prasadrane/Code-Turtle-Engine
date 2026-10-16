@@ -56,6 +56,12 @@ public sealed class RecordingChat : IStructuredChatClient
     }
 }
 
+public sealed record AnswerProvenance(int Repetition, string AnswerSha256);
+
+public sealed record PromptProvenance(string Key, string? PromptSha256, IReadOnlyList<AnswerProvenance>? Answers);
+
+public sealed record ReplayProvenance(string Model, string Harness, string Provenance, IReadOnlyList<PromptProvenance>? Prompts = null);
+
 /// <summary>Serves independently recorded answers. Missing repetitions fail rather than recycling samples.</summary>
 public sealed class ReplayChat : IStructuredChatClient
 {
@@ -65,31 +71,70 @@ public sealed class ReplayChat : IStructuredChatClient
     };
 
     private readonly string _dir;
-    private readonly Dictionary<string, int> _served = new(StringComparer.Ordinal);
-    private int? _repetition;
+    private readonly ReplayProvenance? _provenance;
+    private readonly Dictionary<(string Key, int Repetition), string> _answerHashes = new();
+    private readonly Dictionary<string, string> _promptHashes = new(StringComparer.Ordinal);
+    private int _repetition;
 
-    public ReplayChat(string dir) => _dir = dir;
+    public ReplayChat(string dir)
+    {
+        _dir = dir;
+        var provPath = Path.Combine(dir, "provenance.json");
+        if (!File.Exists(provPath)) return;
+        _provenance = JsonSerializer.Deserialize<ReplayProvenance>(File.ReadAllText(provPath), ReadOptions)
+            ?? throw new BenchException($"Provenance manifest '{provPath}' is empty.");
+        foreach (var p in _provenance.Prompts ?? Array.Empty<PromptProvenance>())
+        {
+            if (!string.IsNullOrWhiteSpace(p.PromptSha256)) _promptHashes[p.Key] = p.PromptSha256;
+            foreach (var a in p.Answers ?? Array.Empty<AnswerProvenance>())
+                _answerHashes[(p.Key, a.Repetition)] = a.AnswerSha256;
+        }
+    }
+
+    public string DescribeRoute()
+    {
+        var name = Path.GetFileName(Path.GetFullPath(_dir));
+        return _provenance is null
+            ? $"replay:{name}"
+            : $"replay:{name} ({_provenance.Model} via {_provenance.Harness}, {_provenance.Provenance})";
+    }
 
     /// <summary>Pin the sample for both arms of an entry; identical prompts share that repetition's answer.</summary>
     public void SelectRepetition(int repetition)
     {
         if (repetition < 1) throw new ArgumentOutOfRangeException(nameof(repetition));
-        lock (_served) _repetition = repetition;
+        Volatile.Write(ref _repetition, repetition);
     }
 
     public Task<T> CompleteStructuredAsync<T>(string role, IReadOnlyList<ChatMessage> messages,
         string jsonSchema, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        var n = Volatile.Read(ref _repetition);
+        if (n < 1)
+            throw new ModelException("SelectRepetition must be called before replaying prompts.");
         var key = PromptExchange.Key(messages);
-        int n;
-        lock (_served) n = _repetition ?? (_served[key] = _served.GetValueOrDefault(key) + 1);
         var path = Path.Combine(_dir, key, $"{n}.json");
         if (!File.Exists(path))
             throw new ModelException($"No recorded answer for prompt {key}, repetition {n}.");
 
+        var bytes = File.ReadAllBytes(path);
+        if (_answerHashes.TryGetValue((key, n), out var expectedSha))
+        {
+            var actualSha = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            if (!string.Equals(actualSha, expectedSha, StringComparison.OrdinalIgnoreCase))
+                throw new ModelException($"Recorded answer {key}/{n}.json SHA-256 mismatch (expected {expectedSha}, got {actualSha}).");
+        }
+        var promptPath = Path.Combine(_dir, key, "prompt.md");
+        if (_promptHashes.TryGetValue(key, out var expectedPromptSha) && File.Exists(promptPath))
+        {
+            var actualPromptSha = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(promptPath))).ToLowerInvariant();
+            if (!string.Equals(actualPromptSha, expectedPromptSha, StringComparison.OrdinalIgnoreCase))
+                throw new ModelException($"Recorded prompt {key}/prompt.md SHA-256 mismatch.");
+        }
+
         VerdictDto? dto;
-        try { dto = JsonSerializer.Deserialize<VerdictDto>(File.ReadAllText(path), ReadOptions); }
+        try { dto = JsonSerializer.Deserialize<VerdictDto>(bytes, ReadOptions); }
         catch (JsonException ex) { throw new ModelException($"Recorded answer {key}/{n}.json is not valid JSON: {ex.Message}", ex); }
         if (dto?.Findings is null)
             throw new ModelException($"Recorded answer {key}/{n}.json has no Findings array.");

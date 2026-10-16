@@ -167,4 +167,40 @@ public class BenchRunnerTests : IDisposable
         // location has no line; only the enriched method name (Run) can produce the match
         Assert.Equal(1, r.Rows.First(x => x.Arm == BenchArm.Grounded).Score!.Matched);
     }
+
+    [Fact]
+    public async Task EvaluateExitCode_Fails_On_Error_Degraded_Or_Skipped_In_Both_Live_And_Replay_Modes()
+    {
+        var runner = new BenchRunner(
+            mode => Pipeline(mode, new ScriptedPersonas(() => new[]
+            {
+                new PersonaVerdict(PersonaRole.SecurityAuditor, Array.Empty<ReviewFinding>()),
+                new PersonaVerdict(PersonaRole.AllocationsPerformance, Array.Empty<ReviewFinding>()),
+                new PersonaVerdict(PersonaRole.IdiomaticArchitect, Array.Empty<ReviewFinding>())
+            })),
+            new FakeLoader(_compilation), (_, _) => Prepared(), TextWriter.Null);
+
+        var ok = await runner.RunAsync(Corpus, 1, new[] { "route:model" }, default);
+        Assert.True(ok.IsComplete);
+        Assert.Equal(0, ok.EvaluateExitCode(isReplay: false, TextWriter.Null));
+        Assert.Equal(0, ok.EvaluateExitCode(isReplay: true, TextWriter.Null));
+
+        // Degraded row (2 of 3 personas) -> exit 1 in both live and replay
+        var degraded = ok with { Rows = ok.Rows.Select(r => r with { PersonasSucceeded = 2 }).ToArray() };
+        Assert.False(degraded.IsComplete);
+        var liveErr = new StringWriter();
+        Assert.Equal(1, degraded.EvaluateExitCode(isReplay: false, liveErr));
+        Assert.Contains("Benchmark run is incomplete", liveErr.ToString());
+
+        // Error row -> exit 1 in both live and replay
+        var errored = ok with { Rows = ok.Rows.Select(r => r with { Error = "403", Score = null }).ToArray() };
+        var replayErr = new StringWriter();
+        Assert.Equal(1, errored.EvaluateExitCode(isReplay: true, replayErr));
+        Assert.Contains("Replay is incomplete", replayErr.ToString());
+
+        // Skipped entry -> exit 1 in both live and replay
+        var skipped = ok with { Skipped = new[] { new SkippedEntry("e2", "compile failed") } };
+        Assert.Equal(1, skipped.EvaluateExitCode(isReplay: false, TextWriter.Null));
+        Assert.Equal(1, skipped.EvaluateExitCode(isReplay: true, TextWriter.Null));
+    }
 }
