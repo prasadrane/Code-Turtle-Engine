@@ -67,17 +67,19 @@ public class BenchRunnerTests : IDisposable
     [Fact]
     public async Task Scores_Naive_Grounded_And_CodeTurtle_Arms()
     {
+        var selected = new List<int>();
         var runner = new BenchRunner(
             mode => Pipeline(mode, new ScriptedPersonas(() => mode == PromptMode.Naive
                 ? Cites("Demo.Outer", "Demo.Ghost")
                 : Cites("Demo.Dep", "Demo.Ghost"))),
             new FakeLoader(_compilation),
             (_, _) => Prepared(new[] { new ExpectedDefect("A.cs", 8, "SqlInjection") }),
-            TextWriter.Null);
+            TextWriter.Null, selected.Add);
 
         var r = await runner.RunAsync(Corpus, repeat: 2, new[] { "route:model" }, default);
 
         Assert.Equal(6, r.Rows.Count); // 2 reps x 3 arms
+        Assert.Equal(new[] { 1, 2 }, selected);
         var naive = r.Rows.First(x => x.Arm == BenchArm.Naive).Score!;
         Assert.Equal(2, naive.Unverified); // neither Demo.Outer nor Demo.Ghost is in the allow-list
         Assert.Equal(1, naive.Invented);   // only Demo.Ghost does not exist

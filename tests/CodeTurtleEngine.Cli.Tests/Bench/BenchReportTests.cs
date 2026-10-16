@@ -59,4 +59,32 @@ public class BenchReportTests
         var line = BenchReport.RenderMarkdown(r).Split('\n').First(l => l.StartsWith("| Naive", StringComparison.Ordinal));
         Assert.Contains("n/a (n/a", line);
     }
+
+    [Fact]
+    public void Variance_Is_Across_Complete_Repetitions_Not_Across_Corpus_Entries()
+    {
+        var rows = new[]
+        {
+            new BenchRow("e1", BenchArm.Naive, 1, new RunScore(1, 2, 0, 0, 0, 1, 1), 1, 3, null),
+            new BenchRow("e1", BenchArm.Naive, 2, new RunScore(1, 2, 0, 1, 1, 0, 1), 1, 3, null),
+            new BenchRow("e1", BenchArm.Naive, 3, new RunScore(1, 2, 0, 2, 1, 0, 1), 1, 3, null)
+        };
+        var r = Results with { Metadata = Results.Metadata with { Repeat = 3 }, Rows = rows, Skipped = [] };
+        var md = BenchReport.RenderMarkdown(r);
+        Assert.Contains("## Variation across repetitions", md);
+        Assert.Contains("| Naive | Pooled invented rate | 3 | 50.0% | 0.25 | 50.0 pp |", md);
+        // A partial repetition is excluded instead of masquerading as a full independent run.
+        r = r with { Rows = rows.Select(x => x.Repetition == 3 ? x with { Error = "quorum", Score = null } : x).ToArray() };
+        Assert.Contains("| Naive | Pooled invented rate | 2 |", BenchReport.RenderMarkdown(r));
+    }
+
+    [Fact]
+    public void Single_Repetition_Has_No_Variance_And_Replay_Has_No_Model_Latency()
+    {
+        var r = Results with { Metadata = Results.Metadata with { Routes = ["replay:prompts"] } };
+        var md = BenchReport.RenderMarkdown(r);
+        Assert.Contains("n/a (replay)", md);
+        Assert.Contains("independent model latency", md);
+        Assert.DoesNotContain("0.0 pp", md);
+    }
 }

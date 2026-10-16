@@ -28,12 +28,15 @@ public sealed class BenchRunner
     private readonly ICompilationLoader _loader;
     private readonly Func<CorpusEntry, CancellationToken, Task<PreparedEntry>> _prepare;
     private readonly TextWriter _log;
+    private readonly Action<int>? _beginRepetition;
 
     /// <param name="pipelineFor">Must return pipelines configured with GuardMode.Flag.</param>
     public BenchRunner(Func<PromptMode, ReviewPipeline> pipelineFor, ICompilationLoader loader,
-        Func<CorpusEntry, CancellationToken, Task<PreparedEntry>> prepare, TextWriter log)
+        Func<CorpusEntry, CancellationToken, Task<PreparedEntry>> prepare, TextWriter log,
+        Action<int>? beginRepetition = null)
     {
         _pipelineFor = pipelineFor; _loader = loader; _prepare = prepare; _log = log;
+        _beginRepetition = beginRepetition;
     }
 
     public async Task<BenchResults> RunAsync(CorpusManifest corpus, int repeat, IReadOnlyList<string> routes, CancellationToken ct)
@@ -70,6 +73,7 @@ public sealed class BenchRunner
                 var oracle = new SymbolOracle(loaded.Compilation);
                 for (var rep = 1; rep <= repeat; rep++)
                 {
+                    _beginRepetition?.Invoke(rep);
                     foreach (var mode in new[] { PromptMode.Naive, PromptMode.Grounded })
                     {
                         _log.WriteLine($"[bench] {entry.Id} {mode} rep {rep}/{repeat}");

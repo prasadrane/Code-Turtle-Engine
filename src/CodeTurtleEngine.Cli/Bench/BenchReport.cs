@@ -20,6 +20,7 @@ public static class BenchReport
 
     public static string RenderMarkdown(BenchResults r)
     {
+        var replay = r.Metadata.Routes.Any(route => route.StartsWith("replay:", StringComparison.Ordinal));
         var sb = new StringBuilder();
         sb.AppendLine("# Code Turtle Benchmark");
         sb.AppendLine();
@@ -44,8 +45,10 @@ public static class BenchReport
                 $"{Pct(Mean(scored.Where(s => s.UnverifiedRate is not null).Select(s => s.UnverifiedRate!.Value)))} | {scored.Sum(s => s.FindingsWithInvented)} | " +
                 $"{Pct(Mean(scored.Where(s => s.Precision is not null).Select(s => s.Precision!.Value)))} | " +
                 $"{Pct(Mean(scored.Where(s => s.Recall is not null).Select(s => s.Recall!.Value)))} | " +
-                $"{Median(rows.Where(x => x.Error is null).Select(x => x.ElapsedMs))} ms |");
+                $"{(replay ? "n/a (replay)" : Median(rows.Where(x => x.Error is null).Select(x => x.ElapsedMs)) + " ms")} |");
         }
+
+        BenchVariance.Append(sb, r);
 
         sb.AppendLine();
         sb.AppendLine("## Per entry");
@@ -71,6 +74,7 @@ public static class BenchReport
         sb.AppendLine();
         sb.AppendLine("## Limits");
         sb.AppendLine();
+        if (replay) sb.AppendLine("- Replay measures local pipeline processing, not independent model latency. Model identity and response provenance must accompany the saved answers.");
         sb.AppendLine("- Invented = cited name resolves to no type or member in the compilation (SymbolOracle). Unverified = not in the guard allow-list, which holds only types the changed methods touch.");
         sb.AppendLine("- Small corpus; seeded defects are authored by this project; a single model family per run.");
         sb.AppendLine("- The guard covers the citation channel only; prose and locations are not verified.");

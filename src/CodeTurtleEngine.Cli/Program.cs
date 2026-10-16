@@ -47,12 +47,16 @@ var corpusOpt = new Option<string>("--corpus") { Description = "Path to the benc
 var repeatOpt = new Option<int>("--repeat") { Description = "Repetitions per arm per entry", DefaultValueFactory = _ => 3 };
 var benchOutOpt = new Option<string?>("--out") { Description = "Output directory (default: ./bench-out/<UTC timestamp>)" };
 var workOpt = new Option<string?>("--work") { Description = "Work directory for prepared repos (default: <temp>/turtle-bench-work)" };
+var recordOpt = new Option<string?>("--record-prompts") { Description = "Offline step 1: write every persona prompt under this directory (no LLM calls, no report)" };
+var replayOpt = new Option<string?>("--replay") { Description = "Offline step 2: answer prompts from <dir>/<key>/<n>.json instead of calling an LLM" };
 
 var bench = new Command("bench", "Benchmark naive vs grounded review over a corpus");
 bench.Options.Add(corpusOpt);
 bench.Options.Add(repeatOpt);
 bench.Options.Add(benchOutOpt);
 bench.Options.Add(workOpt);
+bench.Options.Add(recordOpt);
+bench.Options.Add(replayOpt);
 
 bench.SetAction(async (parseResult, ct) =>
 {
@@ -65,23 +69,48 @@ bench.SetAction(async (parseResult, ct) =>
             ?? Path.Combine("bench-out", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture)));
         var workDir = parseResult.GetValue(workOpt) ?? Path.Combine(Path.GetTempPath(), "turtle-bench-work");
 
+        var recordDir = parseResult.GetValue(recordOpt);
+        var replayDir = parseResult.GetValue(replayOpt);
+        if (recordDir is not null && replayDir is not null)
+            throw new BenchException("--record-prompts and --replay are mutually exclusive.");
+
         var llm = Composition.BuildServices(".").GetRequiredService<CodeTurtleEngine.Llm.LlmOptions>();
-        BenchPreflight.RequireCredentials(llm, Environment.GetEnvironmentVariable);
+        CodeTurtleEngine.Llm.IStructuredChatClient? offlineChat = null;
+        RecordingChat? recorder = null;
+        ReplayChat? replayer = null;
+        if (recordDir is not null) offlineChat = recorder = new RecordingChat(Path.GetFullPath(recordDir));
+        else if (replayDir is not null) offlineChat = replayer = new ReplayChat(Path.GetFullPath(replayDir));
+        else BenchPreflight.RequireCredentials(llm, Environment.GetEnvironmentVariable);
 
         var pipelines = new[] { CodeTurtleEngine.Core.PromptMode.Naive, CodeTurtleEngine.Core.PromptMode.Grounded }
             .ToDictionary(m => m, m => Composition.BuildServices(".",
                     o => { o.Council.PromptMode = m; o.Council.Guard = CodeTurtleEngine.Core.GuardMode.Flag; },
-                    home: Path.Combine(outDir, "runs", m.ToString().ToLowerInvariant()))
+                    home: Path.Combine(outDir, "runs", m.ToString().ToLowerInvariant()),
+                    chat: offlineChat)
                 .GetRequiredService<ReviewPipeline>());
 
         var preparer = new CorpusPreparer(workDir, DotnetRestore.RunAsync);
-        var runner = new BenchRunner(m => pipelines[m], new CodeTurtleEngine.Gatekeeper.MsBuildCompilationLoader(), preparer.PrepareAsync, Console.Error);
-        var routes = llm.Routes.Select(r => $"{r.Name}:{r.Model}").ToList();
+        var runner = new BenchRunner(m => pipelines[m], new CodeTurtleEngine.Gatekeeper.MsBuildCompilationLoader(),
+            preparer.PrepareAsync, Console.Error, beginRepetition: replayer is null ? null : replayer.SelectRepetition);
+        var routes = offlineChat is null
+            ? llm.Routes.Select(r => $"{r.Name}:{r.Model}").ToList()
+            : new List<string> { recordDir is not null ? "record-prompts" : $"replay:{Path.GetFileName(Path.GetFullPath(replayDir!))}" };
         var results = await runner.RunAsync(corpus, repeat, routes, ct).ConfigureAwait(false);
+
+        if (recorder is not null)
+        {
+            Console.Error.WriteLine($"Recorded {recorder.PromptCount} unique prompts under {Path.GetFullPath(recordDir!)}");
+            return results.Skipped.Count == 0 && results.Rows.All(r => r.Error is null && !r.Degraded) ? 0 : 1;
+        }
 
         var (json, md) = BenchReport.Write(results, outDir);
         Console.Out.WriteLine(File.ReadAllText(md));
         Console.Error.WriteLine($"Results: {json}");
+        if (replayer is not null && (results.Skipped.Count > 0 || results.Rows.Any(r => r.Error is not null || r.Degraded)))
+        {
+            Console.Error.WriteLine("Replay is incomplete; see error/degraded rows and skipped entries. Supply independent answers for every requested repetition.");
+            return 1;
+        }
         return 0;
     }
     catch (BenchException ex)

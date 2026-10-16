@@ -59,6 +59,13 @@ dotnet run --project src/CodeTurtleEngine.Cli -- bench --corpus bench/corpus.jso
 
 Run from the repository root (the rubric path is relative). Requires the LLM route env variables; writes `bench-results.json` and `bench-report.md`.
 
+For an offline model harness, `--record-prompts <dir>` exports the persona prompts;
+`--replay <dir>` scores saved `<key>/<repetition>.json` responses without LLM
+credentials. Missing answers fail rather than reuse another repetition. Reports
+include variation across complete repetitions and omit model latency for replay.
+See the [Claude checkpoint and resume instructions](docs/benchmark/claude-sonnet-resume.md)
+for the unfinished Claude-only experiment and its local artifacts.
+
 ## Architecture snapshot
 
 ```mermaid
