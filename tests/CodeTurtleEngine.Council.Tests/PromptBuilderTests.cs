@@ -51,4 +51,65 @@ public class PromptBuilderTests
         var msgs = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "RUBRIC-TEXT");
         Assert.Contains(msgs, m => m.Role == ChatRole.System && m.Text.Contains("AT MOST 5 findings"));
     }
+
+    [Fact]
+    public void BuildNaive_Sends_Source_Not_Payload_And_Omits_Grounding_Rules()
+    {
+        var sources = new[] { new SourceFile("src/PaymentService.cs", "public class PaymentService { }") };
+
+        var msgs = PromptBuilder.BuildNaive(PersonaRole.SecurityAuditor, sources, "# Rubric", 5);
+
+        Assert.Equal(2, msgs.Count);
+        var system = msgs[0].Text;
+        var user = msgs[1].Text;
+        Assert.Contains("security auditor", system);
+        Assert.Contains("# Rubric", system);
+        Assert.Contains("CitedSymbolFqns", system);
+        Assert.Contains("AT MOST 5 findings", system);
+        Assert.DoesNotContain("ResolvedSymbols", system);
+        Assert.DoesNotContain("payload", system, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("## File: src/PaymentService.cs", user);
+        Assert.Contains("public class PaymentService { }", user);
+    }
+
+    [Fact]
+    public void BuildNaive_Prefixes_Source_Lines_With_Line_Numbers()
+    {
+        var sources = new[] { new SourceFile("A.cs", "first\nsecond") };
+
+        var msgs = PromptBuilder.BuildNaive(PersonaRole.SecurityAuditor, sources, "r", 5);
+
+        Assert.Contains("   1: first", msgs[1].Text);
+        Assert.Contains("   2: second", msgs[1].Text);
+        Assert.Contains("prefixed with their line numbers", msgs[0].Text);
+        Assert.Contains("File.cs:LINE", msgs[0].Text);
+    }
+
+    [Fact]
+    public void CouncilOptions_Defaults_To_Grounded() =>
+        Assert.Equal(PromptMode.Grounded, new CouncilOptions().PromptMode);
+
+    [Fact]
+    public void PersonaInstructions_Cover_All_Seeded_Defect_Classes()
+    {
+        var perf = PromptBuilder.Build(PersonaRole.AllocationsPerformance, SamplePayload(), "R");
+        var sec = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "R");
+        var arch = PromptBuilder.Build(PersonaRole.IdiomaticArchitect, SamplePayload(), "R");
+
+        var perfSystem = perf[0].Text;
+        Assert.Contains("ConfigureAwait", perfSystem);
+        Assert.Contains("unawaited", perfSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sync-over-async", perfSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("boxing", perfSystem, StringComparison.OrdinalIgnoreCase);
+
+        var secSystem = sec[0].Text;
+        Assert.Contains("SQL", secSystem);
+        Assert.Contains("path traversal", secSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("hardcoded secret", secSystem, StringComparison.OrdinalIgnoreCase);
+
+        var archSystem = arch[0].Text;
+        Assert.Contains("swallowed", archSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("service locator", archSystem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("captive", archSystem, StringComparison.OrdinalIgnoreCase);
+    }
 }

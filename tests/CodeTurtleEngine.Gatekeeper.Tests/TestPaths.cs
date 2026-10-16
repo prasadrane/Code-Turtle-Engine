@@ -15,4 +15,7 @@ public static class TestPaths
 
     public static string SampleRepoCsproj =>
         Path.Combine(RepoRoot, "tests", "fixtures", "SampleRepo", "SampleRepo.csproj");
+
+    public static string MultiProjectSln =>
+        Path.Combine(RepoRoot, "tests", "fixtures", "MultiProject", "MultiProject.sln");
 }

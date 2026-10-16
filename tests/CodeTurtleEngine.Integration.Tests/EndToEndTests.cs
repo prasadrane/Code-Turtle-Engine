@@ -22,7 +22,7 @@ public class EndToEndTests
 
             var options = new CouncilOptions { Quorum = 2, Guard = GuardMode.Strip };
             var verdicts = await new PersonaRunner(new CitingChat(realSymbol), options)
-                .RunAsync(payload, "# Review Rubric v1");
+                .RunAsync(payload, Array.Empty<SourceFile>(), "# Review Rubric v1");
 
             var merged = new Arbiter().Merge(verdicts);
             var guarded = new TurtleShellGuard(options).Verify(merged, payload);

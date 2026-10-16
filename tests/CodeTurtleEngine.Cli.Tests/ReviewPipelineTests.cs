@@ -39,4 +39,32 @@ public class ReviewPipelineTests
 
         Directory.Delete(home, true);
     }
+
+    [Theory]
+    [InlineData(PromptMode.Naive, 1)]
+    [InlineData(PromptMode.Grounded, 0)]
+    public async Task Supplies_Changed_Source_Only_In_Naive_Mode(PromptMode mode, int expectedSources)
+    {
+        var home = Path.Combine(Path.GetTempPath(), "turtle-pipe-" + Guid.NewGuid().ToString("N"));
+        var rubricPath = Path.GetTempFileName();
+        File.WriteAllText(rubricPath, "# Review Rubric v1");
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
+            "namespace Demo { public class A { public void M() { } } }", path: "/repo/src/A.cs");
+        var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Demo", new[] { tree });
+        var options = new TurtleOptions { RubricPath = rubricPath, Council = new CouncilOptions { Quorum = 1, PromptMode = mode } };
+        var personas = new RecordingPersonas();
+
+        var result = await new ReviewPipeline(new FakeDiff(new[] { "src/A.cs" }), new FakeLoader(compilation), personas,
+            new Arbiter(), new TurtleShellGuard(options.Council), new RubricLoader(), new ArtifactWriter(home), options)
+            .RunAsync("/repo", "/repo/Demo.csproj", null);
+
+        Assert.Equal(expectedSources, personas.LastSources!.Count);
+        if (expectedSources == 1)
+        {
+            Assert.Equal("src/A.cs", personas.LastSources[0].Path);
+            Assert.Contains("public class A", personas.LastSources[0].Text);
+        }
+        Assert.Equal("Demo", result.Payload.RepoSlug);
+        Directory.Delete(home, true);
+    }
 }

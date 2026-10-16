@@ -17,7 +17,7 @@ Dependency flow: Cli -> {Council, Gatekeeper, Llm} -> Core; Council -> Gatekeepe
 
 ## Invariants
 - ≤300 lines per source file.
-- Payload-only to the LLM; never send raw source.
+- Payload-only to the LLM in product review; never send raw source (`PromptMode.Naive` is a programmatic benchmark-only baseline and cannot be enabled via configuration or environment variables).
 - Fail closed: no compilation ⇒ no review.
 - Secrets only in env (`TURTLE_LLM_BASE_URL`, `TURTLE_LLM_API_KEY`); config references env by name.
 - TDD: failing test first; commit each task.

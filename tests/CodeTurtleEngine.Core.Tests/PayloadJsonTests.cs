@@ -41,4 +41,27 @@ public class PayloadJsonTests
         Assert.Contains("\"Persona\":\"SecurityAuditor\"", json);
         Assert.Contains("\"Severity\":\"Error\"", json);
     }
+
+    [Fact]
+    public void MethodFacts_RoundTrips_LineSpan_And_Risks()
+    {
+        var m = new MethodFacts(
+            "PayAsync",
+            new[] { "Implicit Boxing (Line 20)" },
+            "Missing ConfigureAwait(false) on IPaymentGateway invocation (Line 19)",
+            new[] { "IPaymentGateway" },
+            new[] { "Shop.Infrastructure.IPaymentGateway.ChargeAsync" },
+            StartLine: 17,
+            EndLine: 23,
+            Risks: new[] { "Unawaited Task (fire-and-forget) on IAuditLog.WriteAsync (Line 20)" });
+
+        var json = JsonSerializer.Serialize(m, TurtleJson.Options);
+        var back = JsonSerializer.Deserialize<MethodFacts>(json, TurtleJson.Options)!;
+
+        Assert.Equal(17, back.StartLine);
+        Assert.Equal(23, back.EndLine);
+        Assert.NotNull(back.Risks);
+        Assert.Single(back.Risks!);
+        Assert.Contains("Line 20", back.Risks![0]);
+    }
 }

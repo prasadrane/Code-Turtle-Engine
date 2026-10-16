@@ -1,5 +1,6 @@
 using CodeTurtleEngine.Core;
 using Microsoft.Extensions.AI;
+using System.Text;
 using System.Text.Json;
 
 namespace CodeTurtleEngine.Council;
@@ -36,20 +37,61 @@ public static class PromptBuilder
         };
     }
 
+    /// <summary>
+    /// Benchmark baseline: what a typical diff-only reviewer sees. Same persona, rubric and verdict
+    /// schema as the grounded prompt, but no Roslyn payload and no allow-list rule. It still asks for
+    /// accurate fully-qualified citations so the baseline is fair, not a strawman.
+    /// </summary>
+    public static IReadOnlyList<ChatMessage> BuildNaive(PersonaRole role, IReadOnlyList<SourceFile> sources, string rubric, int maxFindings)
+    {
+        var system = $"{PersonaInstruction(role)}\n\n# Review Rubric\n{rubric}\n\n{NaiveRules(maxFindings)}";
+        var user = new StringBuilder();
+        foreach (var s in sources)
+            user.Append("## File: ").Append(s.Path).Append("\n```csharp\n").Append(NumberLines(s.Text)).Append("\n```\n\n");
+        return new[]
+        {
+            new ChatMessage(ChatRole.System, system),
+            new ChatMessage(ChatRole.User, user.ToString())
+        };
+    }
+
+    private static string NumberLines(string text)
+    {
+        var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var sb = new StringBuilder();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (i > 0) sb.Append('\n');
+            sb.Append((i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture).PadLeft(4)).Append(": ").Append(lines[i]);
+        }
+        return sb.ToString();
+    }
+
+    private static string NaiveRules(int maxFindings) =>
+        "You are given the full source of the changed C# files. Source lines are prefixed with their line numbers; " +
+        "report each finding location as File.cs:LINE. " +
+        "For every finding, list in CitedSymbolFqns the fully-qualified names of the types or members it concerns " +
+        "(for example System.Net.Http.HttpClient or MyApp.Services.PaymentService.ProcessAsync). Cite only symbols that exist. " +
+        $"Return AT MOST {maxFindings} findings, highest severity first. " +
+        "Return ONLY JSON matching the schema.";
+
     private static string GroundingRules(int maxFindings) =>
         "You are given a minified JSON semantic payload extracted by Roslyn. " +
-        "Do NOT invent symbols. Every finding MUST cite symbol FQNs that appear in the payload's ResolvedSymbols. " +
+        "Analyze the provided facts: inspect each method's Risks, Allocations, AsyncHealth, and StartLine/EndLine " +
+        "to report accurate File.cs:LINE locations. " +
+        "Do NOT invent symbols. Every finding MUST cite symbol FQNs that appear in the payload's ResolvedSymbols " +
+        "(preferring method or member FQNs, or containing class FQN). " +
         $"Return AT MOST {maxFindings} findings, highest severity first. " +
         "Return ONLY JSON matching the schema.";
 
     private static string PersonaInstruction(PersonaRole role) => role switch
     {
         PersonaRole.AllocationsPerformance =>
-            "You are a C# allocations and performance reviewer. Scrutinize memory leaks, large-object-heap (LOH) risk, unawaited tasks, and thread-safety issues in concurrent collections.",
+            "You are a C# allocations and performance reviewer. Scrutinize missing ConfigureAwait(false), unawaited tasks (fire-and-forget), sync-over-async (.Result or .Wait()), boxing allocations, closure captures, LOH risks, and thread-safety risks in non-thread-safe collections (e.g., static Dictionary).",
         PersonaRole.SecurityAuditor =>
-            "You are a C# security auditor. Evaluate input sanitization, SQL-injection vectors (raw string concatenation bypassing EF Core parameters), and authentication-bypass risks on REST/GraphQL endpoints.",
+            "You are a C# security auditor. Evaluate input sanitization, dynamic SQL injection (raw string concatenation/interpolation into CommandText or queries), path traversal risks, hardcoded secrets/passwords, and authentication-bypass risks.",
         PersonaRole.IdiomaticArchitect =>
-            "You are an idiomatic C# architect. Enforce modern C# language features, clean-architecture boundaries, and correct Dependency Injection lifecycles (e.g., capturing Transient services inside Singleton classes).",
+            "You are an idiomatic C# architect. Enforce modern C# language features, clean-architecture boundaries, proper exception handling (flag swallowed/empty catch blocks), correct Dependency Injection lifecycles (e.g., captive scoped/transient dependencies inside singletons), and avoid service locator anti-patterns (IServiceProvider.GetService).",
         _ => "You are a C# code reviewer."
     };
 }

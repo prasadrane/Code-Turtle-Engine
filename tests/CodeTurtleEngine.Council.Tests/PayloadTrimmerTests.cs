@@ -72,4 +72,26 @@ public class PayloadTrimmerTests
         var trimmed = PayloadTrimmer.TrimForPrompt(empty, TinyCaps());
         Assert.Empty(trimmed.Files);
     }
+
+    [Fact]
+    public void Preserves_LineSpan_And_Trims_Risks_To_Cap()
+    {
+        var opts = TinyCaps();
+        opts.MaxRisksPerMethod = 2;
+        var payload = new RoslynPayload("Slug", "main", new[]
+        {
+            new FileFacts("A.cs", new[]
+            {
+                new MethodFacts("M1", Array.Empty<string>(), null, Array.Empty<string>(), Array.Empty<string>(),
+                    StartLine: 10, EndLine: 25, Risks: new[] { "R1", "R2", "R3" })
+            })
+        });
+
+        var trimmed = PayloadTrimmer.TrimForPrompt(payload, opts);
+        var m = trimmed.Files[0].Methods[0];
+
+        Assert.Equal(10, m.StartLine);
+        Assert.Equal(25, m.EndLine);
+        Assert.Equal(2, m.Risks!.Count);
+    }
 }

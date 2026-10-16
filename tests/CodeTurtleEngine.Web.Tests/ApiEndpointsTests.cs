@@ -103,7 +103,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
             Array.Empty<PersonaVerdict>(),
             Array.Empty<ReviewFinding>(),
             Array.Empty<GuardResult>());
-        var reviewResult = new ReviewResult("# Review Output", verdict, "/tmp/artifacts");
+        var reviewResult = new ReviewResult("# Review Output", verdict, "/tmp/artifacts", new RoslynPayload("r", "HEAD", Array.Empty<FileFacts>()));
         store.SetResult(jobId, reviewResult);
 
         var response = await client.GetAsync($"/api/review/{jobId}/result");

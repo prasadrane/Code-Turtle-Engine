@@ -24,7 +24,10 @@ public static class PayloadTrimmer
                         method.Allocations.Take(opts.MaxAllocationsPerMethod).ToList(),
                         method.AsyncHealth,
                         method.Dependencies,
-                        method.ResolvedSymbols.Take(opts.MaxSymbolsPerMethod).ToList()))
+                        method.ResolvedSymbols.Take(opts.MaxSymbolsPerMethod).ToList(),
+                        method.StartLine,
+                        method.EndLine,
+                        method.Risks?.Take(opts.MaxRisksPerMethod).ToList()))
                     .ToList()))
             .ToList();
 

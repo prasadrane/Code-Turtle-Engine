@@ -1,0 +1,31 @@
+{
+  "classPersonas": {
+    "MissingConfigureAwait": "AllocationsPerformance",
+    "FireAndForgetTask": "AllocationsPerformance",
+    "SyncOverAsync": "AllocationsPerformance",
+    "BoxingAllocation": "AllocationsPerformance",
+    "LinqClosureCapture": "AllocationsPerformance",
+    "NonThreadSafeCollection": "AllocationsPerformance",
+    "SqlInjection": "SecurityAuditor",
+    "HardcodedSecret": "SecurityAuditor",
+    "PathTraversal": "SecurityAuditor",
+    "CaptiveDependency": "IdiomaticArchitect",
+    "ServiceLocator": "IdiomaticArchitect",
+    "SwallowedException": "IdiomaticArchitect"
+  },
+  "entries": [
+    { "id": "missing-configureawait", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/missing-configureawait" },
+    { "id": "fire-and-forget", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/fire-and-forget" },
+    { "id": "hardcoded-secret", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/hardcoded-secret" },
+    { "id": "swallowed-exception", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/swallowed-exception" },
+    { "id": "sql-injection", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/sql-injection" },
+    { "id": "sync-over-async", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/sync-over-async" },
+    { "id": "boxing", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/boxing" },
+    { "id": "linq-closure", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/linq-closure" },
+    { "id": "service-locator", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/service-locator" },
+    { "id": "path-traversal", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/path-traversal" },
+    { "id": "captive-dependency", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/captive-dependency" },
+    { "id": "thread-unsafe-cache", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/thread-unsafe-cache" },
+    { "id": "clean-refactor", "kind": "Seeded", "project": "Shop.csproj", "baseDir": "seeded/base", "headDir": "seeded/clean-refactor" }
+  ]
+}

@@ -182,12 +182,12 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     {
                         personasSucceeded = verdicts.Count,
                         findingsKept = guarded.KeptFindings.Count,
-                        findingsStripped = stripped
+                        findingsStripped = merged.Count - guarded.KeptFindings.Count
                     };
                     await writer.WriteAsync(SseEvent.Completed(markdown, finalVerdict, stats), ct).ConfigureAwait(false);
 
                     // 15. Store result in ReviewJobStore
-                    var reviewResult = new ReviewResult(markdown, finalVerdict, clonedDir);
+                    var reviewResult = new ReviewResult(markdown, finalVerdict, clonedDir, payload);
                     _jobStore.SetResult(jobId, reviewResult);
                 }
             }

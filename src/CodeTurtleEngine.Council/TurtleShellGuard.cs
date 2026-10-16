@@ -8,7 +8,7 @@ public sealed record GuardOutcome(
 
 public interface ITurtleShellGuard
 {
-    GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload);
+    GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null);
 }
 
 public sealed class TurtleShellGuard : ITurtleShellGuard
@@ -17,12 +17,37 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
     public TurtleShellGuard(CouncilOptions options) => _options = options;
 
-    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload)
+    public static HashSet<string> BuildAllowList(RoslynPayload payload)
     {
-        var allow = payload.Files
-            .SelectMany(f => f.Methods)
-            .SelectMany(m => m.ResolvedSymbols)
-            .ToHashSet(StringComparer.Ordinal);
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var file in payload.Files)
+        {
+            foreach (var m in file.Methods)
+            {
+                foreach (var sym in m.ResolvedSymbols)
+                {
+                    set.Add(sym);
+                    var lastDot = sym.LastIndexOf('.');
+                    if (lastDot > 0)
+                    {
+                        var prefix = sym.Substring(0, lastDot);
+                        if (prefix.Contains('.'))
+                        {
+                            set.Add(prefix);
+                        }
+                    }
+                }
+            }
+        }
+        return set;
+    }
+
+    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload) =>
+        Verify(findings, payload, null);
+
+    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null)
+    {
+        var allow = BuildAllowList(payload);
 
         var audit = new List<GuardResult>();
         var kept = new List<ReviewFinding>();
@@ -32,7 +57,7 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
             var verified = new List<string>();
             foreach (var cite in finding.CitedSymbolFqns)
             {
-                var ok = allow.Contains(cite);
+                var ok = allow.Contains(cite) || (compilationOracle is not null && compilationOracle(cite));
                 audit.Add(new GuardResult(cite, ok));
                 if (ok) verified.Add(cite);
             }
@@ -43,8 +68,17 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                 continue;
             }
 
-            // Strip mode: drop a finding that cited symbols but none verified.
-            if (finding.CitedSymbolFqns.Count > 0 && verified.Count == 0) continue;
+            // Strip mode:
+            if (_options.RequireCitationsInStripMode && finding.CitedSymbolFqns.Count == 0)
+            {
+                continue;
+            }
+
+            if (finding.CitedSymbolFqns.Count > 0 && verified.Count == 0)
+            {
+                continue;
+            }
+
             kept.Add(finding with { CitedSymbolFqns = verified });
         }
 

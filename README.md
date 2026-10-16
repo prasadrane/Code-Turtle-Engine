@@ -1,142 +1,190 @@
-# Code Turtle Engine
+# 🐢 Code Turtle Engine
+
+**Compiler-Grounded AI Code Review for .NET — Powered by Roslyn & a 3-Persona Council**
+
+An AI code reviewer whose cited symbols are verified against a real Roslyn compilation — hallucinated API citations are stripped before the review reaches you. Rather than feeding raw diffs to a single prompt and hoping the model guesses your types and lifetimes, Code Turtle Engine compiles your changed C# projects with Roslyn first, extracts a deterministic semantic payload across **12 defect classes**, runs a **3-persona LLM council** in parallel, merges findings deterministically, and audits every symbol citation through the **Turtle Shell Guard**.
 
 [![CI](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/prasadrane/Code-Turtle-Engine)](https://github.com/prasadrane/Code-Turtle-Engine/releases)
 ![.NET](https://img.shields.io/badge/.NET-10.0.100-512BD4)
-![Tests](https://img.shields.io/badge/tests-158%20offline%20.NET-brightgreen)
+![Tests](https://img.shields.io/badge/tests-288%20.NET%20%2B%2069%20Web%20offline-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-**Live site:** <https://code-turtle-engine.vercel.app> (interactive council UI; runs in offline demo-replay mode unless a backend is configured — see [web/README.md](web/README.md))
+![Code Turtle Engine Web Dashboard](docs/assets/dashboard-preview.png)
 
-**Problem.** LLM code reviewers confidently cite methods and types that do not exist in your codebase, and nothing downstream can tell invented from real without a compiler.
+> [!IMPORTANT]
+> **Scope of the Guarantee (Engineering Honesty)**
+> - **Citation-channel verification:** `TurtleShellGuard` audits every entry in `CitedSymbolFqns` (using `StringComparer.Ordinal` against the full untrimmed Roslyn `ResolvedSymbols` set + `SymbolOracle` compilation fallback, including member-level citations like `Namespace.Type.Method(...)`).
+> - **Advisory vs. Strict mode:** By default (`RequireCitationsInStripMode = false`), findings that cite *no* symbols pass through as advisory; setting `RequireCitationsInStripMode = true` in `CouncilOptions` strips zero-citation findings as well. The guard does not verify natural-language prose or descriptions, though member line ranges (`StartLine`–`EndLine`) are provided directly by Roslyn in the payload.
+> - **No raw method bodies or diffs sent in product mode:** Product reviews (`CLI` and `Web`) enforce `PromptMode.Grounded` — only the minified JSON semantic payload (`payload.json` containing member signatures, 1-based line spans, resolved symbol FQNs, allocation/async flags, and deterministic `Risks` tags) is sent to the LLM. (`PromptMode.Naive` exists strictly as a programmatic baseline inside `turtle bench`.)
 
-**Guarantee.** Every changed C# project is compiled with Roslyn, and every fully-qualified symbol a review finding cites is checked (ordinal exact match) against the set of symbols the compiler actually resolved. Findings whose citations all fail are stripped before the review reaches you.
+---
 
-**Scope.** The guard audits the **citation channel**, not every claim in a finding. Findings that cite no symbols pass through as advisory; prose, descriptions, and `file:line` locations are not verified.
+## Why Code Turtle Engine?
 
-## Quick start
+Most AI PR reviewers paste raw git hunks into an LLM prompt. Without a semantic model, the LLM has to *guess* whether a variable is a value type being boxed, whether an injected service is `Scoped` inside a `Singleton`, or whether a method call even exists in the compilation.
 
-```bash
-export TURTLE_LLM_BASE_URL="https://<your-endpoint>"   # Anthropic-Messages or OpenAI-compatible
-export TURTLE_LLM_API_KEY="<key>"
-dotnet run --project src/CodeTurtleEngine.Cli -- review /path/to/csharp/repo --diff main --out review.md
+| Capability | Raw-Diff AI Reviewers (`Naive` Mode) | Traditional Static Analyzers | 🐢 Code Turtle Engine |
+|---|---|---|---|
+| **Input to Reviewer** | Raw git diff / source text | Syntax + Semantic AST | **Roslyn Semantic Payload (`payload.json`)** |
+| **Hallucinated API Citations** | Frequent (`4.3%–14.2%` in corpus runs) | N/A | **0.0% (`TurtleShellGuard` + `SymbolOracle`)** |
+| **Cross-File Type & Lifetime Resolution** | Blind outside the diff window | Rule-by-rule | **Full multi-project `.sln` Roslyn compilation** |
+| **Contextual Prioritization & Remediation** | High noise, generic prose | Rigid warnings, no architectural synthesis | **3 specialized personas + deterministic arbiter** |
+| **Raw Source Bodies Sent to External LLMs** | Yes (entire changed files/hunks) | None | **Never in product mode (AST/symbol metadata only)** |
+
+---
+
+## How It Works: 7-Stage Compiler-First Pipeline
+
+```mermaid
+flowchart LR
+    A["1. Git Diff<br/>(LibGit2Sharp)"] --> B["2. Multi-Project Compile<br/>(MSBuildWorkspace + Roslyn)"]
+    B --> C["3. Semantic Payload<br/>(SemanticAnalyzer + RiskDetector)"]
+    C --> D["4. Prompt Trimmer<br/>(View-only token budget)"]
+    D --> E["5. Persona Council<br/>(3 Parallel LLMs, 2/3 Quorum)"]
+    E --> F["6. Deterministic Arbiter<br/>(Dedupe + Severity Sort)"]
+    F --> G["7. Turtle Shell Guard<br/>(Audit vs. FULL Compilation)"]
+    G --> H["CLI Markdown /<br/>Live SSE Web Dashboard"]
 ```
 
-No credentials? `dotnet test` runs the full hermetic suite (158 offline .NET tests, mock LLM, real Roslyn compile of a seeded fixture repo). Requires the .NET 10 SDK; see [Quick start details](#quick-start-details) for prerequisites and configuration.
+1. **Diff (`DiffProvider`):** Computes changed `.cs` files via `LibGit2Sharp` (working tree vs. `HEAD`, or tree-vs-tree against a baseline ref/branch).
+2. **Compile (`MsBuildCompilationLoader`):** Opens `.csproj` or multi-project `.sln` workspaces via `MSBuildWorkspace` and merges syntax trees and references into a unified Roslyn `CSharpCompilation`. Fails closed if no project can be loaded.
+3. **Extract (`SemanticAnalyzer` + `RiskDetector`):** Walks methods, constructors, and computed properties (`TurtleSyntaxWalker`) to build `MethodFacts` with 1-based `[StartLine, EndLine]` spans, constructor dependencies, resolved symbol FQNs, and deterministic `Risks` tags.
+4. **Trim (`PayloadTrimmer`):** Caps prompt size for token/latency budgets (`MaxFiles`, `MaxMethodsPerFile`, `MaxSymbolsPerMethod`, `MaxAllocationsPerMethod`) without mutating the original payload.
+5. **Council (`PersonaRunner`):** Runs 3 specialized LLM personas concurrently (`AllocationsPerformance`, `SecurityAuditor`, `IdiomaticArchitect`) with structured JSON schema enforcement and a configurable quorum gate (default `2/3`).
+6. **Merge (`Arbiter`):** Deterministically deduplicates findings by normalized title + location, keeps maximum severity, and sorts severity-descending without an LLM in the merge loop.
+7. **Guard (`TurtleShellGuard`):** Audits every cited symbol FQN against the **full, untrimmed** compilation allow-list (`ResolvedSymbols` + `SymbolOracle`). Full architectural details: [ARCHITECTURE.md](ARCHITECTURE.md).
 
-> A recorded demo of a real review run is tracked in a GitHub issue; this README intentionally ships no mock-up in its place.
+---
 
-## Review output shape
+## What Roslyn Extracts Before the LLM Speaks
 
-Illustrative — actual output depends on the reviewed diff:
+Every changed method, constructor, and computed property is analyzed by `SemanticAnalyzer` and `RiskDetector` to populate deterministic facts mapped directly to the three council personas:
+
+| Council Persona | Deterministic Roslyn Signals in `MethodFacts` | Seeded Defect Classes Covered |
+|---|---|---|
+| **⚡ Allocations & Performance** | `MissingConfigureAwait` (`bool`), `Allocations` (`Boxing`, `LinqClosure` — distinguishing true outer-variable capture from non-capturing lambdas), `StartLine`–`EndLine` | `missing-configureawait`, `boxing-allocation`, `closure-capture` |
+| **🔒 Security Auditor** | `Risks`: `sql-concat`, `hardcoded-secret`, `weak-crypto:MD5`, `weak-crypto:SHA1`, `weak-crypto:DES`, `weak-crypto:TripleDES`, `weak-crypto:RC2`, `weak-random:System.Random` | `sql-injection`, `hardcoded-secret`, `weak-crypto`, `weak-random` |
+| **🏛️ Idiomatic Architect** | `Risks`: `unawaited-task`, `sync-over-async`, `lock-in-async`, `static-mutable-state`, `captive-dependency:<Service>->Singleton`, `swallowed-exception` + `ConstructorDependencies` | `unawaited-task`, `sync-over-async`, `async-lock`, `thread-safety`, `captive-dependency`, `swallowed-exception` |
+
+---
+
+## Output Surfaces: Live Web Dashboard & CLI
+
+### 1. Real-Time SSE Web Dashboard (`CodeTurtleEngine.Web` + Next.js)
+Streams every pipeline stage live over Server-Sent Events (SSE) and renders an interactive verification report:
+- **Compiler Risk Badges:** Color-coded badges for every deterministic `RiskDetector` and allocation signal (`sql-concat`, `captive-dependency`, `sync-over-async`, `Boxing`, etc.) with hover tooltips and one-click filtering.
+- **Roslyn Symbol Provenance Chips:** Every cited symbol displays a verified `[✓ Roslyn]` badge alongside `TurtleShellGuard` stripped-hallucination counters.
+- **Interactive Filtering:** Filter findings by **Severity** (`Critical`, `Warning`, `Info`), **Council Persona**, or **Compiler Risk Tag**.
+- **Diff & Payload Inspector:** Inspect the exact trimmed vs. untrimmed `payload.json`, raw pre-guard `verdicts.json`, and `audit.json` directly in the browser.
+
+### 2. CLI Markdown Output (`turtle review`)
 
 ```markdown
 # Code Turtle Review - MyProject
 
 Diff baseline: `main` - Files reviewed: 4
 
-## [Warning] Missing ConfigureAwait(false)
+## [Critical] Captive dependency: Scoped IOrderRepository injected into Singleton OrderCache
 
-- **Persona:** AllocationsPerformance
-- **Location:** `src/Services/PaymentService.cs:42`
-- Awaiting `HttpClient` without ConfigureAwait(false) risks deadlocks in library code.
-- **Symbols:** `System.Net.Http.HttpClient`, `System.Threading.Tasks.Task`
+- **Persona:** IdiomaticArchitect
+- **Location:** `src/Services/OrderCache.cs:14`
+- `OrderCache` is registered as a Singleton (`captive-dependency:SampleRepo.IOrderRepository->Singleton`) but captures scoped `IOrderRepository` in its constructor.
+- **Symbols:** `SampleRepo.OrderCache`, `SampleRepo.IOrderRepository`
 ```
 
-## Problem
+---
 
-LLM-based reviewers produce confident findings about methods and types that were never in the codebase. Code Turtle Engine eliminates that failure class for cited symbols: every changed C# project is compiled with Roslyn first, the compilation produces a deterministic payload of per-method facts, and a guard audits every symbol citation in every finding against the compiler's own resolved-symbol set. The interesting design tension is latency vs. integrity — the prompt payload is trimmed for token/latency budgets, but the guard always audits against the **full, untrimmed** allow-list, so trimming can never weaken grounding.
+## Evaluation & Benchmarks (`turtle bench`)
 
-## Key capabilities
+`turtle bench` evaluates what compiler grounding buys on a 13-entry C# corpus (12 seeded defect entries across all 12 defect classes + 1 clean control repository). Each entry is reviewed across three arms:
+- **Naive:** Changed source code sent directly to the model (same model, same rubric — how standard AI reviewers operate).
+- **Grounded:** Only the Roslyn semantic payload (`payload.json`) sent to the model.
+- **Code Turtle:** Grounded output after `TurtleShellGuard` (`Strip` mode).
 
-- **Compiler-grounded payload** — per changed method: async `ConfigureAwait(false)` health, value-type→`object` boxing, LINQ closures capturing locals, constructor dependency types, and the Roslyn-resolved symbol set (the guard's allow-list).
-- **Parallel persona council** — 3 LLM personas (Allocations & Performance, Security Auditor, Idiomatic Architect) run concurrently against the same payload; quorum gate (default 2/3) and a degraded-review banner when fewer than 3 succeed.
-- **Turtle Shell guard** — Ordinal exact-match audit of every cited FQN; `Strip` mode drops findings whose citations all fail verification and prunes false citations from mixed findings; `Flag` mode records the audit in `audit.json` and keeps findings untouched.
-- **Deterministic arbiter** — dedupes by lowercased title + location keeping max severity, orders severity-descending then location; no LLM in the merge path.
-- **Dual-protocol LLM gateway** — OpenAI-compatible path (Microsoft.Extensions.AI) and a raw Anthropic Messages adapter; ordered route fallback, Polly 300 s timeout + circuit breaker, JSON-schema structured output with client-side validation and one malformed-JSON retry.
-- **Hermetic test suite** — 158 offline .NET tests: mock `IChatClient`, injected `HttpMessageHandler` for the adapter, a fixture repo compiled by the real Roslyn loader with 6 seeded defect classes; live tests opt-in via `TURTLE_LIVE=1`.
-- **Audit artifacts** — every run writes `payload.json` (full, untrimmed), `verdicts.json` (raw, pre-guard), `review.md`, and `audit.json` (verified true/false per citation).
+### 1. Empirical LLM Benchmark (Pre-`RiskDetector` Baseline)
+Recorded across 13 corpus entries in [docs/benchmark/claude-sonnet-resume.md](docs/benchmark/claude-sonnet-resume.md) prior to the `RiskDetector` expansion:
 
-## Architecture snapshot
+| Experiment | Arm | Invented Citation Rate (Hallucinations) | Pooled Precision | Pooled Recall |
+|---|---|---|---|---|
+| **Single-Repetition (Claude Sonnet, 75 prompts)** | **Naive** (Raw Source) | 14.2% (18/127) | 12.9% (8/62) | 66.7% (8/12) |
+| | **Code Turtle** (Grounded + Guard) | **0.0% (0/53)** | **25.8% (8/31) (~2.0×)** | **66.7% (8/12)** |
+| **3-Repetition Checkpoint (Mixed-Model, 225 prompts)** | **Naive** (Raw Source) | 4.3% (23/531) | 14.8% (30/203) | 83.3% (30/36) |
+| | **Code Turtle** (Grounded + Guard) | **0.0% (0/217)** | **21.2% (22/104) (~1.4×)** | 61.1% (22/36)* |
 
-```mermaid
-flowchart LR
-    A[Git Diff<br/>LibGit2Sharp] --> B[Compile<br/>MSBuildWorkspace + Roslyn]
-    B --> C[Payload<br/>per-method facts]
-    C --> D[Trim<br/>prompt view only]
-    D --> E[Council<br/>3 parallel personas]
-    E --> F[Arbiter<br/>deterministic merge]
-    F --> G[Turtle Shell Guard<br/>audit vs FULL allow-list]
-    G --> H[Markdown review<br/>+ artifacts]
-```
+*\*Why pre-expansion recall was 61.1% in the 3-rep run:* Before `RiskDetector` and constructor/property walking were added, defects like `hardcoded-secret`, `swallowed-exception`, and constructor-only `captive-dependency` had no explicit markers in `MethodFacts`. That finding directly drove the Step 1 & Step 2 compiler-fact expansion below.
 
-Trim affects only what the LLMs see; the guard audits against the full untrimmed allow-list from the compilation. Full detail: [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## Engineering highlights
-
-**Zero-hallucination citation chain.** The LLMs receive a strict JSON schema requiring a `CitedSymbolFqns` array and grounding rules forbidding invented symbols. After merge, the guard checks each cited FQN with `StringComparer.Ordinal` against a `HashSet` built from the full payload's `ResolvedSymbols`. A finding is dropped when it cites symbols and none verify; a mixed finding keeps only its verified citations. Honest scope: a finding citing zero symbols passes as advisory, and prose (titles, details, locations) is never verified — the guarantee covers the citation channel only.
-
-**Root-causing a hidden transport timeout.** Live reviews intermittently failed with deep-reasoning personas. The cause was not relay flakiness: `HttpClient`'s default 100-second timeout silently killed every long call regardless of the Polly timeout wrapping it. Setting `Timeout.InfiniteTimeSpan` on the adapter's client makes Polly (300 s) the single timeout authority; after the fix, 3/3 personas succeeded consistently (commit `cb57d43`).
-
-**Trim vs. grounding separation.** Prompt payloads are capped for latency (`MaxFiles` 40, `MaxMethodsPerFile` 40, `MaxSymbolsPerMethod` 20, `MaxAllocationsPerMethod` 10) and rebuilt immutably — the guard is invoked with the original full payload. Caps can reduce what a model is *shown*, never what it is *held to*.
-
-**Protocol adapter, not rewrite.** The available relay (Aliyun Token Plan) exposes the Anthropic Messages protocol only. Because the gateway was already `IChatClient`-abstract, adding `AnthropicMessagesChatClient` (raw `HttpClient`, `Authorization: Bearer` + `anthropic-version: 2023-06-01`, thinking-blocks ignored, text-only extraction) was an adapter addition; `Protocol: "anthropic" | "openai"` selects the path per route.
-
-## Technology stack
-
-| Technology | Responsibility |
-|---|---|
-| .NET 10 (`global.json` pins 10.0.100, `TreatWarningsAsErrors`) | Runtime for all projects |
-| Roslyn `Microsoft.CodeAnalysis` 5.9.0 | Compilation + semantic analysis (symbol resolution, type info) |
-| `MSBuildWorkspace` | Loads `.csproj`/`.sln` into a Roslyn compilation |
-| LibGit2Sharp 0.32 | Git diff: working-tree vs HEAD, or baseline-ref tree-vs-tree |
-| `Microsoft.Extensions.AI.OpenAI` 10.9.0 | `IChatClient` abstraction; OpenAI-compatible route path |
-| Polly 8.7.0 | Timeout (300 s) + circuit breaker around every LLM call |
-| System.CommandLine 3.0.0-rc.1 | CLI parsing (`review` command) |
-| xUnit | Unit, integration, and opt-in live tests |
-
-## Repository structure
-
-```text
-src/
-  CodeTurtleEngine.Core/        domain records, enums, JSON contracts (no dependencies)
-  CodeTurtleEngine.Gatekeeper/  LibGit2Sharp diff · MSBuildWorkspace loader · Roslyn analyzer · payload builder
-  CodeTurtleEngine.Llm/         gateway (fallback + Polly) · OpenAI & Anthropic adapters · structured output
-  CodeTurtleEngine.Council/     rubric · prompts · persona runner · arbiter · Turtle Shell guard · payload trimmer
-  CodeTurtleEngine.Cli/         review command · pipeline orchestration · DI composition · artifacts
-  CodeTurtleEngine.Web/         ASP.NET Core backend for the live demo: GitHub PR fetch, SSE streaming review jobs
-web/                            Next.js client (Vercel); 62 vitest tests, run with `npm test` in web/
-tests/                          7 projects (Core 2 · Gatekeeper 8 · Llm 31 · Council 18 · Cli 3 · Integration 2 · Web 94)
-turtle/rubric_v1.md             council rubric (severity ladder, grounding rules, persona focus)
-docs/                           design specs and plans (design/), ADR candidates, agent contract (AGENTS.md)
-spikes/                         evidence-backed tech decisions (RESULTS.md + probe code)
-.github/workflows/ci.yml        build + offline test suite on push/PR
-```
-
-Project references flow one way: `Core` ← {`Gatekeeper`, `Llm`} ← `Council` ← `Cli`.
-
-## Quick start details
-
-Prerequisites:
-
-- .NET 10 SDK (`global.json` pins 10.0.100, `rollForward: latestFeature`)
-- A C# repository to review. The loader fails closed when the project/solution cannot be *loaded*, but it does not gate on compile diagnostics — a repo with C# errors still yields a semantic model and the review proceeds with degraded analysis.
-- LLM endpoint credentials (any OpenAI-compatible or Anthropic-Messages endpoint; configured out of the box for Aliyun Bailian Token Plan, `qwen3.8-flash`).
+### 2. Deterministic Compiler Payload Coverage (Post-`RiskDetector` Expansion)
+Verified hermetically by `SeededCorpusCoverageTests` and offline replay across all 13 corpus entries:
+- **Seeded Defect Class Extraction:** **12 / 12 (100.0%)** seeded defect classes deterministically tagged in `MethodFacts` (`Risks`, `Allocations`, `MissingConfigureAwait`) with exact 1-based `[StartLine, EndLine]` spans.
+- **Clean Control False Positives:** **0** risk tags emitted on `clean-control`.
+- **Member & Symbol Resolution:** Constructors (`TypeName.TypeName(...)`), computed properties, and member citations verify with **0.0% unverified/invented rate** via `TurtleShellGuard` + `SymbolOracle`.
 
 ```bash
-# Credentials are referenced by env-var NAME from appsettings — no secrets in the repo
-export TURTLE_LLM_BASE_URL="https://token-plan.<region>.maas.aliyuncs.com/apps/anthropic"
-export TURTLE_LLM_API_KEY="<key>"
+# Run a live 3-repetition benchmark (requires LLM route credentials)
+dotnet run --project src/CodeTurtleEngine.Cli -- bench --corpus bench/corpus.json --repeat 3
 
+# Export prompts or score saved responses offline without LLM credentials
+dotnet run --project src/CodeTurtleEngine.Cli -- bench --corpus bench/corpus.json --repeat 1 --record-prompts bench/prompts
+dotnet run --project src/CodeTurtleEngine.Cli -- bench --corpus bench/corpus.json --repeat 1 --replay bench/prompts
+```
+
+---
+
+## Engineering Highlights
+
+- **Zero-hallucination citation chain with `SymbolOracle` fallback.** Personas must return structured JSON matching a schema with `CitedSymbolFqns`. After merge, `TurtleShellGuard` checks each cited FQN (`StringComparer.Ordinal`) against the full payload's `ResolvedSymbols` set, handles member citations (`Namespace.Type.Member(...)` via parent-type prefix matching), and falls back to `ISymbolOracle` against the live `CSharpCompilation` for valid BCL/compilation types outside changed methods.
+- **Trim vs. grounding separation.** Prompt payloads are capped for latency (`MaxFiles` 40, `MaxMethodsPerFile` 40, `MaxSymbolsPerMethod` 20, `MaxAllocationsPerMethod` 10) and rebuilt immutably — the guard always audits against the original **untrimmed** payload. Caps reduce what a model is *shown*, never what it is *held to*.
+- **Root-causing a hidden transport timeout.** Live reviews with deep-reasoning personas intermittently failed because `HttpClient`'s default 100-second timeout killed calls underneath Polly's 300-second timeout wrapper. Setting `Timeout.InfiniteTimeSpan` on `HttpClient` made Polly (300 s) the single timeout authority (`cb57d43`).
+- **Dual-protocol LLM gateway (`IChatClient`).** Supports both OpenAI-compatible endpoints (`Microsoft.Extensions.AI.OpenAI`) and raw Anthropic Messages endpoints (`AnthropicMessagesChatClient` with thinking-block filtering), with ordered route fallback, Polly circuit breaker, and one automatic retry on malformed JSON.
+
+---
+
+## Quick Start
+
+### Prerequisites
+- **.NET 10 SDK** (`global.json` pins `10.0.100`, `rollForward: latestFeature`, `TreatWarningsAsErrors: true`)
+- **Node.js 20+** *(optional, for the Next.js Web Dashboard)*
+- **LLM Endpoint Credentials** (any OpenAI-compatible or Anthropic Messages endpoint; pre-configured for Aliyun Bailian Token Plan / `qwen3.8-flash`)
+
+### 1. Build & Run the Offline Test Suite (No Credentials Needed)
+
+```bash
 dotnet build
-dotnet test                   # 158 offline tests, no credentials needed
-TURTLE_LIVE=1 dotnet test     # adds live smoke tests (requires credentials)
+dotnet test                   # 288 offline .NET tests
+cd web && npm test            # 69 offline Web UI tests (Vitest)
+```
+
+### 2. Run a CLI Code Review
+
+```bash
+export TURTLE_LLM_BASE_URL="https://token-plan.<region>.maas.aliyuncs.com/apps/anthropic"
+export TURTLE_LLM_API_KEY="<your-key>"
 
 dotnet run --project src/CodeTurtleEngine.Cli -- review /path/to/repo \
   --diff main --out review.md
 ```
 
-## Usage
+### 3. Launch the Interactive Web Dashboard
+
+```bash
+# Terminal 1 — Start the ASP.NET Core SSE API (port 5000)
+dotnet run --project src/CodeTurtleEngine.Web --urls http://localhost:5000
+
+# Terminal 2 — Start the Next.js Web UI (port 3000)
+cd web
+npm install
+npm run dev
+```
+Open `http://localhost:3000` to run live repository reviews, inspect pre-saved showcase artifacts, or explore the 7-stage pipeline interactively. Or launch both services via Docker:
+
+```bash
+docker compose up --build
+```
+
+---
+
+## CLI Usage & Configuration
 
 ```text
 turtle review <repo> [--diff <ref>] [--project <path.csproj|.sln>] [--out <file>]
@@ -144,62 +192,62 @@ turtle review <repo> [--diff <ref>] [--project <path.csproj|.sln>] [--out <file>
 
 | Flag | Behavior | Default |
 |---|---|---|
-| `--diff <ref>` | Baseline branch/SHA → **tree-vs-tree, baseline..HEAD; uncommitted changes excluded** | no flag → HEAD tree vs working directory (**includes** uncommitted changes) |
-| `--project <path>` | Project or solution to compile; for a `.sln` only the **first** project is compiled | `.sln` at repo root, else first `.csproj` found recursively |
-| `--out <file>` | Also write the markdown review to this path | artifacts only |
+| `--diff <ref>` | Baseline branch/SHA → **tree-vs-tree, `baseline..HEAD`; uncommitted changes excluded** | No flag → `HEAD` tree vs. working directory (**includes** uncommitted changes) |
+| `--project <path>` | `.csproj` or `.sln` to compile; for a `.sln`, **all C# projects in the solution** are compiled into a unified compilation | `.sln` at repo root, else first `.csproj` found recursively |
+| `--out <file>` | Also write the markdown review to this file path | Artifacts directory only |
 
-- Exit codes: `0` success, `1` any pipeline error (`error: {message}` on stderr, no stack trace).
-- stdout: the markdown review. stderr: `Artifacts: {dir}` and `elapsed: {N} ms` (wall time of the pipeline).
-- Artifacts: `$TURTLE_HOME` (default `~/.turtle`)`/reviews/{project-file-slug}/{UTC yyyyMMdd-HHmmss-fffffff}/` containing `payload.json`, `verdicts.json`, `review.md`, `audit.json`.
+- **Exit codes:** `0` success, `1` any pipeline error (`error: {message}` on `stderr`, no raw stack trace).
+- **Artifacts:** Written to `$TURTLE_HOME/reviews/{project-slug}/{UTC-timestamp}/` (default `~/.turtle`):
+  - `payload.json` (full, untrimmed semantic facts)
+  - `verdicts.json` (raw pre-guard persona outputs)
+  - `review.md` (final merged & guarded review)
+  - `audit.json` (per-citation verification record)
 
-### Configuration (`src/CodeTurtleEngine.Cli/appsettings.json`)
-
-- `Llm:Routes[]` — `Name`, `Protocol` (`anthropic` | `openai`), `BaseUrlEnv`, `ApiKeyEnv`. The per-route `Model` field is currently ignored: model selection is governed by `Llm:ModelRoles` (`deep`/`fast`, both `qwen3.8-flash` in the shipped config). `Llm:JsonRetries` (default 1) re-rolls malformed-JSON model output.
-- `Turtle:Council` — `Quorum` 2 · `Guard` `Strip`|`Flag` · `MaxSymbolsPerMethod` 20 · `MaxAllocationsPerMethod` 10 · `MaxMethodsPerFile` 40 · `MaxFiles` 40 · `MaxFindingsPerPersona` 5 (prompt-level cap).
+### Configuration (`appsettings.json`)
+- `Llm:Routes[]` — `Name`, `Protocol` (`anthropic` | `openai`), `BaseUrlEnv`, `ApiKeyEnv`. Model selection is governed by `Llm:ModelRoles` (`deep` / `fast`). `Llm:JsonRetries` (default `1`) re-prompts once on malformed JSON.
+- `Turtle:Council` — `Quorum` (`2`), `Guard` (`Strip` | `Flag`), `RequireCitationsInStripMode` (`false` | `true`), `MaxSymbolsPerMethod` (`20`), `MaxAllocationsPerMethod` (`10`), `MaxMethodsPerFile` (`40`), `MaxFiles` (`40`), `MaxFindingsPerPersona` (`5`).
 - `Turtle:RubricPath` — default `turtle/rubric_v1.md`.
 
-## Testing
+---
 
-| Project | Tests | Layer |
+## Repository Structure & Test Suite
+
+```text
+src/
+  CodeTurtleEngine.Core/        Domain records, MethodFacts, verdicts, JSON contracts (zero external deps)
+  CodeTurtleEngine.Gatekeeper/  LibGit2Sharp diff · MSBuildWorkspace (.csproj/.sln) · SemanticAnalyzer · RiskDetector · SymbolOracle
+  CodeTurtleEngine.Llm/         Dual-protocol gateway (OpenAI + Anthropic Messages) · Polly resilience · structured JSON output
+  CodeTurtleEngine.Council/     RubricLoader · PromptBuilder · PersonaRunner · Arbiter · TurtleShellGuard · PayloadTrimmer
+  CodeTurtleEngine.Cli/         `review` & `bench` commands · ReviewPipeline · BenchRunner · BenchScorer · ArtifactWriter
+  CodeTurtleEngine.Web/         ASP.NET Core API · SSE live review streaming · showcase & history endpoints
+web/                            Next.js 15 + React 19 + Tailwind CSS interactive dashboard
+tests/                          7 .NET xUnit test projects (288 tests) + web/tests Vitest suite (69 tests)
+bench/                          13-entry benchmark corpus (`corpus.json`) + offline replay harness
+turtle/rubric_v1.md             Council rubric (severity ladder, grounding rules, 12-defect persona instructions)
+```
+
+| Test Suite | Tests | Coverage Focus |
 |---|---|---|
-| Core.Tests | 2 | JSON contracts, enums-as-strings |
-| Gatekeeper.Tests | 8 | Real Roslyn compile of fixture repo, diff (temp git repos), payload |
-| Llm.Tests | 31 | Factory protocol switch, gateway fallback/cancellation, adapter via injected `HttpMessageHandler`, structured-output retry |
-| Council.Tests | 18 | Prompts, quorum, arbiter dedupe/order, guard Strip/Flag, trimmer |
-| Cli.Tests | 3 | DI composition, pipeline orchestration, artifact writing |
-| Integration.Tests | 2 | Hermetic e2e + live smoke (opt-in) |
-| Web.Tests | 94 | ASP.NET Core web backend: GitHub PR fetch/diff, repo cloning, SSE streaming, job store, API endpoints |
-| **Total** | **158** | All green offline (verified 2026-10-12) |
+| `Core.Tests` | 3 | Domain contracts, `MethodFacts` line spans & risk lists, enum serialization |
+| `Gatekeeper.Tests` | 56 | Multi-project Roslyn compilation, `RiskDetector` (12 defect classes), `SymbolOracle`, constructor/property walking, closure capture |
+| `Llm.Tests` | 31 | Protocol factory, fallback routing, Polly resilience, `AnthropicMessagesChatClient`, JSON retry |
+| `Council.Tests` | 28 | Grounded/Naive prompt builders, quorum, deterministic arbiter, `TurtleShellGuard` (`Strip`/`Flag`, member FQNs, `RequireCitationsInStripMode`), trimmer |
+| `Cli.Tests` | 72 | CLI commands, `BenchRunner`, `BenchScorer`, replay provenance verification, pipeline orchestration |
+| `Web.Tests` | 94 | SSE streaming endpoints, review service, history/showcase stores, security & path validation |
+| `Integration.Tests` | 4 | End-to-end hermetic pipeline, `SeededCorpusCoverageTests` across all 12 defect classes, opt-in live smoke (`TURTLE_LIVE=1`) |
+| `web/tests` (Vitest) | 69 | `FinalReportView`, `RiskTagBadge`, `FindingCard`, `PersonaBreakdownPanel`, interactive filters, SSE client |
+| **Total** | **357** | **All green offline** |
 
-Hermetic by construction: `MockChatClient` replaces the LLM; `tests/fixtures/SampleRepo` is compiled by the real loader and seeds six defect classes (SQL-string concat, missing `ConfigureAwait`, LINQ closure, boxing, unawaited task, captive DI). The e2e test proves the guard strips a hallucinated citation (`SampleRepo.DoesNotExist`) while keeping a grounded one (`IPaymentGateway`). Live smoke skips via early return unless `TURTLE_LIVE=1` — it passes vacuously offline. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs build + the offline suite on push and PR.
+---
 
-## Verified in live use
+## Documentation
 
-Dogfooded — the engine reviewing its own codebase (measurements recorded in git history; not reproducible from the repo without relay credentials):
-
-- **Zero hallucinations on live output**: 48 symbol citations audited across 3 personas — 48 verified true, 0 false.
-- **Real findings caught**: missing `ConfigureAwait(false)` across the async adapter, implicit boxing on a hot path — confirmed by hand.
-- **Resilience exercised**: quorum (2/3) + degraded-review banner kept a review alive when one persona returned malformed JSON.
-- **Latency**: ~282 s wall for a 3-persona live review on the Token Plan relay — bound by relay + model reasoning time, not a benchmark.
-
-## Detection scope
-
-Deterministic today (method declarations only — constructors, property accessors, and local functions are not analyzed): missing `ConfigureAwait(false)`, implicit boxing (value-type→`object` conversions only; interface boxing not caught), LINQ closures capturing locals, constructor dependency facts, resolved-symbol grounding.
-
-Roadmap (from the design specs): custom Roslyn analyzers for dangerous casts, unawaited tasks, and captive-DI lifetimes (the test fixture already seeds these classes); LLM-assisted arbiter conflict resolution; multi-project solution compilation; visible `[verified]`/`[unverified]` markers in `Flag` mode; GitHub/CI/MCP integration; per-route circuit breakers.
-
-## Docs
-
-- [ARCHITECTURE.md](ARCHITECTURE.md) — as-built architecture: components, runtime flows, reliability, invariants, tradeoffs
-- [docs/adr/README.md](docs/adr/README.md) — candidate ADRs (decisions visible in code, rationale awaiting owner confirmation)
-- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [AGENTS.md](docs/AGENTS.md)
-- Design specs and implementation plans under [docs/design/](docs/design/) — dated snapshots of the design process; ARCHITECTURE.md is the as-built reference
-- [spikes/RESULTS.md](spikes/RESULTS.md) — Spike A evidence for the MSBuildWorkspace-over-Buildalyzer decision (relay protocol evidence lives in the [adapter spec](docs/design/specs/2026-09-09-anthropic-adapter-design.md))
-- [turtle/rubric_v1.md](turtle/rubric_v1.md) — the council rubric
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+- [ARCHITECTURE.md](ARCHITECTURE.md) — As-built architecture: components, runtime flows, reliability, invariants, tradeoffs
+- [docs/benchmark/claude-sonnet-resume.md](docs/benchmark/claude-sonnet-resume.md) — Empirical benchmark checkpoint & offline replay protocol
+- [docs/adr/README.md](docs/adr/README.md) — Architecture Decision Records
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [AGENTS.md](AGENTS.md)
+- [spikes/RESULTS.md](spikes/RESULTS.md) — Spike evidence for `MSBuildWorkspace` over Buildalyzer
+- [turtle/rubric_v1.md](turtle/rubric_v1.md) — Council rubric
 
 ## License
 

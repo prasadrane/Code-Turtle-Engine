@@ -58,4 +58,56 @@ public class TurtleShellGuardTests
 
         Assert.Single(outcome.KeptFindings);
     }
+
+    [Fact]
+    public void BuildAllowList_Collects_All_Resolved_Symbols_Ordinal()
+    {
+        var payload = new RoslynPayload("r", "HEAD", new[]
+        {
+            new FileFacts("A.cs", new[]
+            {
+                new MethodFacts("M1", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "Demo.A", "Demo.B" }),
+                new MethodFacts("M2", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "Demo.B" })
+            })
+        });
+
+        var allow = TurtleShellGuard.BuildAllowList(payload);
+
+        Assert.Equal(2, allow.Count);
+        Assert.Contains("Demo.A", allow);
+        Assert.DoesNotContain("demo.a", allow);
+    }
+
+    [Fact]
+    public void Verify_Accepts_Member_Citations_And_Oracle_Fallback()
+    {
+        var payload = PayloadWith("SampleRepo.IPaymentGateway.ChargeAsync");
+        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip });
+        var findings = new[]
+        {
+            Finding("Exact member", "SampleRepo.IPaymentGateway.ChargeAsync"),
+            Finding("Parent type of member", "SampleRepo.IPaymentGateway"),
+            Finding("Oracle verified type", "System.Threading.Tasks.Task")
+        };
+
+        var outcome = guard.Verify(findings, payload, cite => cite == "System.Threading.Tasks.Task");
+
+        Assert.Equal(3, outcome.KeptFindings.Count);
+        Assert.All(outcome.Audit, a => Assert.True(a.Verified));
+    }
+
+    [Fact]
+    public void Strip_Drops_Uncited_Finding_When_RequireCitationsInStripMode_Is_True()
+    {
+        var findings = new[] { Finding("Uncited advisory") };
+        var guard = new TurtleShellGuard(new CouncilOptions
+        {
+            Guard = GuardMode.Strip,
+            RequireCitationsInStripMode = true
+        });
+
+        var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
+
+        Assert.Empty(outcome.KeptFindings);
+    }
 }
