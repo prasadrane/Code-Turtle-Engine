@@ -24,7 +24,8 @@ public sealed class SemanticAnalyzer
             var allocations = DetectBoxing(member.Node, model).Concat(DetectLinqClosures(member.Node, model)).ToList();
             var asyncHealth = DetectAsyncHealth(member.Node, model);
             var resolved = ResolvedSymbols(member.Node, model);
-            facts.Add(new MethodFacts(member.Name, allocations, asyncHealth, dependencies, resolved, member.StartLine, member.EndLine));
+            var risks = RiskDetector.DetectRisks(member.Node, model, _compilation);
+            facts.Add(new MethodFacts(member.Name, allocations, asyncHealth, dependencies, resolved, member.StartLine, member.EndLine, risks));
         }
         return facts;
     }
@@ -48,7 +49,8 @@ public sealed class SemanticAnalyzer
                 continue;
 
             var owner = model.GetSymbolInfo(awaitExpr.Expression).Symbol?.ContainingType?.Name ?? "task";
-            return $"Missing ConfigureAwait(false) on {owner} invocation";
+            var line = awaitExpr.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+            return $"Missing ConfigureAwait(false) on {owner} invocation (Line {line})";
         }
         return null;
     }
@@ -61,7 +63,8 @@ public sealed class SemanticAnalyzer
         {
             var info = model.GetTypeInfo(expr);
             if (info.Type is { IsValueType: true }
-                && SymbolEqualityComparer.Default.Equals(info.ConvertedType, objectType))
+                && (SymbolEqualityComparer.Default.Equals(info.ConvertedType, objectType)
+                    || info.ConvertedType?.TypeKind == TypeKind.Interface))
             {
                 var line = expr.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
                 if (seen.Add(line)) yield return $"Implicit Boxing (Line {line})";
@@ -87,21 +90,53 @@ public sealed class SemanticAnalyzer
 
     private static bool CapturesLocal(LambdaExpressionSyntax lambda, SemanticModel model) =>
         lambda.DescendantNodes().OfType<IdentifierNameSyntax>()
-            .Any(id => model.GetSymbolInfo(id).Symbol is ILocalSymbol);
+            .Any(id => model.GetSymbolInfo(id).Symbol is ILocalSymbol or IParameterSymbol or IFieldSymbol);
 
     private static IReadOnlyList<string> ResolvedSymbols(SyntaxNode member, SemanticModel model)
     {
         var symbols = new HashSet<string>(StringComparer.Ordinal);
-        var type = model.GetDeclaredSymbol(member)?.ContainingType;
+        var declaredSym = model.GetDeclaredSymbol(member);
+        var type = declaredSym?.ContainingType;
         if (type is not null)
+        {
+            symbols.Add(type.ToDisplayString());
+            if (declaredSym is not null)
+                symbols.Add($"{type.ToDisplayString()}.{declaredSym.Name}");
+
             foreach (var ctor in type.Constructors)
                 foreach (var p in ctor.Parameters)
                     if (p.Type is not null) symbols.Add(p.Type.ToDisplayString());
 
-        foreach (var inv in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
-            if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol m && m.ContainingType is not null)
-                symbols.Add(m.ContainingType.ToDisplayString());
+            foreach (var field in type.GetMembers().OfType<IFieldSymbol>())
+                if (field.Type is not null) symbols.Add(field.Type.ToDisplayString());
+        }
 
-        return symbols.OrderBy(s => s, StringComparer.Ordinal).ToList();
+        foreach (var inv in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol m)
+            {
+                if (m.ContainingType is not null)
+                {
+                    symbols.Add(m.ContainingType.ToDisplayString());
+                    symbols.Add($"{m.ContainingType.ToDisplayString()}.{m.Name}");
+                }
+                foreach (var ta in m.TypeArguments)
+                    symbols.Add(ta.ToDisplayString());
+            }
+        }
+
+        foreach (var ma in member.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
+        {
+            var sym = model.GetSymbolInfo(ma).Symbol;
+            if (sym?.ContainingType is not null)
+            {
+                symbols.Add(sym.ContainingType.ToDisplayString());
+                symbols.Add($"{sym.ContainingType.ToDisplayString()}.{sym.Name}");
+            }
+        }
+
+        return symbols.Where(s => !string.IsNullOrWhiteSpace(s))
+            .OrderBy(s => s, StringComparer.Ordinal)
+            .ToList();
     }
 }
