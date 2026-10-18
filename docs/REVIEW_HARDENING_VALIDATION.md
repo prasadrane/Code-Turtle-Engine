@@ -1,5 +1,8 @@
 # Review hardening validation (steps 1–7)
 
+Historical phase report. Subsequent steps 8–11 preparation and remaining release
+gates are recorded in [FOLLOWON_VALIDATION.md](FOLLOWON_VALIDATION.md).
+
 Starting commit: `a98b7cf219f3e81cad1b356c23c668bd3ff357dd` (the reviewed baseline).
 Branch: `codex/review-hardening`. No upstream changes were reset or overwritten.
 Tools: .NET SDK 10.0.100; Node v24.19.0; npm 11.9.0; resolved Next.js 15.5.25.
