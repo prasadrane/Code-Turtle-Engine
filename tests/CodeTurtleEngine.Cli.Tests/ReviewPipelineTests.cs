@@ -35,7 +35,7 @@ public class ReviewPipelineTests
         // NOT contain the finding and must report no issues. Proves the pipeline renders
         // guarded.KeptFindings, not the pre-guard merged list.
         Assert.DoesNotContain("SQL injection", result.Markdown);
-        Assert.Contains("_No issues found._", result.Markdown);
+        Assert.Contains("_No retained findings. This does not establish that the code is correct or clean._", result.Markdown);
 
         Directory.Delete(home, true);
     }

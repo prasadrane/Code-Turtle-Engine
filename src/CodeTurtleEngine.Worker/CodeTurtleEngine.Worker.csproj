@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CodeTurtleEngine.Gatekeeper/CodeTurtleEngine.Gatekeeper.csproj" />
+    <ProjectReference Include="../CodeTurtleEngine.Council/CodeTurtleEngine.Council.csproj" />
+  </ItemGroup>
+</Project>

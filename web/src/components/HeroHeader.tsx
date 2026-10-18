@@ -32,7 +32,7 @@ export function HeroHeader({ className = '' }: HeroHeaderProps) {
           Council
         </h1>
         <p className="text-lg sm:text-xl text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
-          Three expert AI reviewer turtles. One Roslyn-verified pull request synthesis. Zero hallucinations.
+          Three AI review personas with compiler facts and citation existence checks.
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export function HeroHeader({ className = '' }: HeroHeaderProps) {
         </span>
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/60 border border-slate-800">
           <Zap className="w-3.5 h-3.5 text-teal-400" />
-          Zero Hallucinations
+          Citation Checks
         </span>
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/60 border border-slate-800">
           <Radio className="w-3.5 h-3.5 text-cyan-400" />

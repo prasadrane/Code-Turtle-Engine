@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { RiskTagBadge, detectRiskTag } from '@/components/RiskTagBadge';
 import { FindingCard } from '@/components/FindingCard';
@@ -40,7 +40,7 @@ describe('FindingCard Component', () => {
   };
 
   const sampleAudit = [
-    { citedFqn: 'Shop.Services.OrderRepository.FindByCustomerAsync', verified: true },
+    { citedFqn: 'Shop.Services.OrderRepository.FindByCustomerAsync', verified: true, evidence: 'Payload' as const },
     { citedFqn: 'Shop.Fake.NonExistentHelper', verified: false },
   ];
 
@@ -77,7 +77,7 @@ describe('FindingCard Component', () => {
 
     render(<FindingCard finding={sampleFinding} guardAudit={sampleAudit} />);
     const locBtn = screen.getByTitle('Click to copy file and line location');
-    fireEvent.click(locBtn);
+    await act(async () => { fireEvent.click(locBtn); });
 
     expect(writeTextMock).toHaveBeenCalledWith('Services/OrderRepository.cs:16');
   });
@@ -132,8 +132,8 @@ describe('FinalReportView Interactive Filtering', () => {
       },
     ],
     guardAudit: [
-      { citedFqn: 'Shop.Services.PaymentService.PayAsync', verified: true },
-      { citedFqn: 'Shop.Services.OrderRepository.FindByCustomerAsync', verified: true },
+      { citedFqn: 'Shop.Services.PaymentService.PayAsync', verified: true, evidence: 'Payload' as const },
+      { citedFqn: 'Shop.Services.OrderRepository.FindByCustomerAsync', verified: true, evidence: 'Payload' as const },
     ],
   };
 

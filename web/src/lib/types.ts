@@ -32,12 +32,14 @@ export interface PersonaVerdict {
 export interface GuardResult {
   citedFqn: string;
   verified: boolean;
+  evidence?: 'Payload' | 'Compilation' | 'Rejected' | 'LegacyUnknown';
 }
 
 export interface CouncilVerdict {
   personas: PersonaVerdict[];
   synthesized: ReviewFinding[];
   guardAudit: GuardResult[];
+  findingAudit?: { original: ReviewFinding; retained: boolean; status: 'UncitedAdvisory' | 'RejectedCitations' | 'CitationExistenceOnly' }[];
 }
 
 export interface GitHubPrRequest {
@@ -93,6 +95,7 @@ export interface PersonaStartedEventData {
 
 export interface PersonaFindingEventData {
   type: typeof SseEventTypes.PersonaFinding;
+  verificationStatus?: 'Provisional';
   persona: string;
   character: string;
   finding: ReviewFinding;
@@ -126,6 +129,7 @@ export interface GuardAuditEventData {
   character: string;
   verified: number;
   stripped: number;
+  rejected?: number;
   total: number;
   auditDetails: GuardResult[];
 }

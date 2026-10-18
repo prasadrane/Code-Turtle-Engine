@@ -101,7 +101,7 @@ public class StructuredChatTests
         await Assert.ThrowsAsync<ProviderException>(
             () => sc.CompleteStructuredAsync<Dto>("fast", Msgs(), "{}"));
 
-        Assert.Equal(2, calls); // schema attempt + degrade path only, no JSON re-rolls
+        Assert.Equal(1, calls); // transport failure must not initiate a fallback model request
     }
 
     [Fact]

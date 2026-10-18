@@ -42,3 +42,10 @@ graphify-out/
 .conductor/
 CLAUDE.md
 GEMINI.md
+
+# Local validation logs and baseline archive
+work/
+
+# Python tooling caches
+__pycache__/
+*.pyc

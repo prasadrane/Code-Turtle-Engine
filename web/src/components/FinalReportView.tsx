@@ -24,10 +24,10 @@ export interface FinalReportViewProps {
 }
 
 type TabType = 'synthesized' | 'personas' | 'markdown';
-
 export function FinalReportView({
   verdict,
   markdown,
+  stats,
   className = '',
 }: FinalReportViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>('synthesized');
@@ -90,7 +90,7 @@ export function FinalReportView({
               Code-Turtle Council Final Review
             </h2>
             <p className="text-xs text-slate-400">
-              Synthesized by Judge Shellsworth after multi-persona consensus &amp; Roslyn verification
+              Arbitrated findings with citation existence checks. Recommendations require review.
             </p>
           </div>
         </div>
@@ -104,12 +104,17 @@ export function FinalReportView({
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-md shadow-emerald-500/10">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              Council Approved ({synthesizedFindings.length} findings)
+              Review completed ({synthesizedFindings.length} findings)
             </span>
           )}
         </div>
       </div>
 
+      <p className="text-xs text-amber-300">
+        {(typeof stats?.personasSucceeded === 'number' ? stats.personasSucceeded : personasVerdicts.length) < 3 && 'Degraded review: fewer than three personas succeeded. '}
+        {synthesizedFindings.length === 0 && personasVerdicts.some(p => p.findings.length > 0) && 'All raw findings were removed by arbitration or citation policy. '}
+        {guardAudit.some(a => !a.evidence || a.evidence === 'LegacyUnknown') && 'Legacy demo: citation evidence provenance is unavailable. '}
+      </p>
       {/* Tabs and Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div role="tablist" className="flex items-center gap-2 p-1 rounded-xl bg-slate-950/60 border border-slate-800 self-start">
@@ -240,7 +245,7 @@ export function FinalReportView({
             {filteredFindings.length === 0 ? (
               <div className="p-8 text-center rounded-xl bg-slate-950/40 border border-slate-800 text-slate-400 text-sm">
                 {synthesizedFindings.length === 0
-                  ? 'No findings reported by the Turtle Council. Code is exceptionally clean!'
+                  ? 'No retained findings. This does not establish that the code is clean.'
                   : 'No findings match the current filter selection.'}
               </div>
             ) : (
@@ -256,7 +261,7 @@ export function FinalReportView({
         )}
 
         {activeTab === 'personas' && (
-          <PersonaBreakdownPanel personasVerdicts={personasVerdicts} />
+          <PersonaBreakdownPanel personasVerdicts={personasVerdicts} guardAudit={guardAudit} retained={synthesizedFindings} />
         )}
 
         {activeTab === 'markdown' && (

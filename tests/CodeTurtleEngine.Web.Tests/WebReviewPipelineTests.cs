@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace CodeTurtleEngine.Web.Tests;
 
-public class WebReviewPipelineTests
+public partial class WebReviewPipelineTests
 {
     private sealed class StubPrFetcher : IGitHubPrFetcher
     {
@@ -47,15 +47,16 @@ public class WebReviewPipelineTests
         public void Dispose() { }
     }
 
-    private sealed class StubCompilationLoader : ICompilationLoader
+    private sealed class StubCompilationLoader(Microsoft.CodeAnalysis.Compilation? compilation = null, bool fail = false) : ICompilationLoader
     {
         public Task<LoadedCompilation> LoadAsync(string path, CancellationToken ct = default)
-            => Task.FromResult(new LoadedCompilation(CSharpCompilation.Create("Stub"), new NoopDisposable()));
+            => fail ? throw new CompilationException("Incomplete project: missing dependency") :
+                Task.FromResult(new LoadedCompilation(compilation ?? CSharpCompilation.Create("Stub"), new NoopDisposable()));
 
         private sealed class NoopDisposable : IDisposable { public void Dispose() { } }
     }
 
-    private sealed class StubStreamingRunner : IStreamingPersonaRunner
+    private sealed class StubStreamingRunner(IReadOnlyList<ReviewFinding>? scripted = null) : IStreamingPersonaRunner
     {
         public async Task<IReadOnlyList<PersonaVerdict>> RunWithCallbacksAsync(
             RoslynPayload payload,
@@ -73,7 +74,7 @@ public class WebReviewPipelineTests
                 "Boxing in loop",
                 "Loop.cs:10",
                 Array.Empty<string>());
-            var verdict = new PersonaVerdict(PersonaRole.AllocationsPerformance, new[] { finding });
+            var verdict = new PersonaVerdict(PersonaRole.AllocationsPerformance, scripted ?? new[] { finding });
             await onCompleted(verdict);
             return new[] { verdict };
         }

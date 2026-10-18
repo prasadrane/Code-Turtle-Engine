@@ -24,9 +24,11 @@ public sealed class SymbolOracle
         ["nint"] = "System.IntPtr", ["nuint"] = "System.UIntPtr"
     };
 
-    private readonly Compilation _compilation;
+    private readonly IReadOnlyList<Compilation> _compilations;
 
-    public SymbolOracle(Compilation compilation) => _compilation = compilation;
+    public SymbolOracle(Compilation compilation) : this(new[] { compilation }) { }
+
+    public SymbolOracle(IReadOnlyList<Compilation> compilations) => _compilations = compilations;
 
     public bool Exists(string fqn)
     {
@@ -37,12 +39,12 @@ public sealed class SymbolOracle
         if (name.EndsWith("..ctor", StringComparison.Ordinal))
         {
             var t = ResolveType(name[..^"..ctor".Length]);
-            if (t is not null && t.Constructors.Length > 0) return true;
+            if (t is not null && t.Constructors.Any(SymbolEvidence.IsResolved)) return true;
         }
         else if (name.EndsWith(".ctor", StringComparison.Ordinal))
         {
             var t = ResolveType(name[..^".ctor".Length]);
-            if (t is not null && t.Constructors.Length > 0) return true;
+            if (t is not null && t.Constructors.Any(SymbolEvidence.IsResolved)) return true;
         }
 
         var dot = LastTopLevelDot(name);
@@ -59,11 +61,11 @@ public sealed class SymbolOracle
     private static bool HasMember(INamedTypeSymbol type, string member)
     {
         var simple = type.Name;
-        if (string.Equals(member, simple, StringComparison.Ordinal) && type.Constructors.Length > 0) return true;
+        if (string.Equals(member, simple, StringComparison.Ordinal) && type.Constructors.Any(SymbolEvidence.IsResolved)) return true;
         for (INamedTypeSymbol? t = type; t is not null; t = t.BaseType)
-            if (t.GetMembers(member).Length > 0) return true;
+            if (t.GetMembers(member).Any(SymbolEvidence.IsResolved)) return true;
         foreach (var i in type.AllInterfaces)
-            if (i.GetMembers(member).Length > 0) return true;
+            if (i.GetMembers(member).Any(SymbolEvidence.IsResolved)) return true;
         return false;
     }
 
@@ -96,8 +98,13 @@ public sealed class SymbolOracle
 
     private INamedTypeSymbol? First(string metadataName)
     {
-        var all = _compilation.GetTypesByMetadataName(metadataName);
-        return all.Length > 0 ? all[0] : null;
+        var all = _compilations.SelectMany(c => c.GetTypesByMetadataName(metadataName))
+            .Where(t => SymbolEvidence.IsResolved(t)).ToList();
+        // Duplicate fully qualified types across projects are ambiguous without a project citation.
+        var source = all.Where(t => t.Locations.Any(l => l.IsInSource))
+            .Distinct(SymbolEqualityComparer.Default).ToList();
+        if (source.Count > 1) return null;
+        return source.Count == 1 ? (INamedTypeSymbol)source[0]! : all.FirstOrDefault();
     }
 
     // "System.Collections.Generic.Dictionary<string, int>" -> "System.Collections.Generic.Dictionary`2"

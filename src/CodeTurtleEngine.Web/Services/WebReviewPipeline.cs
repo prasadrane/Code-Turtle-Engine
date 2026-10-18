@@ -103,7 +103,9 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                 ? prDetails.CloneUrl
                 : $"https://github.com/{parsedPr.Owner}/{parsedPr.Repo}.git";
 
-            string clonedDir = await _repoCloner.CloneAsync(cloneUrl, prDetails.HeadBranch, ct: ct).ConfigureAwait(false);
+            if (!string.Equals(cloneUrl, $"https://github.com/{parsedPr.Owner}/{parsedPr.Repo}.git", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Forked source requires the isolated acquisition gate.");
+            string clonedDir = await _repoCloner.CloneAsync(cloneUrl, prDetails.HeadSha, ct: ct).ConfigureAwait(false);
 
             try
             {
@@ -128,7 +130,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     var diffProvider = new GitHubPrDiffProvider(prDetails.ChangedFiles);
                     var changed = diffProvider.GetChangedCSharpFiles(clonedDir, prDetails.BaseSha);
                     var repoSlug = $"{parsedPr.Owner}/{parsedPr.Repo}";
-                    var payload = new PayloadGenerator(loaded.Compilation).Build(repoSlug, prDetails.BaseSha ?? "main", changed);
+                    var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed);
                     var rubric = _rubricLoader.Load(ResolveRubric());
                     var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _councilOptions);
 
@@ -151,7 +153,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                         },
                         onFailed: async (role, message) =>
                         {
-                            await writer.WriteAsync(SseEvent.PersonaFailed(role.ToString(), GetCharacterName(role), message), ct).ConfigureAwait(false);
+                            await writer.WriteAsync(SseEvent.PersonaFailed(role.ToString(), GetCharacterName(role), "Persona could not complete."), ct).ConfigureAwait(false);
                         },
                         ct: ct).ConfigureAwait(false);
 
@@ -165,9 +167,9 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     await writer.WriteAsync(SseEvent.ArbiterMerge("Judge Shellsworth", totalRaw, merged.Count, arbiterQuip), ct).ConfigureAwait(false);
 
                     // 13. Write SSE guard_audit
-                    var guarded = _guard.Verify(merged, payload);
+                    var guarded = _guard.Verify(merged, payload, new SymbolOracle(loaded.Projects).Exists);
                     var verified = guarded.Audit.Count(a => a.Verified);
-                    var stripped = guarded.Audit.Count(a => !a.Verified);
+                    var stripped = _councilOptions.Guard == GuardMode.Strip ? guarded.Audit.Count(a => !a.Verified) : 0;
                     await writer.WriteAsync(SseEvent.GuardAudit("Judge Shellsworth", verified, stripped, guarded.Audit.Count, guarded.Audit), ct).ConfigureAwait(false);
 
                     // 14. Write SSE completed
@@ -177,10 +179,14 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     {
                         markdown = $"> Degraded review: {verdicts.Count}/{ExpectedPersonas} council personas succeeded.\n\n" + markdown;
                     }
-                    var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit);
+                    if (loaded.Diagnostics.Count > 0)
+                        markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
+                            string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
+                    var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
                     var stats = new
                     {
                         personasSucceeded = verdicts.Count,
+                        compilationDiagnostics = loaded.Diagnostics,
                         findingsKept = guarded.KeptFindings.Count,
                         findingsStripped = merged.Count - guarded.KeptFindings.Count
                     };
@@ -194,7 +200,6 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
             finally
             {
                 _repoCloner.Cleanup(clonedDir);
-                writer.TryComplete();
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -203,9 +208,13 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
         }
         catch (Exception ex)
         {
-            var err = SseEvent.Error("PIPELINE_ERROR", ex.Message);
-            await writer.WriteAsync(err, CancellationToken.None).ConfigureAwait(false);
-            _jobStore.SetError(jobId, ex.Message);
+            var safe = ex is CompilationException ? "Compilation was incomplete; review stopped." : "Review processing failed.";
+            var err = SseEvent.Error("PIPELINE_ERROR", safe);
+            writer.TryWrite(err);
+            _jobStore.SetError(jobId, safe);
+        }
+        finally
+        {
             writer.TryComplete();
         }
     }

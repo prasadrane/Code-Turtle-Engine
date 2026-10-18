@@ -4,7 +4,7 @@
 - `CodeTurtleEngine.Core` — domain records (payload, findings, verdicts). No deps.
 - `CodeTurtleEngine.Llm` — gateway: Bailian/Qwen via Microsoft.Extensions.AI, fallback, Polly, structured output, MockChatClient.
 - `CodeTurtleEngine.Gatekeeper` — Roslyn: DiffProvider (LibGit2Sharp), MsBuildCompilationLoader, TurtleSyntaxWalker, SemanticAnalyzer, PayloadGenerator.
-- `CodeTurtleEngine.Council` — RubricLoader, PromptBuilder, PersonaRunner (parallel), Arbiter (deterministic merge+markdown), TurtleShellGuard (zero-hallucination).
+- `CodeTurtleEngine.Council` — RubricLoader, PromptBuilder, PersonaRunner (parallel), Arbiter (deterministic merge+markdown), TurtleShellGuard (citation existence checks).
 - `CodeTurtleEngine.Cli` — System.CommandLine `review` command, ReviewPipeline orchestration, ArtifactWriter, Composition (DI), TurtleOptions.
 
 Dependency flow: Cli -> {Council, Gatekeeper, Llm} -> Core; Council -> Gatekeeper.

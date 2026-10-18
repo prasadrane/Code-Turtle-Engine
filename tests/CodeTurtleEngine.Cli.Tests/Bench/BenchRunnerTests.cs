@@ -93,6 +93,23 @@ public class BenchRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task Derived_Arm_Retains_Compilation_Only_Citation_Without_Changing_Originals()
+    {
+        var calls = 0;
+        var runner = new BenchRunner(mode => Pipeline(mode, new ScriptedPersonas(() =>
+            { calls++; return Cites("Demo.Other", "Demo.Ghost"); })),
+            new FakeLoader(_compilation), (_, _) => Prepared(), TextWriter.Null);
+        var result = await runner.RunAsync(Corpus, 1, Array.Empty<string>(), default);
+        var grounded = result.Rows.Single(r => r.Arm == BenchArm.Grounded).Score!;
+        var guarded = result.Rows.Single(r => r.Arm == BenchArm.CodeTurtle).Score!;
+        Assert.Equal(1, grounded.Invented);
+        Assert.Equal(2, grounded.Unverified);
+        Assert.Equal(0, guarded.Invented);
+        Assert.Equal(1, guarded.Unverified); // real but outside payload remains
+        Assert.Equal(2, calls); // Naive + Grounded, no additional persona call
+    }
+
+    [Fact]
     public async Task Persona_Failure_Records_Error_Rows_And_Continues()
     {
         var runner = new BenchRunner(

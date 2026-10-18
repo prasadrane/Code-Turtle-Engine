@@ -34,7 +34,7 @@ export function FindingCard({ finding, guardAudit = [], className = '' }: Findin
 
   const getAuditStatus = (fqn: string): boolean | null => {
     const item = guardAudit.find((a) => a.citedFqn === fqn);
-    return item ? item.verified : null;
+    return item?.evidence === 'Payload' || item?.evidence === 'Compilation' ? item.verified : item?.verified === false ? false : null;
   };
 
   return (
@@ -66,11 +66,15 @@ export function FindingCard({ finding, guardAudit = [], className = '' }: Findin
       </div>
 
       <p className="text-xs text-slate-300 leading-relaxed">{finding.detail}</p>
+      <p className="text-[10px] text-slate-500">Recommendation and location are not verified.
+        {!finding.citedSymbolFqns?.length && ' Advisory finding without citations.'}
+        {finding.citedSymbolFqns?.some(fqn => getAuditStatus(fqn) === null) && ' Provisional / legacy evidence unavailable.'}
+      </p>
 
       {finding.citedSymbolFqns && finding.citedSymbolFqns.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900">
           <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-            Compiler Grounding:
+            Citation existence:
           </span>
           {finding.citedSymbolFqns.map((fqn) => {
             const isVerified = getAuditStatus(fqn);
@@ -95,7 +99,7 @@ export function FindingCard({ finding, guardAudit = [], className = '' }: Findin
                 <span>{fqn}</span>
                 {isVerified === true && (
                   <span className="text-[9px] text-emerald-400 font-sans font-semibold">
-                    ✓ Roslyn
+                    ✓ Roslyn ({guardAudit.find(a => a.citedFqn === fqn)?.evidence})
                   </span>
                 )}
               </span>

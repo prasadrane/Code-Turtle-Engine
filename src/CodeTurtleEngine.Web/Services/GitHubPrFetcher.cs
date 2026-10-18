@@ -72,39 +72,29 @@ public sealed class GitHubPrFetcher : IGitHubPrFetcher
             ? cUrl.GetString() ?? $"https://github.com/{owner}/{repo}.git"
             : $"https://github.com/{owner}/{repo}.git";
 
-        var filesUrl = $"https://api.github.com/repos/{owner}/{repo}/pulls/{pullNumber}/files?per_page=100";
-        using var filesRequest = new HttpRequestMessage(HttpMethod.Get, filesUrl);
-        filesRequest.Headers.UserAgent.ParseAdd(UserAgent);
-
-        HttpResponseMessage filesResponse;
-        try
-        {
-            filesResponse = await _httpClient.SendAsync(filesRequest, ct).ConfigureAwait(false);
-        }
-        catch (HttpRequestException)
-        {
+        if (!prRoot.TryGetProperty("changed_files", out var total) || !total.TryGetInt32(out var declaredCount) || declaredCount is < 0 or > 3000)
             return Inaccessible();
-        }
-
-        if (!filesResponse.IsSuccessStatusCode)
-        {
-            return Inaccessible();
-        }
-
-        string filesJson = await filesResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        using var filesDoc = JsonDocument.Parse(filesJson);
         var changedFiles = new List<string>();
-
-        if (filesDoc.RootElement.ValueKind == JsonValueKind.Array)
+        for (var page = 1; page <= 30; page++)
         {
-            foreach (var elem in filesDoc.RootElement.EnumerateArray())
+            var filesUrl = $"https://api.github.com/repos/{owner}/{repo}/pulls/{pullNumber}/files?per_page=100" +
+                (page == 1 ? "" : $"&page={page}");
+            using var filesRequest = new HttpRequestMessage(HttpMethod.Get, filesUrl);
+            HttpResponseMessage filesResponse;
+            try { filesResponse = await _httpClient.SendAsync(filesRequest, ct).ConfigureAwait(false); }
+            catch (HttpRequestException) { return Inaccessible(); }
+            using (filesResponse)
             {
-                if (elem.TryGetProperty("filename", out var fn) && fn.GetString() is { } path)
-                {
-                    changedFiles.Add(path);
-                }
+                if (!filesResponse.IsSuccessStatusCode) return Inaccessible();
+                using var filesDoc = JsonDocument.Parse(await filesResponse.Content.ReadAsStringAsync(ct));
+                if (filesDoc.RootElement.ValueKind != JsonValueKind.Array) return Inaccessible();
+                foreach (var elem in filesDoc.RootElement.EnumerateArray())
+                    if (elem.TryGetProperty("filename", out var fn) && fn.GetString() is { } path) changedFiles.Add(path);
+                if (filesDoc.RootElement.GetArrayLength() < 100) break;
             }
         }
+        if (declaredCount != changedFiles.Count || changedFiles.Distinct(StringComparer.Ordinal).Count() != changedFiles.Count)
+            return Inaccessible(); // Never review a silently truncated GitHub file list.
 
         var (isDotNet, _, funny) = LanguageDetector.Inspect(changedFiles);
 

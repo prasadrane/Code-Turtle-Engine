@@ -1,91 +1,90 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace CodeTurtleEngine.Web.Services;
 
-public sealed class RepoCloner : IRepoCloner
+// Explicit trusted-local legacy path only. Hosted acquisition stays disabled.
+public sealed class RepoCloner(string? baseDirectory = null) : IRepoCloner
 {
-    private readonly ConcurrentBag<string> _trackedDirectories = new();
-    private readonly string? _baseDirectory;
-
-    public RepoCloner(string? baseDirectory = null)
-    {
-        _baseDirectory = baseDirectory;
-    }
-
+    private readonly ConcurrentBag<string> _tracked = new();
     public async Task<string> CloneAsync(string cloneUrl, string headBranch, string? targetDir = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cloneUrl);
-
-        var destination = targetDir ?? Path.Combine(_baseDirectory ?? Path.GetTempPath(), "codeturtle_" + Guid.NewGuid().ToString("N"));
+        if (!Regex.IsMatch(cloneUrl, @"\Ahttps://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?\z") ||
+            !Regex.IsMatch(headBranch, @"\A[0-9a-fA-F]{40}\z"))
+            throw new ArgumentException("A GitHub HTTPS repository and exact commit SHA are required.");
+        var destination = targetDir ?? Path.Combine(baseDirectory ?? Path.GetTempPath(), "codeturtle_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(destination);
-        _trackedDirectories.Add(destination);
-
-        var branchArg = string.IsNullOrWhiteSpace(headBranch) ? string.Empty : $"--branch \"{headBranch}\" ";
-        var arguments = $"clone --depth 1 {branchArg}\"{cloneUrl}\" \"{destination}\"";
-
-        var psi = new ProcessStartInfo("git", arguments)
+        _tracked.Add(destination);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(60));
+        try
         {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = Process.Start(psi)
-            ?? throw new InvalidOperationException("Failed to start git process.");
-
-        var stderrTask = process.StandardError.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-        var stderr = await stderrTask.ConfigureAwait(false);
-
-        if (process.ExitCode != 0)
-        {
-            Cleanup(destination);
-            throw new InvalidOperationException($"git clone failed with exit code {process.ExitCode}: {stderr}");
+            await Git(destination, ["init", "--quiet"], deadline.Token);
+            await Git(destination, ["fetch", "--no-tags", "--depth=1", "--", cloneUrl, headBranch], deadline.Token);
+            await Git(destination, ["checkout", "--detach", "--quiet", "FETCH_HEAD"], deadline.Token);
+            var actual = await Git(destination, ["rev-parse", "HEAD"], deadline.Token);
+            if (!string.Equals(actual.Trim(), headBranch, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Checkout identity mismatch.");
+            return destination;
         }
+        catch { Cleanup(destination); throw; }
+    }
 
-        return destination;
+    private static async Task<string> Git(string working, string[] args, CancellationToken ct)
+    {
+        var start = new ProcessStartInfo("git") { WorkingDirectory = working,
+            RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (var arg in new[] { "-c", "core.hooksPath=/dev/null", "-c", "http.followRedirects=false" }.Concat(args))
+            start.ArgumentList.Add(arg);
+        start.Environment["GIT_TERMINAL_PROMPT"] = "0";
+        using var process = Process.Start(start) ?? throw new InvalidOperationException("Clone could not start.");
+        var stdout = ReadBounded(process.StandardOutput);
+        var stderr = ReadBounded(process.StandardError);
+        try { await process.WaitForExitAsync(ct); }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(CancellationToken.None);
+            await Task.WhenAll(stdout, stderr);
+            throw;
+        }
+        await stderr;
+        var text = await stdout;
+        if (process.ExitCode != 0) throw new InvalidOperationException("Repository acquisition failed.");
+        return text;
+    }
+
+    private static async Task<string> ReadBounded(StreamReader reader)
+    {
+        var buffer = new char[4096];
+        var result = new System.Text.StringBuilder();
+        int count;
+        while ((count = await reader.ReadAsync(buffer)) > 0)
+            if (result.Length < 4096) result.Append(buffer, 0, Math.Min(count, 4096 - result.Length));
+        return result.ToString();
     }
 
     public void Cleanup(string directory)
     {
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
-        {
-            return;
-        }
-
-        try
-        {
-            ForceDeleteDirectory(directory);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[RepoCloner] Cleanup failed for '{directory}': {ex.Message}");
-        }
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return;
+        try { Delete(new DirectoryInfo(directory)); }
+        catch { Console.Error.WriteLine("Clone cleanup failed; operator intervention required."); }
     }
-
-    public void Dispose()
+    private static void Delete(DirectoryInfo directory)
     {
-        foreach (var dir in _trackedDirectories)
+        if (directory.LinkTarget is not null) { directory.Delete(); return; }
+        foreach (var entry in directory.EnumerateFileSystemInfos())
         {
-            Cleanup(dir);
+            if (entry is DirectoryInfo child) Delete(child);
+            else
+            {
+                if (entry.LinkTarget is null) entry.Attributes = FileAttributes.Normal;
+                entry.Delete();
+            }
         }
+        directory.Delete();
     }
-
-    private static void ForceDeleteDirectory(string targetDir)
-    {
-        foreach (var file in Directory.GetFiles(targetDir))
-        {
-            File.SetAttributes(file, FileAttributes.Normal);
-            File.Delete(file);
-        }
-
-        foreach (var dir in Directory.GetDirectories(targetDir))
-        {
-            ForceDeleteDirectory(dir);
-        }
-
-        Directory.Delete(targetDir, false);
-    }
+    public void Dispose() { foreach (var path in _tracked) Cleanup(path); }
 }

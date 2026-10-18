@@ -41,6 +41,8 @@ public sealed record PersonaFindingEventData(
 {
     [JsonPropertyName("type")]
     public string Type => SseEventTypes.PersonaFinding;
+    [JsonPropertyName("verificationStatus")]
+    public string VerificationStatus => "Provisional";
 }
 
 public sealed record PersonaCompletedEventData(
@@ -81,6 +83,8 @@ public sealed record GuardAuditEventData(
 {
     [JsonPropertyName("type")]
     public string Type => SseEventTypes.GuardAudit;
+    [JsonPropertyName("rejected")]
+    public int Rejected => AuditDetails.Count(a => !a.Verified);
 }
 
 public sealed record CompletedEventData(

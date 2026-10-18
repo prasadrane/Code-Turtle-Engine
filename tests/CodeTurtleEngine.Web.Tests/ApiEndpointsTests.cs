@@ -1,4 +1,6 @@
 using System.Net;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CodeTurtleEngine.Cli;
@@ -16,13 +18,19 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 
     public ApiEndpointsTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
+        _factory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?> {
+                ["Access:Mode"] = "TrustedLocal", ["Access:ApiKey"] = "fixture-key",
+                ["Access:TrustedRepositories:0"] = "dotnet/runtime" }));
+            builder.ConfigureServices(services => services.AddSingleton<CodeTurtleEngine.Web.Services.IWebReviewPipeline, NoExternalPipeline>());
+        });
     }
 
     [Fact]
     public async Task Health_Endpoint_Returns200AndHealthyStatus()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
 
         var response = await client.GetAsync("/health");
 
@@ -40,7 +48,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [InlineData("https://google.com")]
     public async Task PostReview_WithInvalidUrl_Returns400BadRequest(string invalidUrl)
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var request = new GitHubPrRequest(invalidUrl);
 
         var response = await client.PostAsJsonAsync("/api/review", request);
@@ -51,7 +59,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task PostReview_WithValidUrl_Returns202AcceptedWithJobIdAndEstimatedDuration()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var request = new GitHubPrRequest("https://github.com/dotnet/runtime/pull/101");
 
         var response = await client.PostAsJsonAsync("/api/review", request);
@@ -69,7 +77,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetResult_WithNonExistentJobId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var nonExistentId = Guid.NewGuid();
 
         var response = await client.GetAsync($"/api/review/{nonExistentId}/result");
@@ -80,7 +88,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetResult_ForExistingJob_ReturnsRunningStatusInitially()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var store = _factory.Services.GetRequiredService<IReviewJobStore>();
         var jobId = store.CreateJob("https://github.com/dotnet/runtime/pull/101");
 
@@ -95,7 +103,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetResult_ForCompletedJob_ReturnsCompletedStatusAndResult()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var store = _factory.Services.GetRequiredService<IReviewJobStore>();
         var jobId = store.CreateJob("https://github.com/dotnet/runtime/pull/102");
 
@@ -119,7 +127,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetStream_WithNonExistentJobId_Returns404NotFound()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var nonExistentId = Guid.NewGuid();
 
         var response = await client.GetAsync($"/api/review/{nonExistentId}/stream");
@@ -130,7 +138,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetStream_ForExistingJob_StreamsEventsWithEventStreamContentType()
     {
-        var client = _factory.CreateClient();
+        var client = Client();
         var store = _factory.Services.GetRequiredService<IReviewJobStore>();
         var jobId = store.CreateJob("https://github.com/dotnet/runtime/pull/103");
 
@@ -147,5 +155,15 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
         var content = await response.Content.ReadAsStringAsync();
         Assert.Contains("event: phase", content);
         Assert.Contains("validating", content);
+    }
+    private HttpClient Client()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "fixture-key");
+        return client;
+    }
+    private sealed class NoExternalPipeline : CodeTurtleEngine.Web.Services.IWebReviewPipeline
+    {
+        public Task ExecuteAsync(Guid id, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

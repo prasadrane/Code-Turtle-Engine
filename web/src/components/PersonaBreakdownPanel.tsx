@@ -1,15 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import type { PersonaVerdict } from '../lib/types';
+import type { PersonaVerdict, GuardResult, ReviewFinding } from '../lib/types';
 import { TURTLE_CHARACTERS, getCharacterByPersona } from '../lib/characters';
-import { FindingBadge } from './FindingBadge';
+import { FindingCard } from './FindingCard';
 import { TurtleAvatar } from './TurtleAvatar';
 
 export interface PersonaBreakdownPanelProps {
   personasVerdicts: PersonaVerdict[];
+  guardAudit?: GuardResult[];
+  retained?: ReviewFinding[];
 }
 
-export function PersonaBreakdownPanel({ personasVerdicts }: PersonaBreakdownPanelProps) {
+export function PersonaBreakdownPanel({ personasVerdicts, guardAudit = [], retained = [] }: PersonaBreakdownPanelProps) {
   return (
     <motion.div
       key="personas"
@@ -40,12 +42,9 @@ export function PersonaBreakdownPanel({ personasVerdicts }: PersonaBreakdownPane
                 <p className="text-xs text-slate-500 italic py-2">No findings from this persona.</p>
               ) : (
                 pv.findings.map((f, fIdx) => (
-                  <div key={fIdx} className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/60 text-xs">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-semibold text-slate-200">{f.title}</span>
-                      <FindingBadge severity={f.severity} />
-                    </div>
-                    <p className="text-[11px] text-slate-400">{f.detail}</p>
+                  <div key={fIdx}>
+                    <p className="text-xs text-amber-300">Raw persona audit view — {retained.some(r => r.title === f.title && r.location === f.location && r.persona === f.persona) ? 'retained; citations may be stripped' : 'not retained after arbitration / guard'}</p>
+                    <FindingCard finding={f} guardAudit={guardAudit} />
                   </div>
                 ))
               )}

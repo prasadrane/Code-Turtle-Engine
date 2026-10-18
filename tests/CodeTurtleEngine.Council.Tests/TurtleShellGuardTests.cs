@@ -90,7 +90,7 @@ public class TurtleShellGuardTests
             Finding("Oracle verified type", "System.Threading.Tasks.Task")
         };
 
-        var outcome = guard.Verify(findings, payload, cite => cite == "System.Threading.Tasks.Task");
+        var outcome = guard.Verify(findings, payload, cite => cite is "System.Threading.Tasks.Task" or "SampleRepo.IPaymentGateway" or "SampleRepo.IPaymentGateway.ChargeAsync");
 
         Assert.Equal(3, outcome.KeptFindings.Count);
         Assert.All(outcome.Audit, a => Assert.True(a.Verified));

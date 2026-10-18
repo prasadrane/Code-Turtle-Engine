@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Code-Turtle Live — Interactive Council PR Review',
-  description: 'AI code review council powered by Roslyn zero-hallucination compiler verification.',
+  description: 'AI code review council powered by Roslyn compiler facts and citation existence checks.',
 };
 
 export default function RootLayout({

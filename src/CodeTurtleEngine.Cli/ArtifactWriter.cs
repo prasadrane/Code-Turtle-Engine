@@ -10,7 +10,7 @@ public sealed class ArtifactWriter
 
     public ArtifactWriter(string root) => _root = root;
 
-    public string Write(string repoSlug, RoslynPayload payload, CouncilVerdict verdict, string markdown)
+    public string Write(string repoSlug, RoslynPayload payload, CouncilVerdict verdict, string markdown, IReadOnlyList<string>? compilationDiagnostics = null)
     {
         var dir = Path.Combine(_root, "reviews", Slugify(repoSlug), DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fffffff", CultureInfo.InvariantCulture));
         Directory.CreateDirectory(dir);
@@ -19,6 +19,10 @@ public sealed class ArtifactWriter
         File.WriteAllText(Path.Combine(dir, "verdicts.json"), JsonSerializer.Serialize(verdict.Personas, TurtleJson.Options));
         File.WriteAllText(Path.Combine(dir, "review.md"), markdown);
         File.WriteAllText(Path.Combine(dir, "audit.json"), JsonSerializer.Serialize(verdict.GuardAudit, TurtleJson.Options));
+
+        File.WriteAllText(Path.Combine(dir, "finding-audit.json"), JsonSerializer.Serialize(verdict.FindingAudit, TurtleJson.Options));
+
+        File.WriteAllText(Path.Combine(dir, "compilation-diagnostics.json"), JsonSerializer.Serialize(compilationDiagnostics ?? Array.Empty<string>(), TurtleJson.Options));
 
         return dir;
     }

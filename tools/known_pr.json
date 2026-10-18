@@ -1,0 +1,14 @@
+{
+  "evidence_category": "pending-live",
+  "pr_url": null,
+  "expected_base_sha": null,
+  "expected_head_sha": null,
+  "model_id": null,
+  "endpoint": null,
+  "generation_settings": null,
+  "sample_budget": null,
+  "cost_budget_usd": null,
+  "isolation_report": null,
+  "acquisition_proxy_policy": null,
+  "execute_live": false
+}

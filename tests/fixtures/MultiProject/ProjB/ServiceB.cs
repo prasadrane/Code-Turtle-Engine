@@ -2,5 +2,5 @@ namespace MultiProject.ProjB;
 
 public class ServiceB
 {
-    public string Greet() => "Hello B";
+    public string Greet() => new MultiProject.ProjA.ServiceA().Greet();
 }

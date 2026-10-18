@@ -33,5 +33,5 @@ Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `perf:`, `ci:`). Histor
 
 1. Branch from `main`
 2. Keep the offline suite green (`dotnet test`)
-3. Do not weaken the zero-hallucination chain: the Turtle Shell guard must audit against the FULL payload, never a trimmed view
+3. Do not weaken the citation existence checks: the Turtle Shell guard must audit against the FULL payload, never a trimmed view
 4. Link the issue the change addresses, if any
