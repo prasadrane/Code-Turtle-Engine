@@ -32,6 +32,8 @@ public sealed class StructuredChatClient : IStructuredChatClient
     public async Task<T> CompleteStructuredAsync<T>(string role, IReadOnlyList<ChatMessage> messages,
         string jsonSchema, CancellationToken ct = default)
     {
+        using var schema = JsonDocument.Parse(jsonSchema);
+        OutputSchema.Check(schema.RootElement);
         var instructed = WithSchemaInstruction(messages, jsonSchema);
         for (var attempt = 0; ; attempt++)
         {
@@ -57,12 +59,12 @@ public sealed class StructuredChatClient : IStructuredChatClient
                     JsonDocument.Parse(jsonSchema).RootElement, schemaName: "schema")
             };
             var raw = await _gateway.CompleteAsync(role, instructed, opts, ct).ConfigureAwait(false);
-            return Parse<T>(raw);
+            return Parse<T>(raw, jsonSchema);
         }
-        catch (Exception ex) when (ex is not ModelException)
+        catch (Exception ex) when (IsUnsupportedFormat(ex))
         {
             var raw = await _gateway.CompleteAsync(role, instructed, null, ct).ConfigureAwait(false);
-            return Parse<T>(raw);
+            return Parse<T>(raw, jsonSchema);
         }
     }
 
@@ -73,11 +75,29 @@ public sealed class StructuredChatClient : IStructuredChatClient
             new(ChatRole.User, $"Respond with ONLY a JSON value matching this schema, no prose:\n{jsonSchema}")
         };
 
-    private static T Parse<T>(string raw)
+    private static bool IsUnsupportedFormat(Exception ex)
+    {
+        if (ex is OperationCanceledException) return false;
+        if (ex is ProviderException provider)
+            return provider.InnerException is not null && IsUnsupportedFormat(provider.InnerException);
+        // Providers must explicitly identify the unsupported format capability.
+        return (ex is NotSupportedException &&
+                (ex.Message.Contains("response_format", StringComparison.OrdinalIgnoreCase) ||
+                 ex.Message.Contains("schema", StringComparison.OrdinalIgnoreCase))) ||
+            (ex is InvalidOperationException && ex.Message.Contains("schema unsupported", StringComparison.OrdinalIgnoreCase)) ||
+            (ex is System.ClientModel.ClientResultException { Status: 400 } &&
+                ex.Message.Contains("response_format", StringComparison.OrdinalIgnoreCase) &&
+                ex.Message.Contains("unsupported", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static T Parse<T>(string raw, string jsonSchema)
     {
         var text = ExtractJson(raw);
         try
         {
+            using var document = JsonDocument.Parse(text);
+            using var schema = JsonDocument.Parse(jsonSchema);
+            OutputSchema.Validate(document.RootElement, schema.RootElement);
             return JsonSerializer.Deserialize<T>(text, TurtleJson.Options)
                 ?? throw new ModelException("Deserialized to null.");
         }
@@ -89,8 +109,12 @@ public sealed class StructuredChatClient : IStructuredChatClient
 
     public static string ExtractJson(string raw)
     {
-        var start = raw.IndexOf('{');
-        var end = raw.LastIndexOf('}');
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith('{') || trimmed.StartsWith('[')) return trimmed;
+        var objectStart = raw.IndexOf('{');
+        var arrayStart = raw.IndexOf('[');
+        var start = objectStart < 0 ? arrayStart : arrayStart < 0 ? objectStart : Math.Min(objectStart, arrayStart);
+        var end = start >= 0 && raw[start] == '[' ? raw.LastIndexOf(']') : raw.LastIndexOf('}');
         return start >= 0 && end > start ? raw[start..(end + 1)] : raw.Trim();
     }
 }

@@ -4,7 +4,10 @@ namespace CodeTurtleEngine.Council;
 
 public sealed record GuardOutcome(
     IReadOnlyList<ReviewFinding> KeptFindings,
-    IReadOnlyList<GuardResult> Audit);
+    IReadOnlyList<GuardResult> Audit)
+{
+    public IReadOnlyList<FindingAudit> FindingAudit { get; init; } = Array.Empty<FindingAudit>();
+}
 
 public interface ITurtleShellGuard
 {
@@ -27,15 +30,6 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                 foreach (var sym in m.ResolvedSymbols)
                 {
                     set.Add(sym);
-                    var lastDot = sym.LastIndexOf('.');
-                    if (lastDot > 0)
-                    {
-                        var prefix = sym.Substring(0, lastDot);
-                        if (prefix.Contains('.'))
-                        {
-                            set.Add(prefix);
-                        }
-                    }
                 }
             }
         }
@@ -57,8 +51,12 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
             var verified = new List<string>();
             foreach (var cite in finding.CitedSymbolFqns)
             {
-                var ok = allow.Contains(cite) || (compilationOracle is not null && compilationOracle(cite));
-                audit.Add(new GuardResult(cite, ok));
+                var inPayload = allow.Contains(cite);
+                var inCompilation = compilationOracle?.Invoke(cite);
+                // When a compilation oracle is present it is authoritative, even for payload names.
+                var ok = inCompilation ?? inPayload;
+                var evidence = !ok ? "Rejected" : inPayload ? "Payload" : "Compilation";
+                audit.Add(new GuardResult(cite, ok, evidence));
                 if (ok) verified.Add(cite);
             }
 
@@ -82,6 +80,13 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
             kept.Add(finding with { CitedSymbolFqns = verified });
         }
 
-        return new GuardOutcome(kept, audit);
+        var findingAudit = findings.Select(f =>
+        {
+            var retained = kept.Any(k => k.Persona == f.Persona && k.Title == f.Title && k.Location == f.Location);
+            var rejected = f.CitedSymbolFqns.Any(c => audit.Any(a => a.CitedFqn == c && !a.Verified));
+            var status = f.CitedSymbolFqns.Count == 0 ? "UncitedAdvisory" : rejected ? "RejectedCitations" : "CitationExistenceOnly";
+            return new FindingAudit(f, retained, status);
+        }).ToList();
+        return new GuardOutcome(kept, audit) { FindingAudit = findingAudit };
     }
 }

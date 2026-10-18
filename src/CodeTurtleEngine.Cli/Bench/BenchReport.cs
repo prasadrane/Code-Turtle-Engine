@@ -87,8 +87,8 @@ public static class BenchReport
         sb.AppendLine("## Limits");
         sb.AppendLine();
         if (replay) sb.AppendLine("- Replay measures local pipeline processing, not independent model latency. Model identity and response provenance must accompany the saved answers.");
-        sb.AppendLine("- Invented = cited name resolves to no type or member in the compilation (SymbolOracle). Unverified = not in the guard allow-list, which holds only types the changed methods touch.");
-        sb.AppendLine("- Small corpus; seeded defects are authored by this project; a single model family per run.");
+        sb.AppendLine("- Invented = cited name resolves to no type or member in the compilation (SymbolOracle). Unverified (legacy field name) = absent from the full payload, not rejected by the guard. Compilation-only citations can be retained; no metric verifies recommendation correctness.");
+        sb.AppendLine("- Small corpus; seeded defects are authored by this project; model identity and provenance must be inspected per run (historical runs may mix models).");
         sb.AppendLine("- The guard covers the citation channel only; prose and locations are not verified.");
         sb.AppendLine("- Precision/recall use deterministic matching (same file and either line ±3 or the enclosing method named; persona mapped from defect class); valid findings outside the labels count as false positives.");
         sb.AppendLine("- The arbiter merges findings by (title, location) and keeps the first persona, so a defect mapped to a dropped persona can be undercounted.");

@@ -149,7 +149,7 @@ export function PersonaCard({
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/60">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Persona Findings
+            Persona Findings — provisional, unaudited
           </h4>
           <span className="text-xs text-slate-500 font-mono">
             {findings.length} item{findings.length === 1 ? '' : 's'}
@@ -191,7 +191,7 @@ export function PersonaCard({
                     {finding.citedSymbolFqns.map((fqn) => (
                       <span
                         key={fqn}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-900 border border-slate-700/60 text-emerald-400/90"
+                        className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-900 border border-slate-700/60 text-slate-400"
                         title={fqn}
                       >
                         {fqn}

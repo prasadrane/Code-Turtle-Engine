@@ -145,6 +145,8 @@ export function useDemoReplay(options: UseDemoReplayOptions = {}): UseDemoReplay
         const data = event as CompletedEventData;
         setCompletedMarkdown(data.markdown);
         setVerdict(data.verdict);
+        setFindings(data.verdict.synthesized);
+        setGuardAudit(data.verdict.guardAudit);
         setIsCompleted(true);
         setIsPlaying(false);
         isPlayingRef.current = false;

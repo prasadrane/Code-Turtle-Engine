@@ -29,10 +29,12 @@ public sealed class Arbiter : IArbiter
 
         if (findings.Count == 0)
         {
-            sb.AppendLine("_No issues found._");
+            sb.AppendLine("_No retained findings. This does not establish that the code is correct or clean._");
             return sb.ToString();
         }
 
+        sb.AppendLine("_Citation checks establish existence only; recommendations, relevance and locations are not verified._");
+        sb.AppendLine();
         foreach (var f in findings)
         {
             sb.AppendLine($"## [{f.Severity}] {f.Title}");
@@ -41,6 +43,8 @@ public sealed class Arbiter : IArbiter
             sb.AppendLine($"- {f.Detail}");
             if (f.CitedSymbolFqns.Count > 0)
                 sb.AppendLine($"- **Symbols:** {string.Join(", ", f.CitedSymbolFqns.Select(s => $"`{s}`"))}");
+            else
+                sb.AppendLine("- **Citation status:** Uncited advisory finding (no existence verification).");
             sb.AppendLine();
         }
         return sb.ToString();

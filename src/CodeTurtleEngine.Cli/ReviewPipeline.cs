@@ -32,23 +32,26 @@ public sealed class ReviewPipeline
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
-            var payload = new PayloadGenerator(loaded.Compilation).Build(repoSlug, baselineRef ?? "working-tree", changed);
+            var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed);
             var rubric = _rubricLoader.Load(ResolveRubric());
             // THE INVARIANT: trimming applies ONLY to the LLM prompt projection. The guard
             // must keep verifying against the FULL payload's ResolvedSymbols allow-list.
             var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _options.Council);
             var sources = _options.Council.PromptMode == PromptMode.Naive
-                ? CollectSources(loaded.Compilation, changed, _options.Council.MaxFiles)
+                ? CollectSources(loaded.Projects, changed, _options.Council.MaxFiles)
                 : Array.Empty<SourceFile>();
             var verdicts = await _personas.RunAsync(promptPayload, sources, rubric, ct).ConfigureAwait(false);
             var merged = _arbiter.Merge(verdicts);
-            var guarded = _guard.Verify(merged, payload);
+            var guarded = _guard.Verify(merged, payload, new SymbolOracle(loaded.Projects).Exists);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
             const int ExpectedReviewPersonas = 3; // matches PersonaRunner's review personas
             if (verdicts.Count < ExpectedReviewPersonas)
                 markdown = $"> Degraded review: {verdicts.Count}/{ExpectedReviewPersonas} council personas succeeded.\n\n" + markdown;
-            var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit);
-            var dir = _artifacts.Write(repoSlug, payload, verdict, markdown);
+            if (loaded.Diagnostics.Count > 0)
+                markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
+                    string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
+            var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
+            var dir = _artifacts.Write(repoSlug, payload, verdict, markdown, loaded.Diagnostics);
             return new ReviewResult(markdown, verdict, dir, payload);
         }
         finally
@@ -57,9 +60,9 @@ public sealed class ReviewPipeline
         }
     }
 
-    private static IReadOnlyList<SourceFile> CollectSources(Compilation compilation, IReadOnlyList<string> changed, int maxFiles) =>
+    private static IReadOnlyList<SourceFile> CollectSources(IReadOnlyList<Compilation> compilations, IReadOnlyList<string> changed, int maxFiles) =>
         changed
-            .Select(rel => (rel, tree: compilation.SyntaxTrees.FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, rel))))
+            .Select(rel => (rel, tree: compilations.SelectMany(c => c.SyntaxTrees).FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, rel))))
             .Where(x => x.tree is not null)
             .Take(maxFiles)
             .Select(x => new SourceFile(x.rel, x.tree!.GetText().ToString()))

@@ -35,7 +35,7 @@ public sealed class SemanticAnalyzer
         var type = model.GetDeclaredSymbol(member)?.ContainingType;
         return type is null
             ? Array.Empty<string>()
-            : type.Constructors.SelectMany(c => c.Parameters).Select(p => p.Type.Name).Distinct().ToList();
+            : type.Constructors.SelectMany(c => c.Parameters).Where(p => SymbolEvidence.IsResolved(p.Type)).Select(p => p.Type.Name).Distinct().ToList();
     }
 
     private string? DetectAsyncHealth(SyntaxNode member, SemanticModel model)
@@ -114,7 +114,7 @@ public sealed class SemanticAnalyzer
         if (type is not null)
         {
             symbols.Add(type.ToDisplayString());
-            if (declaredSym is not null)
+            if (declaredSym is not null && SymbolEvidence.IsResolved(declaredSym))
             {
                 symbols.Add($"{type.ToDisplayString()}.{declaredSym.Name}");
                 if (declaredSym is IMethodSymbol { MethodKind: MethodKind.Constructor })
@@ -131,22 +131,22 @@ public sealed class SemanticAnalyzer
 
         foreach (var inv in member.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
-            if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol m)
+            if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol m && SymbolEvidence.IsResolved(m))
             {
-                if (m.ContainingType is not null)
+                if (m.ContainingType is { TypeKind: not TypeKind.Error })
                 {
                     symbols.Add(m.ContainingType.ToDisplayString());
                     symbols.Add($"{m.ContainingType.ToDisplayString()}.{m.Name}");
                 }
                 foreach (var ta in m.TypeArguments)
-                    symbols.Add(ta.ToDisplayString());
+                    AddTypeAndArgs(symbols, ta);
             }
         }
 
         foreach (var ma in member.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
         {
             var sym = model.GetSymbolInfo(ma).Symbol;
-            if (sym?.ContainingType is not null)
+            if (sym?.ContainingType is { TypeKind: not TypeKind.Error } && SymbolEvidence.IsResolved(sym))
             {
                 symbols.Add(sym.ContainingType.ToDisplayString());
                 symbols.Add($"{sym.ContainingType.ToDisplayString()}.{sym.Name}");
@@ -160,9 +160,9 @@ public sealed class SemanticAnalyzer
 
     private static void AddTypeAndArgs(HashSet<string> set, ITypeSymbol? type)
     {
-        if (type is null) return;
+        if (type is null || !SymbolEvidence.IsResolved(type)) return;
         set.Add(type.ToDisplayString());
         if (type is INamedTypeSymbol nts && nts.IsGenericType)
-            foreach (var ta in nts.TypeArguments) set.Add(ta.ToDisplayString());
+            foreach (var ta in nts.TypeArguments) AddTypeAndArgs(set, ta);
     }
 }

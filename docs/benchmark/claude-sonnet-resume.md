@@ -1,5 +1,8 @@
 # Benchmark checkpoint (mixed-model, 3 repetitions)
 
+> Historical pre-expansion checkpoint: these results predate member/risk extraction hardening.
+> Grounded and guarded arms were identical; this is not evidence of incremental guard benefit.
+
 **Status: complete, but NOT a single-model experiment.** Repetition 1 (75
 answers) and 20 repetition-2 answers came from Claude Sonnet subagents in session
 `6ec4653f-779a-4de5-b5b5-2354d721c6ee`. Because Claude was unavailable, the other

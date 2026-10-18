@@ -7,8 +7,9 @@
 
 ## **1\. Executive Summary & Product Vision**
 
-The Code-Turtle-Engine is an enterprise-grade AI pull request reviewer designed to transcend generic text generation. Current AI coding assistants lack full-repository context and frequently propose hallucinatory API calls because they treat code as plain text. Engineering teams spend excessive time reviewing basic syntax, unawaited tasks, and LINQ allocations rather than focusing on high-level system design.  
-This project introduces a multi-agent .NET platform that grounds AI reasoning in deterministic compiler truths. By utilizing the Roslyn Compiler Platform to extract an Abstract Syntax Tree (AST), the system validates code structurally before passing it to a deliberative council of AI agents. The "Turtle Shell" acts as a protective, deterministic gatekeeper, ensuring zero-hallucination code reviews and strict enforcement of idiomatic C\# standards.
+The product goal is compiler-grounded C# review with deterministic citation existence checks.
+The shipped CLI and self-hosted beta are described in README and ARCHITECTURE.
+Existence checks do not establish recommendation correctness, relevance, or locations.
 
 ## **2\. Core Architectural Subsystems**
 
@@ -56,8 +57,6 @@ To ensure enterprise readiness and high availability, Code-Turtle-Engine will be
 
 ## **6\. Key Success Metrics & Milestones**
 
-The project's success is governed by strict deterministic and performance standards:
-
-> * **Absolute Zero Hallucinations:** The system must never suggest a method, property, or architectural pattern that does not exist within the parsed AST or the target .NET framework.  
-> * **Latency Constraint:** The complete end-to-end pipeline—from webhook ingestion to Octokit comment posting—must execute in under 60 seconds.  
-> * **Extensibility:** The engine must successfully expose at least two Model Context Protocol (MCP) tool endpoints, allowing external agents (like Claude Code) to query the C\# abstract syntax tree dynamically.
+Current acceptance uses offline behavior regressions and explicit evidence categories.
+There is no absolute hallucination guarantee or latency promise. MCP endpoints and
+hosted infrastructure described above remain aspirations, not shipped capabilities.

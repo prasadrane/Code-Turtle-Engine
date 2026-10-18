@@ -54,9 +54,9 @@ describe('PhaseTimeline Component', () => {
 
 describe('TrustAuditVisualizer Component', () => {
   const sampleAudit: GuardResult[] = [
-    { citedFqn: 'SampleRepo.PaymentService.ProcessPaymentAsync', verified: true },
-    { citedFqn: 'System.Linq.Enumerable.Where', verified: true },
-    { citedFqn: 'SampleRepo.IPaymentGateway.ChargeAsync', verified: true },
+    { citedFqn: 'SampleRepo.PaymentService.ProcessPaymentAsync', verified: true, evidence: 'Payload' },
+    { citedFqn: 'System.Linq.Enumerable.Where', verified: true, evidence: 'Payload' },
+    { citedFqn: 'SampleRepo.IPaymentGateway.ChargeAsync', verified: true, evidence: 'Payload' },
     { citedFqn: 'SampleRepo.NonExistentHelper.Sanitize', verified: false },
   ];
 
@@ -73,7 +73,7 @@ describe('TrustAuditVisualizer Component', () => {
     expect(screen.getByTestId('trust-score-badge')).toBeTruthy();
     expect(screen.getByText(/75%/i)).toBeTruthy();
     expect(screen.getByText(/3 Verified/i)).toBeTruthy();
-    expect(screen.getByText(/1 Stripped/i)).toBeTruthy();
+    expect(screen.getByText(/1 Rejected/i)).toBeTruthy();
   });
 
   it('renders symbol verification table with verified and stripped rows', () => {
@@ -86,17 +86,17 @@ describe('TrustAuditVisualizer Component', () => {
 
     const strippedBadges = screen.getAllByTestId('status-stripped');
     expect(strippedBadges.length).toBe(1);
-    expect(screen.getByText(/Hallucination Stripped/i)).toBeTruthy();
+    expect(screen.getByText(/Citation Rejected/i)).toBeTruthy();
   });
 
   it('renders 100% Trust Score when all citations are verified', () => {
     const cleanAudit: GuardResult[] = [
-      { citedFqn: 'System.String', verified: true },
-      { citedFqn: 'System.Int32', verified: true },
+      { citedFqn: 'System.String', verified: true, evidence: 'Payload' },
+      { citedFqn: 'System.Int32', verified: true, evidence: 'Payload' },
     ];
     render(<TrustAuditVisualizer guardAudit={cleanAudit} />);
     expect(screen.getByText(/100%/i)).toBeTruthy();
-    expect(screen.getByText(/0 Stripped/i)).toBeTruthy();
+    expect(screen.getByText(/0 Rejected/i)).toBeTruthy();
   });
 });
 
@@ -187,8 +187,8 @@ describe('FinalReportView Component', () => {
     ],
     synthesized: sampleFindings,
     guardAudit: [
-      { citedFqn: 'SampleRepo.PaymentService.ProcessPaymentAsync', verified: true },
-      { citedFqn: 'SampleRepo.DataAccess.BuildQuery', verified: true },
+      { citedFqn: 'SampleRepo.PaymentService.ProcessPaymentAsync', verified: true, evidence: 'Payload' },
+      { citedFqn: 'SampleRepo.DataAccess.BuildQuery', verified: true, evidence: 'Payload' },
     ],
   };
 

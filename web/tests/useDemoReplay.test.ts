@@ -152,7 +152,7 @@ describe('useDemoReplay Hook', () => {
       vi.advanceTimersByTime(1100);
     });
     expect(result.current.isCompleted).toBe(true);
-    expect(result.current.findings).toHaveLength(1);
+    expect(result.current.findings).toEqual(result.current.verdict?.synthesized);
   });
 
   it('supports reset back to initial state', () => {
@@ -180,7 +180,7 @@ describe('useDemoReplay Hook', () => {
       result.current.skipToEnd();
     });
     expect(result.current.isCompleted).toBe(true);
-    expect(result.current.findings).toHaveLength(1);
+    expect(result.current.findings).toEqual(result.current.verdict?.synthesized);
     expect(result.current.completedMarkdown).toBe('# Verdict\nDone.');
     expect(result.current.guardAudit).toHaveLength(1);
   });

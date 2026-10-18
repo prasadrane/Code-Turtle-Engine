@@ -70,7 +70,7 @@ public sealed class BenchRunner
                 if (unknown is not null)
                     throw new BenchException($"{entry.Id}: defect class '{unknown.Class}' missing from classPersonas.");
                 loaded = await _loader.LoadAsync(prepared.ProjectPath, ct).ConfigureAwait(false);
-                prepared = prepared with { Expected = ExpectedDefectEnricher.Enrich(loaded.Compilation, prepared.Expected) };
+                prepared = prepared with { Expected = ExpectedDefectEnricher.Enrich(loaded.Projects, prepared.Expected) };
             }
             catch (Exception ex) when (ex is BenchException or CompilationException or DiffException
                 or LibGit2Sharp.LibGit2SharpException or IOException)
@@ -83,7 +83,7 @@ public sealed class BenchRunner
             heads[entry.Id] = prepared.HeadSha;
             try
             {
-                var oracle = new SymbolOracle(loaded.Compilation);
+                var oracle = new SymbolOracle(loaded.Projects);
                 for (var rep = 1; rep <= repeat; rep++)
                 {
                     _beginRepetition?.Invoke(rep);
@@ -131,7 +131,7 @@ public sealed class BenchRunner
         var rows = new List<BenchRow> { new(entry.Id, arm, rep, Score(result.Verdict.Synthesized), sw.ElapsedMilliseconds, personas, null) };
         if (mode == PromptMode.Grounded)
         {
-            var stripped = StripGuard.Verify(result.Verdict.Synthesized, result.Payload).KeptFindings;
+            var stripped = StripGuard.Verify(result.Verdict.Synthesized, result.Payload, oracle.Exists).KeptFindings;
             rows.Add(new BenchRow(entry.Id, BenchArm.CodeTurtle, rep, Score(stripped), sw.ElapsedMilliseconds, personas, null));
         }
         return rows;

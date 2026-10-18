@@ -14,9 +14,15 @@ public sealed record PersonaVerdict(
 
 public sealed record GuardResult(
     string CitedFqn,
-    bool Verified);
+    bool Verified,
+    string Evidence = "LegacyUnknown");
+
+public sealed record FindingAudit(ReviewFinding Original, bool Retained, string Status);
 
 public sealed record CouncilVerdict(
     IReadOnlyList<PersonaVerdict> Personas,
     IReadOnlyList<ReviewFinding> Synthesized,
-    IReadOnlyList<GuardResult> GuardAudit);
+    IReadOnlyList<GuardResult> GuardAudit)
+{
+    public IReadOnlyList<FindingAudit> FindingAudit { get; init; } = Array.Empty<FindingAudit>();
+}

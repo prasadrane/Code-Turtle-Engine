@@ -168,6 +168,8 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
           const comp = data as CompletedEventData;
           setCompletedMarkdown(comp.markdown);
           setFinalVerdict(comp.verdict);
+          setFindings(comp.verdict.synthesized);
+          setAuditSymbols(comp.verdict.guardAudit);
           setIsCompleted(true);
           setIsStreaming(false);
           closeStream();

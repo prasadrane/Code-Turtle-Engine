@@ -31,10 +31,12 @@ export function TrustAuditVisualizer({
   const [showExplainer, setShowExplainer] = useState(true);
 
   const totalCount = guardAudit.length;
-  const verifiedCount = guardAudit.filter((item) => item.verified).length;
-  const strippedCount = totalCount - verifiedCount;
-  const trustScore = totalCount > 0 ? Math.round((verifiedCount / totalCount) * 100) : 100;
-  const isClean = strippedCount === 0;
+  const supported = (item: GuardResult) => item.verified && (item.evidence === 'Payload' || item.evidence === 'Compilation');
+  const verifiedCount = guardAudit.filter(supported).length;
+  const unknownCount = guardAudit.filter(item => item.verified && !supported(item)).length;
+  const strippedCount = guardAudit.filter(item => !item.verified).length;
+  const trustScore = totalCount > 0 ? Math.round((verifiedCount / totalCount) * 100) : 0;
+  const isClean = totalCount > 0 && strippedCount === 0 && unknownCount === 0;
 
   return (
     <section
@@ -86,7 +88,7 @@ export function TrustAuditVisualizer({
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
               <span className="text-2xl font-black font-mono text-slate-100">{trustScore}%</span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Trust Score</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Citation existence rate</span>
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs">
               <span className="text-emerald-400 font-medium">
@@ -94,7 +96,7 @@ export function TrustAuditVisualizer({
               </span>
               <span className="text-slate-600">•</span>
               <span className={`${strippedCount > 0 ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
-                {strippedCount} Stripped
+                {strippedCount} Rejected; {unknownCount} evidence unavailable
               </span>
             </div>
           </div>
@@ -113,7 +115,7 @@ export function TrustAuditVisualizer({
           <div className="flex items-center gap-2.5">
             <Info className="w-4 h-4 text-sky-400" />
             <h3 className="text-sm font-semibold text-sky-200">
-              Zero Hallucination Guarantee: Roslyn Compiler Allow-List
+              Roslyn compiler citation existence checks
             </h3>
           </div>
           <button
@@ -135,7 +137,7 @@ export function TrustAuditVisualizer({
               className="overflow-hidden"
             >
               <p className="text-xs text-sky-300/80 mt-2.5 leading-relaxed">
-                Every symbol the AI cites (types, methods, APIs) is checked against what the Roslyn compiler actually resolved in the codebase. If the AI made up a symbol that doesn&apos;t exist, the Turtle Shell Guard strips it. This is how we guarantee zero hallucination in citations.
+                Citation existence checks distinguish payload support from broader compilation existence. Strip mode removes rejected citations; Flag mode retains them for inspection. Existence does not verify overloads, locations, relevance, or recommendation correctness.
               </p>
             </motion.div>
           )}
@@ -150,8 +152,8 @@ export function TrustAuditVisualizer({
           </h3>
           <span className="text-xs text-slate-400">
             {isClean
-              ? 'All cited symbols confirmed in Roslyn compilation'
-              : 'Hallucinated citations were struck from the record'}
+              ? 'Citation existence supported by audit evidence'
+              : 'Review citation evidence below; absent evidence is not verification'}
           </span>
         </div>
 
@@ -193,13 +195,13 @@ export function TrustAuditVisualizer({
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {item.verified ? (
+                        {supported(item) ? (
                           <span
                             data-testid="status-verified"
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            Verified
+                            Verified ({item.evidence})
                           </span>
                         ) : (
                           <span
@@ -207,7 +209,7 @@ export function TrustAuditVisualizer({
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30"
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            Hallucination Stripped
+                            {item.verified ? 'Legacy / evidence unavailable' : 'Citation Rejected'}
                           </span>
                         )}
                       </td>
@@ -217,7 +219,7 @@ export function TrustAuditVisualizer({
                             item.verified ? 'text-slate-400' : 'text-rose-300 font-semibold'
                           }`}
                         >
-                          {item.verified ? 'Preserved in report' : 'Struck from final review'}
+                          {supported(item) ? 'Existence only; retention depends on finding policy' : item.verified ? 'No current verification claim' : 'Strip removes; Flag retains'}
                         </span>
                       </td>
                     </motion.tr>

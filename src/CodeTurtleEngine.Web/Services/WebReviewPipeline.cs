@@ -128,7 +128,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     var diffProvider = new GitHubPrDiffProvider(prDetails.ChangedFiles);
                     var changed = diffProvider.GetChangedCSharpFiles(clonedDir, prDetails.BaseSha);
                     var repoSlug = $"{parsedPr.Owner}/{parsedPr.Repo}";
-                    var payload = new PayloadGenerator(loaded.Compilation).Build(repoSlug, prDetails.BaseSha ?? "main", changed);
+                    var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed);
                     var rubric = _rubricLoader.Load(ResolveRubric());
                     var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _councilOptions);
 
@@ -165,9 +165,9 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     await writer.WriteAsync(SseEvent.ArbiterMerge("Judge Shellsworth", totalRaw, merged.Count, arbiterQuip), ct).ConfigureAwait(false);
 
                     // 13. Write SSE guard_audit
-                    var guarded = _guard.Verify(merged, payload);
+                    var guarded = _guard.Verify(merged, payload, new SymbolOracle(loaded.Projects).Exists);
                     var verified = guarded.Audit.Count(a => a.Verified);
-                    var stripped = guarded.Audit.Count(a => !a.Verified);
+                    var stripped = _councilOptions.Guard == GuardMode.Strip ? guarded.Audit.Count(a => !a.Verified) : 0;
                     await writer.WriteAsync(SseEvent.GuardAudit("Judge Shellsworth", verified, stripped, guarded.Audit.Count, guarded.Audit), ct).ConfigureAwait(false);
 
                     // 14. Write SSE completed
@@ -177,10 +177,14 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     {
                         markdown = $"> Degraded review: {verdicts.Count}/{ExpectedPersonas} council personas succeeded.\n\n" + markdown;
                     }
-                    var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit);
+                    if (loaded.Diagnostics.Count > 0)
+                        markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
+                            string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
+                    var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
                     var stats = new
                     {
                         personasSucceeded = verdicts.Count,
+                        compilationDiagnostics = loaded.Diagnostics,
                         findingsKept = guarded.KeptFindings.Count,
                         findingsStripped = merged.Count - guarded.KeptFindings.Count
                     };
@@ -194,7 +198,6 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
             finally
             {
                 _repoCloner.Cleanup(clonedDir);
-                writer.TryComplete();
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -206,6 +209,9 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
             var err = SseEvent.Error("PIPELINE_ERROR", ex.Message);
             await writer.WriteAsync(err, CancellationToken.None).ConfigureAwait(false);
             _jobStore.SetError(jobId, ex.Message);
+        }
+        finally
+        {
             writer.TryComplete();
         }
     }

@@ -8,12 +8,15 @@ namespace CodeTurtleEngine.Cli.Bench;
 public static class ExpectedDefectEnricher
 {
     public static IReadOnlyList<ExpectedDefect>? Enrich(Compilation compilation, IReadOnlyList<ExpectedDefect>? expected)
+        => Enrich(new[] { compilation }, expected);
+
+    public static IReadOnlyList<ExpectedDefect>? Enrich(IReadOnlyList<Compilation> compilations, IReadOnlyList<ExpectedDefect>? expected)
     {
         if (expected is null) return null;
         return expected.Select(d =>
         {
             if (d.Method is not null) return d;
-            var tree = compilation.SyntaxTrees.FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, d.File));
+            var tree = compilations.SelectMany(c => c.SyntaxTrees).FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, d.File));
             if (tree is null) return d;
             var root = tree.GetRoot();
             var text = tree.GetText();

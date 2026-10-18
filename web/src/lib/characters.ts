@@ -114,10 +114,10 @@ export const TURTLE_CHARACTERS: Record<string, TurtleCharacter> = {
     quips: [
       'Order in the chamber! Let me review the evidence...',
       'All persona findings reviewed and merged.',
-      'The Roslyn compiler never lies. Hallucinations have been struck from the record!',
+      'Citation checks completed. Recommendations still need human review.',
       'The shell holds firm. Truth in citations preserved.',
     ],
-    focusAreas: ['Deduplication', 'Roslyn citation verification', 'Zero hallucination audit', 'Synthesis'],
+    focusAreas: ['Deduplication', 'Roslyn citation verification', 'Citation existence audit', 'Synthesis'],
   },
 };
 
