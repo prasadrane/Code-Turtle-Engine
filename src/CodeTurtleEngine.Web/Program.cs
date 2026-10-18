@@ -27,7 +27,11 @@ builder.Services.AddSingleton(turtleOptions);
 builder.Services.AddSingleton(turtleOptions.Council);
 
 builder.Services.AddSingleton<IReviewJobStore, ReviewJobStore>();
-builder.Services.AddHttpClient<IGitHubPrFetcher, GitHubPrFetcher>();
+builder.Services.AddHttpClient<IGitHubPrFetcher, GitHubPrFetcher>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+    client.MaxResponseContentBufferSize = 4 * 1024 * 1024;
+});
 builder.Services.AddSingleton<IRepoCloner, RepoCloner>();
 builder.Services.AddSingleton<ICompilationLoader, MsBuildCompilationLoader>();
 builder.Services.AddSingleton<IArbiter, Arbiter>();

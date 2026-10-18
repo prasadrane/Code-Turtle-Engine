@@ -14,6 +14,7 @@ def build(dotnet_root, published, context, packages=None):
     root = context / 'rootfs'
     root.mkdir(parents=True)
     sdk = Path(dotnet_root).resolve()
+    if not (sdk / "sdk/10.0.100").is_dir(): raise ValueError("SDK 10.0.100 is required")
     for folder in ['sdk', 'shared', 'host', 'packs', 'sdk-manifests', 'templates']:
         if (sdk / folder).exists():
             shutil.copytree(sdk / folder, root / 'opt/dotnet' / folder)

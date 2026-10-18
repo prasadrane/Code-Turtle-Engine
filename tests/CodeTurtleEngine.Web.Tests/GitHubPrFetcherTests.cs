@@ -51,6 +51,7 @@ public class GitHubPrFetcherTests
     {
         var prJson = """
         {
+            "changed_files": 2,
             "base": { "sha": "base123" },
             "head": {
                 "sha": "head456",
@@ -104,6 +105,7 @@ public class GitHubPrFetcherTests
     {
         var prJson = """
         {
+            "changed_files": 1,
             "base": { "sha": "base000" },
             "head": {
                 "sha": "head111",
@@ -143,5 +145,30 @@ public class GitHubPrFetcherTests
         Assert.False(result.IsDotNet);
         Assert.Single(result.ChangedFiles);
         Assert.Contains("curly braces", result.LanguageMessage);
+    }
+    [Theory]
+    [InlineData(101, true)]
+    [InlineData(102, false)]
+    public async Task Pagination_Is_Complete_Or_Review_Is_Rejected(int declaredFiles, bool accessible)
+    {
+        var pages = 0;
+        using var client = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            string json;
+            if (!request.RequestUri!.AbsolutePath.EndsWith("/files"))
+                json = "{\"changed_files\":" + declaredFiles + ",\"base\":{\"sha\":\"base\"},\"head\":{\"sha\":\"head\",\"ref\":\"branch\"}}";
+            else
+            {
+                pages++;
+                var count = pages == 1 ? 100 : 1;
+                json = System.Text.Json.JsonSerializer.Serialize(Enumerable.Range(0, count)
+                    .Select(index => new { filename = $"Page{pages}File{index}.cs" }));
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) };
+        }));
+        var result = await new GitHubPrFetcher(client).FetchAsync("owner", "repo", 1);
+        Assert.Equal(2, pages);
+        Assert.Equal(accessible, result.IsAccessible);
+        if (accessible) Assert.Equal(101, result.ChangedFiles.Count);
     }
 }
