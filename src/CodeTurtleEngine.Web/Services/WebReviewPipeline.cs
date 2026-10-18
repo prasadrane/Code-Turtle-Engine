@@ -103,7 +103,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                 ? prDetails.CloneUrl
                 : $"https://github.com/{parsedPr.Owner}/{parsedPr.Repo}.git";
 
-            string clonedDir = await _repoCloner.CloneAsync(cloneUrl, prDetails.HeadBranch, ct: ct).ConfigureAwait(false);
+            string clonedDir = await _repoCloner.CloneAsync(cloneUrl, prDetails.HeadSha, ct: ct).ConfigureAwait(false);
 
             try
             {
@@ -151,7 +151,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                         },
                         onFailed: async (role, message) =>
                         {
-                            await writer.WriteAsync(SseEvent.PersonaFailed(role.ToString(), GetCharacterName(role), message), ct).ConfigureAwait(false);
+                            await writer.WriteAsync(SseEvent.PersonaFailed(role.ToString(), GetCharacterName(role), "Persona could not complete."), ct).ConfigureAwait(false);
                         },
                         ct: ct).ConfigureAwait(false);
 
@@ -206,9 +206,10 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
         }
         catch (Exception ex)
         {
-            var err = SseEvent.Error("PIPELINE_ERROR", ex.Message);
-            await writer.WriteAsync(err, CancellationToken.None).ConfigureAwait(false);
-            _jobStore.SetError(jobId, ex.Message);
+            var safe = ex is CompilationException ? "Compilation was incomplete; review stopped." : "Review processing failed.";
+            var err = SseEvent.Error("PIPELINE_ERROR", safe);
+            writer.TryWrite(err);
+            _jobStore.SetError(jobId, safe);
         }
         finally
         {

@@ -19,7 +19,8 @@ export default function HomePage() {
   const [activePrUrl, setActivePrUrl] = useState<string>('');
 
   const demo = useDemoReplay({ speedMultiplier: 1 });
-  const live = useReviewStream();
+  const [accessToken, setAccessToken] = useState('');
+  const live = useReviewStream({ accessToken });
 
   const handleStartDemo = () => {
     live.reset();
@@ -65,6 +66,11 @@ export default function HomePage() {
       {/* PR Input & Quick Select (Visible in idle or can be toggled) */}
       {mode === 'idle' && (
         <section className="w-full max-w-4xl mx-auto flex flex-col items-center space-y-6 pt-2">
+          <label className="block text-sm text-slate-400">Local beta access key (demo needs no key)
+            <input type="password" autoComplete="off" aria-label="Local beta access key"
+              value={accessToken} onChange={event => setAccessToken(event.target.value)}
+              className="block bg-slate-900 border border-slate-700 rounded p-2" />
+          </label>
           <PrInput
             onSubmit={handleStartLive}
             onTryDemo={handleStartDemo}

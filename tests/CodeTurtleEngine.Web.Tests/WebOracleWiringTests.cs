@@ -40,7 +40,7 @@ public partial class WebReviewPipelineTests
             if (fail)
             {
                 Assert.True(store.TryGetError(id, out var error));
-                Assert.Contains("Incomplete project", error);
+                Assert.Contains("Compilation was incomplete", error);
                 Assert.DoesNotContain(events, e => e.Type is SseEventTypes.Completed or SseEventTypes.PersonaStarted);
                 return;
             }

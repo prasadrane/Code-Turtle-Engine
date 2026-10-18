@@ -9,6 +9,10 @@ symbol references; it does not verify recommendation correctness or changed-code
 
 ![Web dashboard preview (historical)](docs/assets/dashboard-preview.png)
 
+The web API now defaults to disabled; the browser demo remains offline. See
+[isolation and local-access controls](docs/ISOLATION.md) before enabling a trusted-local
+server. Public source acquisition and hosted release remain gated.
+
 ## Verification policy
 
 CLI, web and the guarded benchmark arm use the full untrimmed payload and a

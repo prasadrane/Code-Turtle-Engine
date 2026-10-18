@@ -13,18 +13,16 @@ import type {
   CompletedEventData,
 } from '../lib/types';
 import type { PersonaState } from './useDemoReplay';
-
 export interface UseReviewStreamOptions {
   apiBase?: string;
+  accessToken?: string;
 }
-
 export interface RejectionState {
   isOpen: boolean;
   type?: 'not_dotnet' | 'private_repo' | 'unknown_error' | string;
   detectedLanguage?: string;
   customMessage?: string;
 }
-
 export interface UseReviewStreamReturn {
   isStreaming: boolean;
   isCompleted: boolean;
@@ -47,22 +45,18 @@ export interface UseReviewStreamReturn {
   reset: () => void;
   clearRejection: () => void;
 }
-
 const initialPersonaStates: Record<string, PersonaState> = {
   AllocationsPerformance: { status: 'idle', findingCount: 0 },
   SecurityAuditor: { status: 'idle', findingCount: 0 },
   IdiomaticArchitect: { status: 'idle', findingCount: 0 },
 };
-
 const SSE_EVENTS = [
   'phase', 'stage', 'persona_started', 'persona_quip', 'persona_finding',
   'finding_stream', 'persona_completed', 'persona_failed', 'guard_started',
   'symbol_checked', 'guard_audit', 'arbiter_merge', 'verdict', 'completed', 'error',
 ];
-
 export function useReviewStream(options: UseReviewStreamOptions = {}): UseReviewStreamReturn {
   const apiBase = options.apiBase ?? (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000');
-
   const [isStreaming, setIsStreaming] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [phase, setPhase] = useState('');
@@ -74,19 +68,23 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
   const [completedMarkdown, setCompletedMarkdown] = useState<string | null>(null);
   const [rejection, setRejection] = useState<RejectionState | null>(null);
   const [error, setError] = useState<ErrorEventData | string | null>(null);
-
   const eventSourceRef = useRef<EventSource | null>(null);
-
+  const activeJobRef = useRef<string | null>(null);
+  const cancelJob = useCallback(() => {
+    if (activeJobRef.current) {
+      void fetch(`${apiBase}/api/review/${activeJobRef.current}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+      activeJobRef.current = null;
+    }
+  }, [apiBase]);
   const closeStream = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
   }, []);
-
   const clearRejection = useCallback(() => setRejection(null), []);
-
   const reset = useCallback(() => {
+    cancelJob();
     closeStream();
     setIsStreaming(false);
     setIsCompleted(false);
@@ -99,14 +97,13 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
     setCompletedMarkdown(null);
     setRejection(null);
     setError(null);
-  }, [closeStream]);
-
+  }, [closeStream, cancelJob]);
   const cancel = useCallback(() => {
+    cancelJob();
     closeStream();
     setIsStreaming(false);
     setPhaseMessage('Review cancelled.');
-  }, [closeStream]);
-
+  }, [closeStream, cancelJob]);
   const handleSseMessage = useCallback((eventType: string, dataStr: string) => {
     try {
       const data = JSON.parse(dataStr);
@@ -167,6 +164,7 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
         case 'completed': {
           const comp = data as CompletedEventData;
           setCompletedMarkdown(comp.markdown);
+          activeJobRef.current = null;
           setFinalVerdict(comp.verdict);
           setFindings(comp.verdict.synthesized);
           setAuditSymbols(comp.verdict.guardAudit);
@@ -195,26 +193,28 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
       // Ignore unparseable SSE data chunk
     }
   }, [closeStream]);
-
   const startReview = useCallback(
     async (prUrl: string) => {
       reset();
       setIsStreaming(true);
       setPhase('validating');
       setPhaseMessage('Submitting pull request to Code-Turtle Council...');
-
       try {
+        if (options.accessToken) {
+          const session = await fetch(`${apiBase}/api/session`, { method: 'POST', credentials: 'include',
+            headers: { Authorization: `Bearer ${options.accessToken}` } });
+          if (!session.ok) throw new Error('Local beta authentication failed.');
+        }
         const response = await fetch(`${apiBase}/api/review`, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prUrl }),
         });
-
         if (!response.ok) {
           const err = await response.json().catch(() => null);
           const isNonDotNet = err?.code === 'NOT_DOTNET' || err?.type === 'not_dotnet' || (err?.error && /non-?\.net|c#/i.test(err.error));
           const isPrivate = err?.code === 'NOT_ACCESSIBLE' || err?.type === 'private_repo' || (err?.error && /private/i.test(err.error));
-
           if (isNonDotNet || isPrivate) {
             setRejection({
               isOpen: true,
@@ -228,18 +228,15 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
           setIsStreaming(false);
           return;
         }
-
         const data = await response.json();
+        activeJobRef.current = data.jobId;
         const streamPath = data.streamUrl || `/api/review/${data.jobId}/stream`;
         const fullStreamUrl = streamPath.startsWith('http') ? streamPath : `${apiBase}${streamPath}`;
-
-        const es = new EventSource(fullStreamUrl);
+        const es = new EventSource(fullStreamUrl, { withCredentials: true });
         eventSourceRef.current = es;
-
         SSE_EVENTS.forEach((evt) => {
           es.addEventListener(evt, (e: MessageEvent) => handleSseMessage(evt, e.data));
         });
-
         es.onerror = () => {
           if (!isCompleted) {
             setError('Connection to review stream closed.');
@@ -252,9 +249,8 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
         setIsStreaming(false);
       }
     },
-    [apiBase, reset, handleSseMessage, isCompleted, closeStream]
+    [apiBase, options.accessToken, reset, handleSseMessage, isCompleted, closeStream]
   );
-
   return {
     isStreaming,
     isCompleted,

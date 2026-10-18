@@ -46,4 +46,18 @@ public class RepoClonerTests
         var cloner = new RepoCloner();
         await Assert.ThrowsAsync<ArgumentException>(() => cloner.CloneAsync("", "main"));
     }
+    [Fact]
+    public void Cleanup_Does_Not_Follow_Repository_Symlinks()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "turtle-links-" + Guid.NewGuid().ToString("N"));
+        var outside = root + "-outside";
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(outside);
+        var canary = Path.Combine(outside, "canary.txt");
+        File.WriteAllText(canary, "harmless");
+        Directory.CreateSymbolicLink(Path.Combine(root, "escape"), outside);
+        new RepoCloner().Cleanup(root);
+        Assert.Equal("harmless", File.ReadAllText(canary));
+        Directory.Delete(outside, true);
+    }
 }

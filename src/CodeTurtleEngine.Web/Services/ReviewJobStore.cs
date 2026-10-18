@@ -11,6 +11,7 @@ public sealed class ReviewJobContext
     private ReviewResult? _result;
     private string? _error;
 
+    public CancellationTokenSource Cancellation { get; } = new();
     public Guid JobId { get; }
     public string PrUrl { get; }
     public DateTimeOffset CreatedAt { get; }
@@ -59,19 +60,31 @@ public sealed class ReviewJobStore : IReviewJobStore
 {
     private readonly ConcurrentDictionary<Guid, ReviewJobContext> _jobs = new();
     private readonly int? _channelCapacity;
+    private readonly object _admission = new();
+    private readonly TimeProvider _clock;
+    private readonly TimeSpan _retention;
+    private readonly int _maxJobs;
 
-    public ReviewJobStore(int? channelCapacity = null)
+    public ReviewJobStore(int? channelCapacity = 256, TimeProvider? clock = null, TimeSpan? retention = null, int maxJobs = 128)
     {
         if (channelCapacity.HasValue && channelCapacity.Value <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(channelCapacity), "Channel capacity must be greater than zero.");
         }
         _channelCapacity = channelCapacity;
+        _clock = clock ?? TimeProvider.System;
+        _retention = retention ?? TimeSpan.FromMinutes(30);
+        _maxJobs = maxJobs;
+        if (_retention <= TimeSpan.Zero || maxJobs < 1) throw new ArgumentOutOfRangeException(nameof(retention));
     }
 
     public Guid CreateJob(string prUrl)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prUrl);
+        lock (_admission)
+        {
+        Expire();
+        if (_jobs.Count >= _maxJobs) throw new InvalidOperationException("Review retention capacity exceeded.");
         var jobId = Guid.NewGuid();
         var channel = _channelCapacity.HasValue
             ? Channel.CreateBounded<SseEvent>(new BoundedChannelOptions(_channelCapacity.Value)
@@ -86,13 +99,27 @@ public sealed class ReviewJobStore : IReviewJobStore
                 SingleWriter = false
             });
 
-        var context = new ReviewJobContext(jobId, prUrl, channel);
+        var context = new ReviewJobContext(jobId, prUrl, channel, _clock.GetUtcNow());
         _jobs[jobId] = context;
         return jobId;
+        }
     }
 
-    public bool TryGetJob(Guid jobId, out ReviewJobContext? context) =>
-        _jobs.TryGetValue(jobId, out context);
+    public void Expire()
+    {
+        foreach (var (id, job) in _jobs)
+            if (_clock.GetUtcNow() - job.CreatedAt >= _retention && _jobs.TryRemove(id, out _))
+            {
+                job.Cancellation.Cancel();
+                job.Channel.Writer.TryComplete();
+            }
+    }
+
+    public bool TryGetJob(Guid jobId, out ReviewJobContext? context)
+    {
+        Expire();
+        return _jobs.TryGetValue(jobId, out context);
+    }
 
     public ChannelWriter<SseEvent> GetWriter(Guid jobId)
     {

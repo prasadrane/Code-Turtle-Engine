@@ -109,3 +109,13 @@ Vitest, TypeScript checks and production Next.js build. Live smoke is opt-in and
 returns early without TURTLE_LIVE=1; an offline pass is not live validation.
 See docs/REVIEW_HARDENING_VALIDATION.md for this change's exact evidence and limits.
 Historical docs/design plans are snapshots, not the current behavior contract.
+
+## Isolation follow-on
+
+The separate Worker project and tools/worker_runtime.py provide a network-denied,
+resource-bounded sealed-archive path. Model credentials stay outside workers.
+Web admission defaults closed; explicit trusted-local access requires a key,
+repository/origin allowlists and loopback clients, with bounded scheduling and
+retention. See docs/ISOLATION.md for enforced controls and pending acquisition,
+image supply-chain and public deployment gates. Earlier host-path descriptions
+above apply to the explicit trusted-local pipeline, not public hosting.

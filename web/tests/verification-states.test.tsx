@@ -74,3 +74,18 @@ it('failed reviews do not become completed reports', async () => {
   expect(result.current.verdict).toBeNull();
   expect(result.current.error).toBe('compilation failed');
 });
+
+it('exchanges the local key for an SSE cookie and cancels the server job', async () => {
+  const events = vi.fn().mockImplementation(() => ({ addEventListener() {}, close() {} }));
+  vi.stubGlobal('EventSource', events);
+  const transport = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ jobId: 'fixture-job' }) });
+  vi.stubGlobal('fetch', transport);
+  const { result } = renderHook(() => useReviewStream({ accessToken: 'fixture-access-key' }));
+  await act(async () => { await result.current.startReview('https://github.com/o/r/pull/1'); });
+  expect(transport).toHaveBeenCalledWith(expect.stringContaining('/api/session'), expect.objectContaining({
+    credentials: 'include', headers: { Authorization: 'Bearer fixture-access-key' } }));
+  expect(events).toHaveBeenCalledWith(expect.not.stringContaining('fixture-access-key'), { withCredentials: true });
+  act(() => result.current.cancel());
+  expect(transport).toHaveBeenCalledWith(expect.stringContaining('/api/review/fixture-job'),
+    expect.objectContaining({ method: 'DELETE', credentials: 'include' }));
+});

@@ -177,6 +177,12 @@ public class ReviewJobStoreTests
         var reader = store.GetReader(jobId);
 
         const int eventCount = 100;
+        var reading = Task.Run(async () =>
+        {
+            var count = 0;
+            await foreach (var _ in reader.ReadAllAsync()) count++;
+            return count;
+        });
         var writeTasks = Enumerable.Range(0, 4).Select(workerId => Task.Run(async () =>
         {
             for (var i = 0; i < eventCount; i++)
@@ -188,13 +194,7 @@ public class ReviewJobStoreTests
         await Task.WhenAll(writeTasks);
         writer.Complete();
 
-        var readCount = 0;
-        await foreach (var _ in reader.ReadAllAsync())
-        {
-            readCount++;
-        }
-
-        Assert.Equal(4 * eventCount, readCount);
+        Assert.Equal(4 * eventCount, await reading.WaitAsync(TimeSpan.FromSeconds(5)));
     }
 
     [Fact]
