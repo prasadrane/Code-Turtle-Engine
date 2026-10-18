@@ -59,4 +59,17 @@ public partial class WebReviewPipelineTests
         }
         finally { Directory.Delete(directory, true); }
     }
+    [Fact]
+    public async Task Forked_Source_Cannot_Reach_The_Trusted_Host_Cloner()
+    {
+        var cloner = new StubRepoCloner("/unused");
+        var store = new ReviewJobStore();
+        var id = store.CreateJob("https://github.com/o/r/pull/1");
+        await new WebReviewPipeline(new StubPrFetcher(new GitHubPrDetails(true,true,"base","head","branch",[],"",
+            "https://github.com/untrusted/fork.git")), cloner, new StubCompilationLoader(), new StubStreamingRunner(),
+            new Arbiter(), new TurtleShellGuard(new CouncilOptions()), new RubricLoader(), store, new CouncilOptions()).ExecuteAsync(id);
+        Assert.False(cloner.Cloned);
+        Assert.True(store.TryGetError(id, out var error));
+        Assert.Equal("Review processing failed.", error);
+    }
 }

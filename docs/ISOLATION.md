@@ -43,12 +43,14 @@ A production image supply-chain/patching review remains required.
 The trusted-local legacy web path requires an explicit `Access:Mode=TrustedLocal`,
 loopback client, server API key, explicit repository allowlist and allowed browser
 origins. It is a single-team authorization boundary, not multi-tenant identity.
-The key is exchanged for a 15-minute HttpOnly SameSite=Strict cookie for EventSource;
+Forked head repositories are rejected before the host cloner, even when their base
+repository is allowlisted. The key is exchanged for a 15-minute HttpOnly SameSite=Strict cookie for EventSource;
 keys never enter URLs. CORS uses exact origins and credentials. Hosted mode cannot
 select the host pipeline. Team members sharing the key share access to all retained
 jobs. Do not expose this loopback path via an unreviewed reverse proxy.
 
-Web admission is limited to 30 requests/minute by default (configurable 1–1000),
+Kestrel bounds connections, request body size, header/keepalive timeouts; all job
+API routes share the request limiter. Web admission is limited to 30 requests/minute by default (configurable 1–1000),
 two running reviews and eight queued reviews. Running tasks have a two-minute
 cancellation deadline. Jobs expire after 30 minutes with at most 128 retained jobs;
 SSE channels are bounded to 256 events and backpressure respects cancellation.

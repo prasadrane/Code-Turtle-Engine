@@ -133,3 +133,14 @@ contains UI regressions. `bench/` holds the corpus and `turtle/` the review rubr
 - [Verification contract](docs/VERIFICATION_CONTRACT.md)
 - [Hardening validation](docs/REVIEW_HARDENING_VALIDATION.md)
 - [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), [MIT license](LICENSE)
+
+## Follow-on preparation (steps 8–11)
+
+- [Isolation controls and explicit trusted-local scope](docs/ISOLATION.md)
+- [Fixture matrix and gated known-PR preflight](docs/REVIEW_PATH_VALIDATION.md)
+- [Frozen benchmark protocol and disclosed limits](docs/CONTROLLED_BENCHMARK.md)
+- [Bounded beta install, examples, troubleshooting and pilot templates](docs/beta/BETA.md)
+
+This is preparation evidence: no live provider calls, fresh empirical benchmark
+responses, pilot outreach, public deployment or merge were performed. Public review
+remains closed pending source/package acquisition and relevant live/deployment gates.

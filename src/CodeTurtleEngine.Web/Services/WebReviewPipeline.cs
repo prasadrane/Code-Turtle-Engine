@@ -103,6 +103,8 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                 ? prDetails.CloneUrl
                 : $"https://github.com/{parsedPr.Owner}/{parsedPr.Repo}.git";
 
+            if (!string.Equals(cloneUrl, $"https://github.com/{parsedPr.Owner}/{parsedPr.Repo}.git", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Forked source requires the isolated acquisition gate.");
             string clonedDir = await _repoCloner.CloneAsync(cloneUrl, prDetails.HeadSha, ct: ct).ConfigureAwait(false);
 
             try

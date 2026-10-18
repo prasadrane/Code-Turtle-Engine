@@ -7,6 +7,13 @@ using CodeTurtleEngine.Web.Models;
 using CodeTurtleEngine.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxConcurrentConnections = 64;
+    options.Limits.MaxRequestBodySize = 16 * 1024;
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
+    options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(30);
+});
 
 // Configuration
 var llmOptions = builder.Configuration.GetSection(LlmOptions.SectionName).Get<LlmOptions>() ?? new LlmOptions();
@@ -31,7 +38,7 @@ builder.Services.AddHttpClient<IGitHubPrFetcher, GitHubPrFetcher>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
     client.MaxResponseContentBufferSize = 4 * 1024 * 1024;
-});
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton<IRepoCloner, RepoCloner>();
 builder.Services.AddSingleton<ICompilationLoader, MsBuildCompilationLoader>();
 builder.Services.AddSingleton<IArbiter, Arbiter>();
@@ -105,7 +112,7 @@ app.MapDelete("/api/review/{jobId:guid}", (Guid jobId, IReviewJobStore store) =>
     if (!store.TryGetJob(jobId, out var job) || job is null) return Results.NotFound();
     job.Cancellation.Cancel();
     return Results.Accepted();
-});
+}).RequireRateLimiting("review");
 
 // 3. GET /api/review/{jobId}/stream
 app.MapGet("/api/review/{jobId:guid}/stream", async (Guid jobId, HttpContext httpContext, IReviewJobStore jobStore) =>
@@ -137,7 +144,7 @@ app.MapGet("/api/review/{jobId:guid}/stream", async (Guid jobId, HttpContext htt
     {
         // Client disconnected
     }
-});
+}).RequireRateLimiting("review");
 
 // 4. GET /api/review/{jobId}/result
 app.MapGet("/api/review/{jobId:guid}/result", (Guid jobId, IReviewJobStore jobStore) =>
@@ -173,7 +180,7 @@ app.MapGet("/api/review/{jobId:guid}/result", (Guid jobId, IReviewJobStore jobSt
         jobId = jobId.ToString(),
         elapsedSeconds = (int)(DateTimeOffset.UtcNow - jobContext.CreatedAt).TotalSeconds
     });
-});
+}).RequireRateLimiting("review");
 
 app.Run();
 
