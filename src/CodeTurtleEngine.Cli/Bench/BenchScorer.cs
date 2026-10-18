@@ -14,6 +14,10 @@ public sealed record RunScore(
     int? Matched,
     int? ExpectedCount)
 {
+    public int? CitedFindings { get; init; }
+    public int? UncitedFindings => CitedFindings is null ? null : Findings - CitedFindings.Value;
+    public int RejectedCitations => Invented; // Same existence oracle as the current guard policy.
+    public double? CitationCoverage => Findings == 0 || CitedFindings is null ? null : (double)CitedFindings.Value / Findings;
     public double? UnverifiedRate => Citations == 0 ? null : (double)Unverified / Citations;
     public double? InventedRate => Citations == 0 ? null : (double)Invented / Citations;
     public double? Precision => Matched is null || Findings == 0 ? null : (double)Matched.Value / Findings;
@@ -49,7 +53,8 @@ public static partial class BenchScorer
         }
 
         int? matched = expected is null ? null : Match(findings, expected, classPersonas);
-        return new RunScore(findings.Count, citations, unverified, invented, findingsWithInvented, matched, expected?.Count);
+        return new RunScore(findings.Count, citations, unverified, invented, findingsWithInvented, matched, expected?.Count)
+            { CitedFindings = findings.Count(f => f.CitedSymbolFqns.Count > 0) };
     }
 
     public static bool TryParseLocation(string location, out string file, out int line)

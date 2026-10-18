@@ -1,0 +1,62 @@
+{
+  "evidence_category": "empirical",
+  "model_id": null,
+  "model_confirmation": null,
+  "endpoint": null,
+  "generation_settings": {
+    "temperature": null,
+    "max_output_tokens": null,
+    "seed": null
+  },
+  "files": {
+    "corpus": [
+      "bench/corpus.json",
+      "bench/seeded"
+    ],
+    "labels": [
+      "bench/corpus.json"
+    ],
+    "schema": [
+      "src/CodeTurtleEngine.Council/PromptBuilder.cs"
+    ],
+    "rubric": [
+      "turtle/rubric_v1.md"
+    ],
+    "harness": [
+      "tools/benchmark_protocol.py",
+      "src/CodeTurtleEngine.Cli/Bench/BenchRunner.cs",
+      "src/CodeTurtleEngine.Cli/Bench/BenchScorer.cs",
+      "src/CodeTurtleEngine.Council/TurtleShellGuard.cs",
+      "src/CodeTurtleEngine.Gatekeeper/SymbolOracle.cs"
+    ]
+  },
+  "entries": [
+    "missing-configureawait",
+    "fire-and-forget",
+    "hardcoded-secret",
+    "swallowed-exception",
+    "sql-injection",
+    "sync-over-async",
+    "boxing",
+    "linq-closure",
+    "service-locator",
+    "path-traversal",
+    "captive-dependency",
+    "thread-unsafe-cache",
+    "clean-refactor"
+  ],
+  "repetitions": 1,
+  "reviewer_groups": {
+    "council": [
+      "AllocationsPerformance",
+      "SecurityAuditor",
+      "IdiomaticArchitect"
+    ]
+  },
+  "budget": {
+    "max_samples": null,
+    "max_usd": null,
+    "max_usd_per_attempt": null
+  },
+  "independence_attestation": null
+}

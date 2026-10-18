@@ -60,6 +60,17 @@ public static class BenchReport
                 $"{(replay ? "n/a (replay)" : Median(rows.Where(x => x.Error is null).Select(x => x.ElapsedMs)) + " ms")} |");
         }
 
+        sb.AppendLine();
+        sb.AppendLine("Citation coverage (findings with at least one citation / all findings):");
+        foreach (var arm in Enum.GetValues<BenchArm>())
+        {
+            var scores = r.Rows.Where(row => row.Arm == arm && row.Score is not null).Select(row => row.Score!).ToList();
+            var findings = scores.Sum(score => score.Findings);
+            var known = scores.Count > 0 && scores.All(score => score.CitedFindings is not null);
+            var cited = known ? scores.Sum(score => score.CitedFindings!.Value) : 0;
+            sb.AppendLine($"- {arm}: {(known && findings > 0 ? Pct((double)cited / findings) + $" ({cited}/{findings})" : "n/a (absent denominator or legacy evidence)")}");
+        }
+        sb.AppendLine("Rejected citations use the same existence oracle as Invented; Unverified remains payload-unsupported, not recommendation correctness.");
         BenchVariance.Append(sb, r);
 
         sb.AppendLine();
