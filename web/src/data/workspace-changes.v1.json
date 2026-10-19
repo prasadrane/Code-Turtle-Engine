@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "snapshot": {
+    "repository": "sample-store/orders",
+    "pullNumber": 42,
+    "title": "Simplify order lookup and reporting",
+    "baseSha": "54ec004f1997905fd00d5dab8242db885fcdb14e",
+    "headSha": "bb6d45623707cd84f5c7aee67e8202969c16674a",
+    "mergeBaseSha": "54ec004f1997905fd00d5dab8242db885fcdb14e",
+    "comparisonKind": "merge-base-to-head"
+  },
+  "files": [
+    {
+      "path": "src/OrderRepository.cs",
+      "oldPath": "src/OrderRepository.cs",
+      "status": "Modified",
+      "analyzed": false,
+      "source": "using System.Data.Common;\n\nnamespace SampleStore;\n\npublic sealed class OrderRepository(DbConnection connection)\n{\n    public async Task<DbDataReader> FindByCustomerAsync(string customerName)\n    {\n        var command = connection.CreateCommand();\n        command.CommandText = \"SELECT * FROM orders WHERE customer = '\" + customerName + \"'\";\n        return await command.ExecuteReaderAsync();\n    }\n}\n",
+      "hunks": [
+        {
+          "header": "@@ -7,11 +7,7 @@ public sealed class OrderRepository(DbConnection connection)",
+          "lines": [
+            {
+              "kind": "context",
+              "oldLine": 7,
+              "newLine": 7,
+              "text": "    public async Task<DbDataReader> FindByCustomerAsync(string customerName)"
+            },
+            {
+              "kind": "context",
+              "oldLine": 8,
+              "newLine": 8,
+              "text": "    {"
+            },
+            {
+              "kind": "context",
+              "oldLine": 9,
+              "newLine": 9,
+              "text": "        var command = connection.CreateCommand();"
+            },
+            {
+              "kind": "removed",
+              "oldLine": 10,
+              "newLine": null,
+              "text": "        command.CommandText = \"SELECT * FROM orders WHERE customer = @name\";"
+            },
+            {
+              "kind": "removed",
+              "oldLine": 11,
+              "newLine": null,
+              "text": "        var parameter = command.CreateParameter();"
+            },
+            {
+              "kind": "removed",
+              "oldLine": 12,
+              "newLine": null,
+              "text": "        parameter.ParameterName = \"@name\";"
+            },
+            {
+              "kind": "removed",
+              "oldLine": 13,
+              "newLine": null,
+              "text": "        parameter.Value = customerName;"
+            },
+            {
+              "kind": "removed",
+              "oldLine": 14,
+              "newLine": null,
+              "text": "        command.Parameters.Add(parameter);"
+            },
+            {
+              "kind": "added",
+              "oldLine": null,
+              "newLine": 10,
+              "text": "        command.CommandText = \"SELECT * FROM orders WHERE customer = '\" + customerName + \"'\";"
+            },
+            {
+              "kind": "context",
+              "oldLine": 15,
+              "newLine": 11,
+              "text": "        return await command.ExecuteReaderAsync();"
+            },
+            {
+              "kind": "context",
+              "oldLine": 16,
+              "newLine": 12,
+              "text": "    }"
+            },
+            {
+              "kind": "context",
+              "oldLine": 17,
+              "newLine": 13,
+              "text": "}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/OrderService.cs",
+      "oldPath": "src/OrderService.cs",
+      "status": "Modified",
+      "analyzed": false,
+      "source": "namespace SampleStore;\n\npublic sealed record Order(decimal Total);\n\npublic sealed class OrderService\n{\n    public int CountLargeOrders(IEnumerable<Order> orders, decimal threshold)\n    {\n        var matches = orders.Where(order => order.Total >= threshold).ToList();\n        return matches.Count;\n    }\n}\n",
+      "hunks": [
+        {
+          "header": "@@ -6,6 +6,7 @@ public sealed class OrderService",
+          "lines": [
+            {
+              "kind": "context",
+              "oldLine": 6,
+              "newLine": 6,
+              "text": "{"
+            },
+            {
+              "kind": "context",
+              "oldLine": 7,
+              "newLine": 7,
+              "text": "    public int CountLargeOrders(IEnumerable<Order> orders, decimal threshold)"
+            },
+            {
+              "kind": "context",
+              "oldLine": 8,
+              "newLine": 8,
+              "text": "    {"
+            },
+            {
+              "kind": "removed",
+              "oldLine": 9,
+              "newLine": null,
+              "text": "        return orders.Count(order => order.Total >= threshold);"
+            },
+            {
+              "kind": "added",
+              "oldLine": null,
+              "newLine": 9,
+              "text": "        var matches = orders.Where(order => order.Total >= threshold).ToList();"
+            },
+            {
+              "kind": "added",
+              "oldLine": null,
+              "newLine": 10,
+              "text": "        return matches.Count;"
+            },
+            {
+              "kind": "context",
+              "oldLine": 10,
+              "newLine": 11,
+              "text": "    }"
+            },
+            {
+              "kind": "context",
+              "oldLine": 11,
+              "newLine": 12,
+              "text": "}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "anchors": [
+    {
+      "findingIndex": 0,
+      "path": "src/OrderRepository.cs",
+      "startLine": 10,
+      "endLine": 10,
+      "provenance": "FixtureLine"
+    },
+    {
+      "findingIndex": 1,
+      "path": "src/OrderService.cs",
+      "startLine": 9,
+      "endLine": 9,
+      "provenance": "FixtureLine"
+    }
+  ],
+  "unavailableReason": null
+}

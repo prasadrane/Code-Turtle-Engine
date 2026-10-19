@@ -1,6 +1,6 @@
 # Code Turtle review workspace redesign
 
-Date: 2026-10-19. Status: proposed implementation plan; product code is unchanged.
+Date: 2026-10-19. Status: implemented; offline checks and local browser validation completed.
 
 ## Outcome
 
@@ -13,7 +13,7 @@ Deliver this in two passes: the working UI using existing review data, followed 
 real source context and diff support. Changing the UI does not require changing
 the model's compiler-fact input contract.
 
-## What the code currently supports
+## Baseline before this implementation
 
 Source inspected at commit `74693ff`; source reads were used to verify graph results
 because graph coverage reported changed metadata.
@@ -69,10 +69,11 @@ These are implementation observations, not a new live review or hosted-service t
 ```
 
 - **Review overview:** prioritized retained findings, selected finding context,
-  review coverage, and compact status for the three reviewers.
+  review coverage, and compact status for the three reviewers. The final report's
+  Persona Breakdown provides the distinguishable raw reviewer audit output.
 - **Changes:** full file navigation and source/diff inspection, when real data exists.
-- **Evidence:** detailed citation audits, rejected/unavailable evidence, and raw
-  persona audit output. Keep synthesized and raw findings distinguishable.
+- **Evidence:** detailed citation audits and rejected/unavailable evidence. Keep
+  synthesized and raw findings distinguishable in Review overview.
 - Keep Markdown export/copy and review controls in an actions area.
 - Keep Speedy, Sheldon, and Sensei as small recognizable reviewer identities;
   move large avatar panels and quips into expandable reviewer details.
@@ -179,7 +180,8 @@ not analyzed in the head compilation; a visible diff does not imply review cover
 ### Viewer and demo
 
 Build a read-only `CodeContextViewer` / `DiffViewer` with syntax highlighting,
-line numbers, file selection, unified diff first, and split view for wide screens.
+line numbers, file selection, and unified diff first. Split view remains a later
+optional increment after the unified viewer and deterministic navigation work.
 Keep focus, selection, source copy, and finding navigation consistent.
 
 Extend frontend types/hooks for display data. Add a versioned, clearly labeled
@@ -206,3 +208,70 @@ Visual completion means the actual working workspace follows the reference's
 light composition and readable hierarchy. Diff completion additionally requires
 real pinned source/diff data and truthful anchors. Neither milestone establishes
 live-model accuracy or public deployment readiness.
+
+## Accepted review amendments and delivery decisions
+
+- Pass 1 uses a findings-first layout with a compact identity/status header,
+  prioritized retained notes, filters, reviewer strip, and a separate Evidence tab.
+  Missing metadata/source never produces a fabricated file inventory or code panel.
+- Pass 2 adds the Changes tab with pinned source, merge-base diffs, and inline
+  comments. Keep a concise unavailable state when the artifact cannot be obtained.
+- The entry page visibly separates the authored offline sample and local-server
+  review. State prerequisites before submission, preserve the URL for retry, and
+  distinguish a failed start from an interrupted stream. Expose queue, cancellation,
+  authentication, rejection, compilation failure, and retry states accurately.
+- Replace unsupported roadmap/access jokes with factual recovery copy. Use
+  "members in changed C# files" and advisory high-priority language throughout.
+- Use the terminology in the internal developer guide for provisional/retained,
+  payload/compilation/rejected/legacy evidence, member context, and fixture lines.
+  Include sample provenance and limitations in copied Markdown.
+- Do not blend unavailable evidence into a percentage. A citation existence rate
+  is shown only for a nonempty set with complete evidence provenance.
+- Sample source and findings are versioned authored fixtures, generated from real
+  local base/head commits. Preserve the historical replay unchanged. Fixture line
+  anchors must not be applied to streamed findings before final ordering is known.
+- Live anchors resolve a unique declaration in the pinned source and match its
+  compiler-supported payload range. A member context is not a verified defect line.
+  Overloads, linked projects, unrelated called symbols, and ambiguous locations
+  remain unanchored. Comments are local to Code Turtle; GitHub posting is separate.
+- Source artifacts are job/session bound, no-store, and captured before cleanup.
+  Cap files, per-blob bytes, and the total display budget. Prioritize analyzed C#
+  files over other metadata when the file limit is reached. Exact renames are
+  detected; edited renames may appear as additions/deletions in this increment.
+
+Acceptance checks:
+
+1. Arrow/Home/End tab navigation, one tab stop per tablist, labeled panels/search,
+   filter pressed states, visible focus, modal Escape/trapping/return, and a
+   Back to finding action that restores focus.
+2. 320/390 px, tablet/desktop, and 200% zoom layouts; contained code/table scrolling,
+   readable controls, no hidden primary actions, and reduced-motion behavior.
+3. Idle, running, failed start/stream, cancelled, degraded, all-removed, empty
+   filtered results, unavailable/partial evidence, source omission/expiry states.
+4. Offline Git fixtures for base advancement, additions/deletions/exact renames,
+   shifted lines, missing history, omitted content, ambiguous anchors, source
+   retention after cleanup, session access/expiry, and prompt/source separation.
+5. Update both READMEs and the internal guide together. Assert completed sample,
+   disclosure, findings, and source controls before capturing screenshots, then
+   open the actual image files to verify their documented states.
+
+These checks establish the implemented local behavior. They do not establish
+live-model quality, hosted acquisition, public deployment, or commercial readiness.
+
+## Implementation validation
+
+- Full offline .NET solution passed 339 tests. Three additional anchor regressions
+  were then added; the final Web suite passed 118 tests (342 combined coverage).
+- Frontend suite passed 86 tests; five additional transport/race tests passed.
+  TypeScript and the final production build passed. The relevant hero-copy test
+  was rerun after the final wording corrections.
+- Browser checks covered the completed authored sample, real fixture diff and head
+  source, inline comment, Back to finding focus, keyboard tab navigation, report
+  provenance and successful copy feedback. Requested viewport widths 320, 390,
+  768 and 1280 were checked; mobile/tablet document overflow stayed contained.
+- Four JPEG screenshots were refreshed and inspected; 56 local documentation
+  links resolved. Temporary viewport overrides were reset.
+- The independent reviewer completed source and documentation review. Its final
+  browser pass hit a usage limit, so the parent performed browser validation.
+  A comprehensive assistive-technology/200% zoom audit and live-model/hosted-service
+  validation were not performed. Split diff and GitHub posting remain separate.

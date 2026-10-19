@@ -95,7 +95,7 @@ export function ReviewPreview() {
           <span>Clarity, right down to the symbols.</span>
         </div>
       </div>
-      <span className="preview-caption">Illustrative preview · explore a recorded review below</span>
+      <span className="preview-caption">Illustrative preview · explore the sample review below</span>
     </div>
   );
 }

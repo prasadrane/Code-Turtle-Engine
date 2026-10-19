@@ -189,7 +189,7 @@ describe('useReviewStream Hook', () => {
     });
     expect(result.current.auditSymbols.length).toBe(1);
 
-    act(() => {
+    await act(async () => {
       activeMockEs?.emit('completed', {
         markdown: '# Review Report',
         verdict: { personas: [], synthesized: [], guardAudit: [] },
@@ -250,7 +250,7 @@ describe('HomePage Integration', () => {
     const fetchSpy = vi.spyOn(global, 'fetch');
     render(<HomePage />);
     fireEvent.click(screen.getByRole('button', { name: /try demo/i }));
-    expect(screen.getByText(/Pre-recorded sample. No model calls/i)).toBeTruthy();
+    expect(screen.getByText(/Illustrative sample · authored findings/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /skip to end/i }));
     await waitFor(() => expect(screen.getByTestId('final-report-view')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /review another pr/i }));

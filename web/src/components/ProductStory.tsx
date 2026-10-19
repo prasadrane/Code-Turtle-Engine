@@ -4,7 +4,7 @@ import { ArrowUpRight, ScanLine, UsersRound, ShieldCheck, GitPullRequest, FileCh
 import { BrandLogo, TurtleMark } from './BrandLogo';
 
 const features = [
-  { icon: ScanLine, number: '01', title: 'Context before commentary.', description: 'Roslyn extracts compiler facts from changed C# members, giving the council structured context to work with.', label: 'COMPILER-GROUNDED' },
+  { icon: ScanLine, number: '01', title: 'Context before commentary.', description: 'Roslyn extracts compiler facts from members in changed C# files, giving the council structured context to work with.', label: 'COMPILER-GROUNDED' },
   { icon: UsersRound, number: '02', title: 'Three minds on the details.', description: 'Dedicated AI personas examine performance, security, and architecture in parallel. Different perspectives, one place.', label: 'AI REVIEW COUNCIL' },
   { icon: ShieldCheck, number: '03', title: 'A trail you can follow.', description: 'Citation checks show which type and member names exist. You stay in control of assessing each recommendation.', label: 'ROSLYN CITATION GUARD' },
 ];

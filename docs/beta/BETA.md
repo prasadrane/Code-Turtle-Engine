@@ -58,7 +58,9 @@ The source web app defaults disabled. A trusted-local operator must explicitly s
 Access__Mode=TrustedLocal, Access__ApiKey, Access__Origins__0 and
 Access__TrustedRepositories__0. Use loopback only. Enter the local access key in the
 browser; it exchanges for a short-lived HttpOnly cookie, not a URL token. All team
-members sharing the key share job access. Do not expose it with an unreviewed proxy.
+members sharing a bearer key share that bearer identity; browser-created jobs and
+source artifacts are bound to their creating session. Artifacts expire with the
+job and are delivered with `no-store`. Do not expose it with an unreviewed proxy.
 
 ## Troubleshooting
 

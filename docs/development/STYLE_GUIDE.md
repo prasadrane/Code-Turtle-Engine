@@ -8,7 +8,8 @@ Tagline: **Review with care. Ship with confidence.**
 ## Positioning
 A thoughtful AI review council for C# pull requests. Three review perspectives,
 compiler facts, and citation existence checks help developers examine changes.
-The product is currently a self-hosted beta. The browser sample is a recorded replay.
+The product is currently a self-hosted beta. The browser sample plays authored
+findings against a versioned source/diff fixture; it is not a live model review.
 
 ## Identity
 The original geometric turtle icon carries code brackets in its shell. It represents
@@ -44,8 +45,14 @@ Do not rely on color alone for severity, progress, or errors.
 - Code: Cascadia Code, SFMono-Regular, Consolas, monospace.
 - Headings: regular/medium, tight letter spacing, 1.1–1.25 line height.
 - Body: regular, 1.7–1.85 line height; label buttons with a clear action.
-- Content width: 1200 px. Base spacing: 4 px. Control radius: 7 px; cards: 10 px.
-- Light marketing and input surfaces, dark forest review console, semantic severity accents.
+- Content width: 1200 px for marketing, 1320 px for the active review workspace.
+  Base spacing: 4 px. Control radius: 7 px; cards: 10 px.
+- Light marketing, input, and review surfaces; white cards on Paper, Ink text,
+  Forest controls, Sage dividers, and restrained semantic severity accents.
+- Retained findings are primary. Keep reviewers compact and detailed evidence secondary.
+- Source uses 13 px monospace, functional copy about 14 px, explanatory copy 12–13 px.
+- Review overview, Changes, and Evidence share accessible tabs with arrow/Home/End
+  navigation. Filters expose their selected state. Code scrolls inside its panel.
 - Support visible keyboard focus, 320 px layouts, and reduced motion.
 
 ## Voice
@@ -56,8 +63,27 @@ Describe sample data as sample data. Avoid unsupported accuracy, speed, customer
 ## Assets
 The SVG logo assets live in `web/public/brand/` and are used by the app and README
 headers. [theme.css](theme.css) provides portable reference tokens for developers.
-The application uses the same palette in `web/src/app/globals.css` and the forest
-review palette in `web/tailwind.config.ts`.
+The application uses the same tokens in `web/src/app/globals.css` and semantic
+workspace styles in `web/src/app/workspace.css`. Legacy dark component utilities
+are not a template for new product surfaces.
+
+## Evidence and location vocabulary
+
+| Term | Meaning |
+| --- | --- |
+| Provisional | Streamed reviewer output before final arbitration and citation checks |
+| Retained finding | Recommendation kept after the configured arbitration/guard policy |
+| Payload supported | Symbol-name existence supported by the review's extracted compiler-fact payload; prompt caps may limit what was sent |
+| Compilation only | Symbol-name existence elsewhere in the broader compilation |
+| Rejected citation | Citation not supported by the configured existence check |
+| Legacy / unavailable | Evidence provenance is absent; make no current verification claim |
+| Member context | Unique compiler-supported declaration range at the analyzed head; not a verified defect line |
+| Fixture line | Authored illustrative anchor in the versioned sample; not model output |
+| High priority | Advisory severity, not an approval decision or required change |
+
+Carry sample provenance into copied/exported output. Avoid an aggregate percentage
+when evidence is pending or unavailable. Label analysis as members in changed C#
+files; removed source and non-C# files are not reviewed in the head compilation.
 
 This guide defines a proposed product identity. It does not establish name/trademark
 availability, production hosting, billing, or commercial launch readiness.

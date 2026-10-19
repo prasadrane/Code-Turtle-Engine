@@ -1,0 +1,172 @@
+[
+  {
+    "delay": 0,
+    "event": {
+      "type": "phase",
+      "phase": "validating",
+      "message": "Opening the illustrative sample. No model calls are made."
+    }
+  },
+  {
+    "delay": 500,
+    "event": {
+      "type": "phase",
+      "phase": "cloning",
+      "message": "Loading source and diffs from a versioned fixture."
+    }
+  },
+  {
+    "delay": 1200,
+    "event": {
+      "type": "phase",
+      "phase": "deliberating",
+      "message": "Playing authored reviewer notes. This is not a live review."
+    }
+  },
+  {
+    "delay": 1500,
+    "event": {
+      "type": "persona_started",
+      "persona": "AllocationsPerformance",
+      "character": "Speedy"
+    }
+  },
+  {
+    "delay": 2200,
+    "event": {
+      "type": "persona_finding",
+      "persona": "AllocationsPerformance",
+      "character": "Speedy",
+      "finding": {
+        "persona": "AllocationsPerformance",
+        "severity": "Warning",
+        "title": "Avoid materializing a temporary list",
+        "detail": "This method only returns a count. Count(predicate) avoids creating a list of every matching order.",
+        "location": "src/OrderService.cs:9",
+        "citedSymbolFqns": []
+      }
+    }
+  },
+  {
+    "delay": 2500,
+    "event": {
+      "type": "persona_started",
+      "persona": "SecurityAuditor",
+      "character": "Sheldon"
+    }
+  },
+  {
+    "delay": 2700,
+    "event": {
+      "type": "persona_completed",
+      "persona": "AllocationsPerformance",
+      "character": "Speedy",
+      "findingCount": 1,
+      "quip": "Authored sample perspective."
+    }
+  },
+  {
+    "delay": 3200,
+    "event": {
+      "type": "persona_finding",
+      "persona": "SecurityAuditor",
+      "character": "Sheldon",
+      "finding": {
+        "persona": "SecurityAuditor",
+        "severity": "Critical",
+        "title": "Parameterize the customer query",
+        "detail": "Customer input is concatenated into SQL. Use a command parameter so the database treats the name as a value.",
+        "location": "src/OrderRepository.cs:10",
+        "citedSymbolFqns": []
+      }
+    }
+  },
+  {
+    "delay": 3500,
+    "event": {
+      "type": "persona_started",
+      "persona": "IdiomaticArchitect",
+      "character": "Sensei"
+    }
+  },
+  {
+    "delay": 3700,
+    "event": {
+      "type": "persona_completed",
+      "persona": "SecurityAuditor",
+      "character": "Sheldon",
+      "findingCount": 1,
+      "quip": "Authored sample perspective."
+    }
+  },
+  {
+    "delay": 4700,
+    "event": {
+      "type": "persona_completed",
+      "persona": "IdiomaticArchitect",
+      "character": "Sensei",
+      "findingCount": 0,
+      "quip": "Authored sample perspective."
+    }
+  },
+  {
+    "delay": 5000,
+    "event": {
+      "type": "completed",
+      "markdown": "# Code Turtle review\n\n## Illustrative recommendations\n\n- **Critical: Parameterize the customer query** (src/OrderRepository.cs:10)\n  Customer input is concatenated into SQL. Use a command parameter so the database treats the name as a value.\n- **Warning: Avoid materializing a temporary list** (src/OrderService.cs:9)\n  This method only returns a count. Count(predicate) avoids creating a list of every matching order.\n\nCitation evidence is not evaluated in this authored fixture.",
+      "verdict": {
+        "personas": [
+          {
+            "persona": "AllocationsPerformance",
+            "findings": [
+              {
+                "persona": "AllocationsPerformance",
+                "severity": "Warning",
+                "title": "Avoid materializing a temporary list",
+                "detail": "This method only returns a count. Count(predicate) avoids creating a list of every matching order.",
+                "location": "src/OrderService.cs:9",
+                "citedSymbolFqns": []
+              }
+            ]
+          },
+          {
+            "persona": "SecurityAuditor",
+            "findings": [
+              {
+                "persona": "SecurityAuditor",
+                "severity": "Critical",
+                "title": "Parameterize the customer query",
+                "detail": "Customer input is concatenated into SQL. Use a command parameter so the database treats the name as a value.",
+                "location": "src/OrderRepository.cs:10",
+                "citedSymbolFqns": []
+              }
+            ]
+          },
+          {
+            "persona": "IdiomaticArchitect",
+            "findings": []
+          }
+        ],
+        "synthesized": [
+          {
+            "persona": "SecurityAuditor",
+            "severity": "Critical",
+            "title": "Parameterize the customer query",
+            "detail": "Customer input is concatenated into SQL. Use a command parameter so the database treats the name as a value.",
+            "location": "src/OrderRepository.cs:10",
+            "citedSymbolFqns": []
+          },
+          {
+            "persona": "AllocationsPerformance",
+            "severity": "Warning",
+            "title": "Avoid materializing a temporary list",
+            "detail": "This method only returns a count. Count(predicate) avoids creating a list of every matching order.",
+            "location": "src/OrderService.cs:9",
+            "citedSymbolFqns": []
+          }
+        ],
+        "guardAudit": []
+      }
+    }
+  }
+]

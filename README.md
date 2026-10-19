@@ -9,7 +9,7 @@
 <p align="center"><strong>Review with care. Ship with confidence.</strong></p>
 
 Compiler-grounded AI code review for C#, with a local CLI and self-hosted beta web UI.
-Roslyn extracts facts from changed members, three model personas suggest findings,
+Roslyn extracts facts from members in changed C# files, three model personas suggest findings,
 and a deterministic guard checks cited type/member names. This can reduce invented
 symbol references; it does not verify recommendation correctness or changed-code relevance.
 
@@ -21,7 +21,8 @@ symbol references; it does not verify recommendation correctness or changed-code
 ![Code Turtle product page in the forest-green, sage, and warm-white theme](docs/assets/product-preview.jpg)
 
 *Current product UI, captured locally from the production build. The hero contains
-an illustrative preview; the interactive sample review uses a recorded replay.*
+an illustrative preview; the interactive sample uses authored findings and a
+versioned source/diff fixture. No model calls are made for the sample.*
 
 The web API now defaults to disabled; the browser demo remains offline. See
 [isolation and local-access controls](docs/ISOLATION.md) before enabling a trusted-local
@@ -29,21 +30,29 @@ server. Public source acquisition and hosted release remain gated.
 
 ## A thoughtful second look
 
-- **Context before commentary.** Roslyn extracts compiler facts from changed C#
-  members before the council reviews them.
+- **Context before commentary.** Roslyn extracts compiler facts from members in
+  changed C# files before the council reviews them.
 - **Three perspectives, one review.** Performance, security, and architecture
   personas examine the structured payload in parallel.
 - **A trail you can follow.** Citation checks distinguish symbol-name existence
   from recommendation correctness. Developers make the final call.
 
 <details>
-<summary>Review workspace — completed recorded sample</summary>
+<summary>Review workspace — completed illustrative sample</summary>
 
-![Code Turtle review workspace with replay controls, phase timeline, and three reviewer personas](docs/assets/review-workspace.jpg)
+![Light Code Turtle workspace with retained findings and review filters](docs/assets/review-workspace.jpg)
 
-The dark forest workspace includes playback controls, provisional persona findings,
-citation evidence, filters, and a final report. This capture shows a pre-recorded
-sample; it is not evidence of a new live model review.
+The light workspace puts retained findings first, with compact reviewer identities,
+filters, raw reviewer output, citation evidence, and Markdown copy. The screenshot
+shows authored sample findings; it is not evidence of a live model review.
+
+![Code Turtle unified diff with an illustrative inline review comment](docs/assets/review-diff.jpg)
+
+The **Changes** tab shows pinned C# head source and merge-base-to-head diffs.
+Live findings link to a unique compiler-supported member declaration when one can
+be established; this is member context, not a verified defect line. Ambiguous
+findings stay unanchored. The sample uses explicitly authored fixture-line anchors.
+Comments are displayed inside Code Turtle; posting them to GitHub is not implemented.
 
 </details>
 
@@ -59,8 +68,10 @@ Screenshot states and refresh instructions are documented in
 
 ## Verification policy
 
-CLI, web and the guarded benchmark arm use the full untrimmed payload and a
-compilation oracle. Citation audits distinguish `Payload`, `Compilation`, and
+CLI, web and the guarded benchmark arm check citations against the full untrimmed
+compiler-fact payload and a compilation oracle. Prompts may receive a capped
+projection; `Payload` evidence does not prove the symbol survived prompt limits.
+Citation audits distinguish `Payload`, `Compilation`, and
 `Rejected` evidence. Existence is at type/member-name granularity: parameter lists
 are normalized away, so exact overloads, calls, locations, relevance and prose are
 not verified. Compilation-only existence may refer to unrelated code.
@@ -78,6 +89,13 @@ Product prompts contain semantic metadata rather than raw source bodies. Metadat
 can disclose proprietary symbols, paths, dependencies and risk descriptions.
 This is not a privacy or security guarantee. The beta evaluates MSBuild on the host;
 use trusted repositories until the later isolation gate is implemented.
+
+The browser source/diff artifact is separate from model inputs. It is captured
+before clone cleanup, bound to the creating review/session, sent with `no-store`,
+and expires with the in-memory job (30 minutes from creation). Display limits are
+60 files, 64 KiB per source blob, and a 512 KiB aggregate source/diff budget.
+Unavailable history or omitted content is labeled explicitly; a displayed diff
+does not establish review coverage for deleted code or non-C# files.
 
 ## Extracted facts
 
@@ -99,7 +117,7 @@ DI lifetime detection compares registrations inside the same member, not across 
 solution. Weak crypto, weak random, lock-in-async and LOH are not extractor tags.
 Frontend risk badges are inferred from finding text; they are not direct compiler
 proofs. The UI supports severity/persona/keyword filtering, a raw persona audit tab,
-markdown output, and playable historical demos. Streamed findings are provisional.
+Markdown output, and illustrative sample playback. Streamed findings are provisional.
 
 ## Build and test offline
 

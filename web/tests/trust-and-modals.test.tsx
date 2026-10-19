@@ -101,7 +101,7 @@ describe('TrustAuditVisualizer Component', () => {
 });
 
 describe('LanguageRejectionModal Component', () => {
-  it('renders non-.NET rejection modal with humorous message and retreating turtle', () => {
+  it('explains C# support without making unsupported roadmap promises', () => {
     render(
       <LanguageRejectionModal
         isOpen={true}
@@ -112,12 +112,11 @@ describe('LanguageRejectionModal Component', () => {
     );
     expect(screen.getByTestId('language-rejection-modal')).toBeTruthy();
     expect(screen.getAllByText(/Python/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/curly braces/i)).toBeTruthy();
-    expect(screen.getByTestId('retreating-turtle')).toBeTruthy();
-    expect(screen.getByText(/Coming Soon/i)).toBeTruthy();
+    expect(screen.getByText(/Roslyn compiler facts/i)).toBeTruthy();
+    expect(screen.queryByText(/Coming Soon|compiled Roslyn IL/i)).toBeNull();
   });
 
-  it('renders private repository velvet rope modal with security turtle', () => {
+  it('provides factual recovery for an unavailable pull request', () => {
     render(
       <LanguageRejectionModal
         isOpen={true}
@@ -126,9 +125,9 @@ describe('LanguageRejectionModal Component', () => {
       />
     );
     expect(screen.getByTestId('private-repo-modal')).toBeTruthy();
-    expect(screen.getByText(/Halt! This repository appears to be private/i)).toBeTruthy();
-    expect(screen.getByTestId('security-turtle')).toBeTruthy();
-    expect(screen.getAllByText(/velvet rope/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/We could not access this pull request/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Pull request unavailable' })).toBeTruthy();
+    expect(screen.queryByText(/velvet rope/i)).toBeNull();
   });
 
   it('calls onClose when dismiss button is clicked', () => {

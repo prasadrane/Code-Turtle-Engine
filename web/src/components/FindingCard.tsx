@@ -40,20 +40,20 @@ export function FindingCard({ finding, guardAudit = [], className = '' }: Findin
   return (
     <div
       data-testid="finding-card"
-      className={`p-4 rounded-xl bg-slate-950/50 border border-slate-800 hover:border-slate-700 transition-all flex flex-col space-y-2.5 ${className}`}
+      className={`finding-card ${className}`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="finding-card-heading">
+        <div className="finding-title-row">
           <FindingBadge severity={finding.severity} />
           {riskTag && <RiskTagBadge tag={riskTag} />}
-          <h3 className="text-sm font-bold text-slate-100">{finding.title}</h3>
+          <h3>{finding.title}</h3>
         </div>
         {finding.location && (
           <button
             type="button"
             onClick={handleCopyLocation}
             title="Click to copy file and line location"
-            className="group inline-flex items-center gap-1.5 text-xs font-mono text-slate-400 hover:text-sky-300 bg-slate-900 hover:bg-slate-850 px-2.5 py-1 rounded-md border border-slate-800 hover:border-sky-700 transition-all cursor-pointer"
+            className="finding-location"
           >
             <span>{finding.location}</span>
             {copiedLoc ? (
@@ -65,15 +65,15 @@ export function FindingCard({ finding, guardAudit = [], className = '' }: Findin
         )}
       </div>
 
-      <p className="text-xs text-slate-300 leading-relaxed">{finding.detail}</p>
-      <p className="text-[10px] text-slate-500">Recommendation and location are not verified.
+      <p className="finding-detail">{finding.detail}</p>
+      <p className="finding-caveat">Recommendation and location are not verified.
         {!finding.citedSymbolFqns?.length && ' Advisory finding without citations.'}
         {finding.citedSymbolFqns?.some(fqn => getAuditStatus(fqn) === null) && ' Provisional / legacy evidence unavailable.'}
       </p>
 
       {finding.citedSymbolFqns && finding.citedSymbolFqns.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-900">
-          <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+        <div className="finding-citations">
+          <span className="citation-label">
             Citation existence:
           </span>
           {finding.citedSymbolFqns.map((fqn) => {
@@ -83,10 +83,10 @@ export function FindingCard({ finding, guardAudit = [], className = '' }: Findin
                 key={fqn}
                 data-testid="symbol-provenance-chip"
                 data-verified={isVerified === true}
-                className={`inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${
+                className={`symbol-chip ${
                   isVerified === false
-                    ? 'bg-rose-950/40 text-rose-300 border-rose-800/40 line-through'
-                    : 'bg-sky-950/50 text-sky-300 border-sky-800/40'
+                    ? 'evidence-rejected line-through'
+                    : 'evidence-supported'
                 }`}
               >
                 {isVerified === true ? (

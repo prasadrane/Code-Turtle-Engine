@@ -36,7 +36,8 @@ it('shows all-removed and degraded states; rejected raw output stays visibly dis
 
 it('does not treat absent or legacy audit evidence as a perfect score', () => {
   const { rerender } = render(<TrustAuditVisualizer />);
-  expect(screen.getByText('0%')).toBeTruthy();
+  expect(screen.getByText('Not evaluated')).toBeTruthy();
+  expect(screen.queryByText('0%')).toBeNull();
   rerender(<TrustAuditVisualizer guardAudit={[{ citedFqn: 'Demo.Fake', verified: true }]} />);
   expect(screen.queryByTestId('status-verified')).toBeNull();
   expect(screen.getByText('Legacy / evidence unavailable')).toBeTruthy();
@@ -60,7 +61,7 @@ it('reconciles streamed raw findings with final stripped results, including part
   expect(result.current.findings).toEqual([finding]);
   const partial = { ...finding, title: 'Mixed', citedSymbolFqns: ['Demo.Real'] };
   const final = { ...verdict, synthesized: [partial] };
-  act(() => Events.latest.emit('completed', { markdown: 'Done', verdict: final }));
+  await act(async () => Events.latest.emit('completed', { markdown: 'Done', verdict: final }));
   expect(result.current.findings).toEqual([partial]);
   expect(result.current.guardAudit).toEqual(verdict.guardAudit);
   expect(result.current.isCompleted).toBe(true);
