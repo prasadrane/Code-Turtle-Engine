@@ -29,6 +29,13 @@ class WorkerCanaries(unittest.TestCase):
         self.archive.chmod(0o644)
     def request(self, operation='Analyze'):
         return dict(Operation=operation, Project='Fixture.csproj', ChangedFiles=['C.cs'], Findings=[])
+    def test_build_target_can_start_shell_and_sleep(self):
+        self.archive_files({'Fixture.csproj': '''<Project Sdk="Microsoft.NET.Sdk">
+        <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+        <Target Name="ShellStartup" BeforeTargets="Restore"><Exec Command="sleep 0" /></Target>
+        </Project>''', 'C.cs': 'namespace Fixture; public class C { public void M() {} }'})
+        result = run(IMAGE, self.archive, self.request())
+        self.assertEqual(1, len(result['Payload']['Files']))
     def test_runtime_mount_credential_network_and_cgroup_controls(self):
         self.archive_files({})
         os.environ['TURTLE_HOST_CANARY'] = 'harmless-host-only-value'

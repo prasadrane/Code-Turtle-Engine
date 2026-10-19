@@ -24,7 +24,7 @@ def build(dotnet_root, published, context, packages=None):
     dest = root / 'usr/lib/x86_64-linux-gnu'
     dest.mkdir(parents=True)
     names = ['libc', 'libm', 'libstdc++', 'libgcc_s', 'libdl', 'libpthread', 'librt',
-             'libz', 'libssl', 'libcrypto', 'libgssapi_krb5', 'libkrb5', 'libk5crypto',
+             'libz', 'libtinfo', 'libssl', 'libcrypto', 'libgssapi_krb5', 'libkrb5', 'libk5crypto',
              'libcom_err', 'libkrb5support', 'libkeyutils', 'libresolv', 'libatomic',
              'liblttng-ust', 'libnuma', 'libunwind', 'libssh2', 'libcurl', 'libnghttp2',
              'libidn2', 'librtmp', 'libpsl', 'libldap', 'liblber', 'libzstd', 'libbrotlidec', 'libbrotlicommon']
