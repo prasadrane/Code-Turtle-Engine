@@ -1,4 +1,7 @@
-# Code Turtle brand guide
+# Code Turtle developer style guide
+
+Repository-only guidance for maintaining the product identity and UI. This is
+developer documentation, not an app page or a public download.
 
 Tagline: **Review with care. Ship with confidence.**
 
@@ -51,9 +54,10 @@ Say "citation existence checked"; do not imply that a recommendation is proven c
 Describe sample data as sample data. Avoid unsupported accuracy, speed, customer, or ROI claims.
 
 ## Assets
-All assets in this folder are locally served and reusable. `theme.css` provides portable
-tokens. The application uses the same palette in `src/app/globals.css` and the forest
-review palette in `tailwind.config.ts`.
+The SVG logo assets live in `web/public/brand/` and are used by the app and README
+headers. [theme.css](theme.css) provides portable reference tokens for developers.
+The application uses the same palette in `web/src/app/globals.css` and the forest
+review palette in `web/tailwind.config.ts`.
 
 This guide defines a proposed product identity. It does not establish name/trademark
 availability, production hosting, billing, or commercial launch readiness.

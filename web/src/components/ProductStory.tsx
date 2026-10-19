@@ -58,8 +58,6 @@ export function SiteFooter() {
       <div className="footer-links">
         <Link href="/#workspace">Workspace <ArrowUpRight size={13} />
         </Link>
-        <Link href="/brand">Brand & assets <ArrowUpRight size={13} />
-        </Link>
       </div>
       <TurtleMark className="footer-turtle" />
     </div>

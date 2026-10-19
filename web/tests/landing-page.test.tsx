@@ -260,9 +260,10 @@ describe('HomePage Integration', () => {
     fetchSpy.mockRestore();
   });
 
-  it('links to real brand assets and keeps server access inside an optional disclosure', () => {
+  it('keeps developer style guidance out of product navigation and server access optional', () => {
     render(<HomePage />);
-    expect(screen.getByRole('link', { name: 'Our brand' }).getAttribute('href')).toBe('/brand');
+    expect(screen.queryByRole('link', { name: 'Our brand' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Brand & assets' })).toBeNull();
     expect(screen.getByLabelText('Local beta access key').closest('details')?.open).toBe(false);
     expect(screen.getByRole('link', { name: /open workspace/i }).getAttribute('href')).toBe('/#workspace');
   });

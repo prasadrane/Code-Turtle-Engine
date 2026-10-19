@@ -15,8 +15,8 @@ symbol references; it does not verify recommendation correctness or changed-code
 
 [![CI](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml)
 
-[Web UI](web/README.md) · [Brand guide](web/public/brand/brand-guide.md) ·
-[Architecture](ARCHITECTURE.md) · [Self-hosted beta](docs/beta/BETA.md)
+[Web UI](web/README.md) · [Architecture](ARCHITECTURE.md) ·
+[Self-hosted beta](docs/beta/BETA.md)
 
 ![Code Turtle product page in the forest-green, sage, and warm-white theme](docs/assets/product-preview.jpg)
 
@@ -48,46 +48,11 @@ sample; it is not evidence of a new live model review.
 </details>
 
 <details>
-<summary>Brand library — logos, palette, and typography</summary>
-
-![Code Turtle brand library with primary and reversed wordmarks, color palette, and usage guidance](docs/assets/brand-preview.jpg)
-
-Run the web UI and open `/brand` to download the logos, icon, theme tokens,
-and brand guide.
-
-</details>
-
-<details>
 <summary>Mobile product page</summary>
 
 <img src="docs/assets/mobile-preview.jpg" alt="Code Turtle product page at a 390-pixel mobile viewport" width="280">
 
 </details>
-
-## Brand and theme
-
-Use **Code Turtle** in prose and the supplied lowercase **codeturtle.** wordmark
-in the logo. The turtle carries code brackets in its shell: care and steady
-progress, with a clear connection to the product.
-
-| Color | Hex | Role |
-|---|---|---|
-| Forest | `#285B40` | Primary actions and turtle icon |
-| Ink | `#203B30` | Headings, body text, dark identity surfaces |
-| Paper | `#F8F9F5` | Main page background |
-| Sage | `#E9EEE4` | Quiet supporting surfaces |
-| Lime | `#D6EDB6` | Accents and reversed wordmark |
-| Slate leaf | `#68746B` | Supporting text |
-
-The interface pairs system sans serif typography with monospace code and labels.
-Light product surfaces lead into a dark forest review console, with severity
-labels and icons alongside color.
-
-[Primary logo](web/public/brand/code-turtle-logo.svg) ·
-[Reversed logo](web/public/brand/code-turtle-logo-reversed.svg) ·
-[Turtle icon](web/public/brand/code-turtle-icon.svg) ·
-[Theme tokens](web/public/brand/theme.css) ·
-[Full brand guide](web/public/brand/brand-guide.md)
 
 Screenshot states and refresh instructions are documented in
 [docs/assets/README.md](docs/assets/README.md).

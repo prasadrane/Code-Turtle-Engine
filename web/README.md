@@ -10,7 +10,7 @@
 **Review with care. Ship with confidence.**
 
 The Next.js 15 / React 19 interface for Code Turtle: a product page, C# review
-workspace, recorded sample replay, and a reusable brand library.
+workspace, and recorded sample replay.
 
 ![Code Turtle product page](../docs/assets/product-preview.jpg)
 
@@ -24,8 +24,7 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) for the product page and
-[localhost:3000/brand](http://localhost:3000/brand) for the brand library.
+Open [localhost:3000](http://localhost:3000) for the product page.
 
 Choose **Try a sample review** or **Watch the sample** to explore the recorded
 review. The replay needs no server, account, access key, or model credentials.
@@ -56,40 +55,6 @@ key, which is held in page memory for the session.
 See [.env.example](.env.example), the [beta guide](../docs/beta/BETA.md), and
 [isolation controls](../docs/ISOLATION.md) before enabling the API. A frontend
 preview alone does not provide a hosted review service.
-
-## Brand and theme
-
-Use **Code Turtle** in prose and the lowercase **codeturtle.** wordmark in the logo.
-The tagline is **Review with care. Ship with confidence.**
-
-![Code Turtle brand library](../docs/assets/brand-preview.jpg)
-
-| Color | Value | Role |
-|---|---|---|
-| Forest | `#285B40` | Primary actions and icon |
-| Ink | `#203B30` | Text and dark identity surfaces |
-| Paper | `#F8F9F5` | Page background |
-| Sage | `#E9EEE4` | Supporting surfaces |
-| Lime | `#D6EDB6` | Accents and reversed logo |
-| Slate leaf | `#68746B` | Supporting text |
-
-Use the system sans serif stack for interface copy and Cascadia Code,
-SFMono-Regular, or Consolas for code and compact labels. The UI needs no remote
-font request. Keep functional copy readable, preserve visible keyboard focus,
-and pair severity colors with text and icons.
-
-| Asset | Source |
-|---|---|
-| Primary wordmark | [code-turtle-logo.svg](public/brand/code-turtle-logo.svg) |
-| Reversed wordmark | [code-turtle-logo-reversed.svg](public/brand/code-turtle-logo-reversed.svg) |
-| Turtle icon and favicon | [code-turtle-icon.svg](public/brand/code-turtle-icon.svg) |
-| Portable theme tokens | [theme.css](public/brand/theme.css) |
-| Logo usage, typography, and voice | [brand-guide.md](public/brand/brand-guide.md) |
-| Product UI styles | [globals.css](src/app/globals.css) |
-| Dark forest review palette | [tailwind.config.ts](tailwind.config.ts) |
-
-The `/brand` page serves downloadable assets from `public/brand/`. The full guide
-covers logo clear space, minimum size, color use, typography, and writing principles.
 
 ## Checks
 
