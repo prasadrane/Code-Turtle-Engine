@@ -1,11 +1,9 @@
-<p align="center">
+<h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/code-turtle-logo-reversed.svg">
     <img src="web/public/brand/code-turtle-logo.svg" alt="Code Turtle" width="320">
   </picture>
-</p>
-
-<h1 align="center">Code Turtle</h1>
+</h1>
 <p align="center"><strong>Review with care. Ship with confidence.</strong></p>
 
 Compiler-grounded AI code review for C#, with a local CLI and self-hosted beta web UI.
