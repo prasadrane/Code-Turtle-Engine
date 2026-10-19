@@ -48,6 +48,7 @@ public sealed class GitHubPrFetcher : IGitHubPrFetcher
             return Inaccessible();
         }
 
+        using var ownedPrResponse = prResponse;
         string prJson = await prResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         using var prDoc = JsonDocument.Parse(prJson);
         var prRoot = prDoc.RootElement;
@@ -106,7 +107,8 @@ public sealed class GitHubPrFetcher : IGitHubPrFetcher
             HeadBranch: headBranch,
             ChangedFiles: changedFiles.AsReadOnly(),
             LanguageMessage: isDotNet ? string.Empty : funny,
-            CloneUrl: cloneUrl);
+            CloneUrl: cloneUrl,
+            Title: prRoot.TryGetProperty("title", out var title) ? title.GetString() ?? "" : "");
 
         static GitHubPrDetails Inaccessible() => new(
             IsAccessible: false,

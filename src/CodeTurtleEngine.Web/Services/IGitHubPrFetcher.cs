@@ -10,7 +10,8 @@ public record GitHubPrDetails(
     string HeadBranch,
     IReadOnlyList<string> ChangedFiles,
     string LanguageMessage,
-    string CloneUrl = "");
+    string CloneUrl = "",
+    string Title = "");
 
 public interface IGitHubPrFetcher
 {

@@ -80,7 +80,7 @@ app.MapPost("/api/session", (HttpContext context, ReviewSessions sessions) =>
 }).RequireRateLimiting("review");
 
 // 2. POST /api/review
-app.MapPost("/api/review", (GitHubPrRequest? request, IReviewJobStore jobStore, ReviewScheduler scheduler, HostedAccessOptions policy) =>
+app.MapPost("/api/review", (GitHubPrRequest? request, IReviewJobStore jobStore, ReviewScheduler scheduler, HostedAccessOptions policy, HttpContext context) =>
 {
     if (request is null || string.IsNullOrWhiteSpace(request.PrUrl) || !PrUrlParser.TryParse(request.PrUrl, out _))
     {
@@ -93,6 +93,7 @@ app.MapPost("/api/review", (GitHubPrRequest? request, IReviewJobStore jobStore, 
     Guid jobId;
     try { jobId = jobStore.CreateJob(request.PrUrl); }
     catch (InvalidOperationException) { return Results.StatusCode(429); }
+    if (jobStore.TryGetJob(jobId, out var created) && created is not null) created.AccessOwner = JobAccess.Identity(context);
     if (!scheduler.TryQueue(jobId))
     {
         jobStore.SetError(jobId, "Review queue full.");
@@ -107,9 +108,9 @@ app.MapPost("/api/review", (GitHubPrRequest? request, IReviewJobStore jobStore, 
     });
 }).RequireRateLimiting("review");
 
-app.MapDelete("/api/review/{jobId:guid}", (Guid jobId, IReviewJobStore store) =>
+app.MapDelete("/api/review/{jobId:guid}", (Guid jobId, IReviewJobStore store, HttpContext http) =>
 {
-    if (!store.TryGetJob(jobId, out var job) || job is null) return Results.NotFound();
+    if (!store.TryGetJob(jobId, out var job) || job is null || !JobAccess.Allows(http, job)) return Results.NotFound();
     job.Cancellation.Cancel();
     return Results.Accepted();
 }).RequireRateLimiting("review");
@@ -117,7 +118,7 @@ app.MapDelete("/api/review/{jobId:guid}", (Guid jobId, IReviewJobStore store) =>
 // 3. GET /api/review/{jobId}/stream
 app.MapGet("/api/review/{jobId:guid}/stream", async (Guid jobId, HttpContext httpContext, IReviewJobStore jobStore) =>
 {
-    if (!jobStore.TryGetJob(jobId, out var jobContext) || jobContext is null)
+    if (!jobStore.TryGetJob(jobId, out var jobContext) || jobContext is null || !JobAccess.Allows(httpContext, jobContext))
     {
         httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
         await httpContext.Response.WriteAsJsonAsync(new { error = $"Job '{jobId}' not found." });
@@ -147,9 +148,9 @@ app.MapGet("/api/review/{jobId:guid}/stream", async (Guid jobId, HttpContext htt
 }).RequireRateLimiting("review");
 
 // 4. GET /api/review/{jobId}/result
-app.MapGet("/api/review/{jobId:guid}/result", (Guid jobId, IReviewJobStore jobStore) =>
+app.MapGet("/api/review/{jobId:guid}/result", (Guid jobId, IReviewJobStore jobStore, HttpContext http) =>
 {
-    if (!jobStore.TryGetJob(jobId, out var jobContext) || jobContext is null)
+    if (!jobStore.TryGetJob(jobId, out var jobContext) || jobContext is null || !JobAccess.Allows(http, jobContext))
     {
         return Results.NotFound(new { error = $"Job '{jobId}' not found." });
     }
@@ -180,6 +181,17 @@ app.MapGet("/api/review/{jobId:guid}/result", (Guid jobId, IReviewJobStore jobSt
         jobId = jobId.ToString(),
         elapsedSeconds = (int)(DateTimeOffset.UtcNow - jobContext.CreatedAt).TotalSeconds
     });
+}).RequireRateLimiting("review");
+
+app.MapGet("/api/review/{jobId:guid}/changes", (Guid jobId, IReviewJobStore store, HttpContext http) =>
+{
+    http.Response.Headers.CacheControl = "private, no-store";
+    http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    if (!store.TryGetJob(jobId, out var job) || job is null || !JobAccess.Allows(http, job))
+        return Results.NotFound();
+    if (job.Changes is not null) return Results.Ok(job.Changes);
+    return job.IsCompleted ? Results.Ok(new { unavailableReason = "Source and diff unavailable for this review." })
+        : Results.Accepted(value: new { status = "pending" });
 }).RequireRateLimiting("review");
 
 app.Run();

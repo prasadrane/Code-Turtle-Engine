@@ -10,6 +10,13 @@ public sealed class ReviewJobContext
     private readonly object _sync = new();
     private ReviewResult? _result;
     private string? _error;
+    private ReviewChanges? _changes;
+    public string? AccessOwner { get; set; }
+    public ReviewChanges? Changes
+    {
+        get { lock (_sync) return _changes; }
+        set { lock (_sync) _changes = value; }
+    }
 
     public CancellationTokenSource Cancellation { get; } = new();
     public Guid JobId { get; }

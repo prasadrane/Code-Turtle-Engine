@@ -109,6 +109,11 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
 
             try
             {
+                await _repoCloner.PrepareComparisonAsync(clonedDir, cloneUrl, prDetails.BaseSha, prDetails.HeadSha, ct);
+                var current = await _prFetcher.FetchAsync(parsedPr.Owner, parsedPr.Repo, parsedPr.PullNumber, ct);
+                if (!current.IsAccessible || current.HeadSha != prDetails.HeadSha || current.BaseSha != prDetails.BaseSha ||
+                    !current.ChangedFiles.Order(StringComparer.Ordinal).SequenceEqual(prDetails.ChangedFiles.Order(StringComparer.Ordinal)))
+                    throw new InvalidOperationException("Pull request changed during acquisition.");
                 // 7. Write SSE phase: compiling
                 await writer.WriteAsync(SseEvent.Phase("compiling", "Compiling Roslyn workspace...", progress: 0.5), ct).ConfigureAwait(false);
 
@@ -131,6 +136,9 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     var changed = diffProvider.GetChangedCSharpFiles(clonedDir, prDetails.BaseSha);
                     var repoSlug = $"{parsedPr.Owner}/{parsedPr.Repo}";
                     var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed);
+                    var display = LibGit2Sharp.Repository.IsValid(clonedDir)
+                        ? new ReviewChangesBuilder().Build(clonedDir, repoSlug, parsedPr.PullNumber, prDetails, payload) : null;
+                    context.Changes = display;
                     var rubric = _rubricLoader.Load(ResolveRubric());
                     var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _councilOptions);
 
@@ -183,6 +191,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                         markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
                             string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
                     var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
+                    if (display is not null) context.Changes = FindingAnchors.Attach(display, payload, guarded.KeptFindings, loaded.Projects);
                     var stats = new
                     {
                         personasSucceeded = verdicts.Count,
@@ -190,11 +199,10 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                         findingsKept = guarded.KeptFindings.Count,
                         findingsStripped = merged.Count - guarded.KeptFindings.Count
                     };
-                    await writer.WriteAsync(SseEvent.Completed(markdown, finalVerdict, stats), ct).ConfigureAwait(false);
-
                     // 15. Store result in ReviewJobStore
                     var reviewResult = new ReviewResult(markdown, finalVerdict, clonedDir, payload);
                     _jobStore.SetResult(jobId, reviewResult);
+                    await writer.WriteAsync(SseEvent.Completed(markdown, finalVerdict, stats), ct).ConfigureAwait(false);
                 }
             }
             finally

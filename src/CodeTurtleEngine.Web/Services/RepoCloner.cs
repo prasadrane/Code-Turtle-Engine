@@ -32,6 +32,25 @@ public sealed class RepoCloner(string? baseDirectory = null) : IRepoCloner
         catch { Cleanup(destination); throw; }
     }
 
+    public async Task PrepareComparisonAsync(string directory, string cloneUrl, string baseSha, string headSha, CancellationToken ct = default)
+    {
+        if (!Regex.IsMatch(cloneUrl, @"\Ahttps://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?\z") ||
+            !Regex.IsMatch(baseSha, @"\A[0-9a-fA-F]{40}\z") || !Regex.IsMatch(headSha, @"\A[0-9a-fA-F]{40}\z")) return;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(25));
+        try
+        {
+            foreach (var depth in new[] { 64, 256, 1024 })
+            {
+                await Git(directory, ["fetch", "--no-tags", $"--depth={depth}", "--", cloneUrl, baseSha, headSha], deadline.Token);
+                try { await Git(directory, ["merge-base", baseSha, headSha], deadline.Token); return; }
+                catch (InvalidOperationException) { /* Try the next bounded depth. */ }
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+        catch (InvalidOperationException) { /* Head source remains available; diff availability is explicit. */ }
+    }
+
     private static async Task<string> Git(string working, string[] args, CancellationToken ct)
     {
         var start = new ProcessStartInfo("git") { WorkingDirectory = working,
