@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       TURTLE_LIVE: '0'
+      DOTNET_INSTALL_DIR: ${{ runner.temp }}/code-turtle-dotnet
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,6 +59,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify worker SDK installation
+        run: |
+          command -v dotnet
+          test "$DOTNET_ROOT" = "$DOTNET_INSTALL_DIR"
+          test "$(command -v dotnet)" = "$DOTNET_INSTALL_DIR/dotnet"
+          dotnet --list-sdks
+          du -sh "$DOTNET_ROOT"
       - run: dotnet publish src/CodeTurtleEngine.Worker -c Release -m:2 -o work/worker/app
       - run: dotnet pack tests/fixtures/OfflinePackage -c Release -m:2 -o work/offline-feed
       - run: python tools/build_worker.py --dotnet-root "$DOTNET_ROOT" --published work/worker/app --packages work/offline-feed --context work/worker-image
