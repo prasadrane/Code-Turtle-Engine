@@ -62,7 +62,7 @@ export function TrustAuditVisualizer({
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-slate-100 tracking-tight">{title}</h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                Hero Feature
+                Citation evidence
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">

@@ -9,6 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        slate: {
+          50: '#f6f9f4', 100: '#eaf0e7', 200: '#d4dfd0', 300: '#b8c9b4',
+          400: '#95ab90', 500: '#728a6d', 600: '#546f51', 700: '#3b5341',
+          800: '#2b4034', 900: '#1d3027', 950: '#111e1a',
+        },
         turtle: {
           50: '#f0fdf4',
           100: '#dcfce7',

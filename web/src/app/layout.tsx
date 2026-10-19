@@ -2,20 +2,13 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Code-Turtle Live — Interactive Council PR Review',
-  description: 'AI code review council powered by Roslyn compiler facts and citation existence checks.',
+  title: { default: 'Code Turtle — Review with care. Ship with confidence.', template: '%s | Code Turtle' },
+  description: 'A thoughtful AI review council for C# pull requests. Explore performance, security, and architecture with compiler facts and citation existence checks.',
+  applicationName: 'Code Turtle',
+  icons: { icon: '/brand/code-turtle-icon.svg' },
+  openGraph: { title: 'Code Turtle', description: 'Review with care. Ship with confidence.', type: 'website' },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en" className="dark">
-      <body className="antialiased bg-slate-950 text-slate-100 min-h-screen">
-        {children}
-      </body>
-    </html>
-  );
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="en"><body>{children}</body></html>;
 }

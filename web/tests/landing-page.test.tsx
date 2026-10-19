@@ -94,12 +94,14 @@ describe('PrInput Component', () => {
 });
 
 describe('HeroHeader Component', () => {
-  it('renders heading, description, and feature pills', () => {
+  it('renders the product tagline and clearly labeled illustrative preview', () => {
     render(<HeroHeader />);
 
-    expect(screen.getAllByText(/Code-Turtle/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/AI Review Council/i)).toBeTruthy();
-    expect(screen.getByText(/Roslyn Citation Guard/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Review with care.');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Ship with confidence.');
+    expect(screen.getByText(/Meet Code Turtle/i)).toBeTruthy();
+    expect(screen.getByText(/Illustrative preview/i)).toBeTruthy();
+    expect(screen.getByText(/Citation existence checks/i)).toBeTruthy();
   });
 });
 
@@ -227,7 +229,7 @@ describe('HomePage Integration', () => {
   it('renders idle landing page with PrInput and HeroHeader', () => {
     render(<HomePage />);
 
-    expect(screen.getByText(/AI Review Council/i)).toBeTruthy();
+    expect(screen.getByText(/^AI REVIEW COUNCIL$/i)).toBeTruthy();
     expect(screen.getByPlaceholderText(/github\.com\/owner\/repo\/pull\/123/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /try demo/i })).toBeTruthy();
   });
@@ -242,5 +244,26 @@ describe('HomePage Integration', () => {
       expect(screen.getByTestId('phase-timeline')).toBeTruthy();
       expect(screen.getByTestId('council-chamber')).toBeTruthy();
     });
+  });
+
+  it('can complete and reset the sample review without a backend', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    render(<HomePage />);
+    fireEvent.click(screen.getByRole('button', { name: /try demo/i }));
+    expect(screen.getByText(/Pre-recorded sample. No model calls/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /skip to end/i }));
+    await waitFor(() => expect(screen.getByTestId('final-report-view')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /review another pr/i }));
+    expect(screen.getByLabelText('GitHub Pull Request URL')).toBeTruthy();
+    expect(screen.queryByTestId('council-chamber')).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('links to real brand assets and keeps server access inside an optional disclosure', () => {
+    render(<HomePage />);
+    expect(screen.getByRole('link', { name: 'Our brand' }).getAttribute('href')).toBe('/brand');
+    expect(screen.getByLabelText('Local beta access key').closest('details')?.open).toBe(false);
+    expect(screen.getByRole('link', { name: /open workspace/i }).getAttribute('href')).toBe('/#workspace');
   });
 });

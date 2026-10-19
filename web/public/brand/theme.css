@@ -1,0 +1,15 @@
+/* Code Turtle brand tokens. Import into web surfaces to share the palette. */
+:root {
+  --ct-paper: #f8f9f5;
+  --ct-surface: #ffffff;
+  --ct-ink: #203b30;
+  --ct-green: #285b40;
+  --ct-sage: #e9eee4;
+  --ct-lime: #d6edb6;
+  --ct-muted: #68746b;
+  --ct-line: #dfe5da;
+  --ct-radius-control: 7px;
+  --ct-radius-card: 10px;
+  --ct-font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  --ct-font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+}

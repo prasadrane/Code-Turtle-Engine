@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="100" viewBox="0 0 430 100" fill="none">
+  <title>Code Turtle reversed wordmark</title>
+  <g transform="translate(10 18)" fill="#d6edb6" stroke="#d6edb6"><path d="m20 18-5-7m5 35-5 7m25-35 5-7m-5 35 5 7" fill="none" stroke-width="8" stroke-linecap="round"/><circle cx="54" cy="32" r="7"/><path d="m10 29-5 3 5 3"/><rect x="9" y="14" width="40" height="36" rx="18"/><path d="m23 26-6 6 6 6m12-12 6 6-6 6m-4-15-4 18" fill="none" stroke="#203b30" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="88" y="64" fill="#d6edb6" font-family="Segoe UI,Arial,sans-serif" font-size="48" font-weight="700" letter-spacing="-2">code<tspan font-weight="400">turtle</tspan><tspan fill="#d6edb6">.</tspan></text>
+</svg>

@@ -87,7 +87,7 @@ export function FinalReportView({
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-100 tracking-tight">
-              Code-Turtle Council Final Review
+              Code Turtle · Final review
             </h2>
             <p className="text-xs text-slate-400">
               Arbitrated findings with citation existence checks. Recommendations require review.
@@ -209,8 +209,8 @@ export function FinalReportView({
           {[
             { id: 'all', label: 'All Personas' },
             { id: 'AllocationsPerformance', label: '⚡ Speedy (Perf)' },
-            { id: 'SecurityAuditor', label: '🔒 Lock (Sec)' },
-            { id: 'IdiomaticArchitect', label: '🧙 Sage (Arch)' },
+            { id: 'SecurityAuditor', label: '🔒 Sheldon (Sec)' },
+            { id: 'IdiomaticArchitect', label: '🏯 Sensei (Arch)' },
           ].map((p) => (
             <button
               key={p.id}

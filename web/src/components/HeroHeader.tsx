@@ -1,74 +1,37 @@
 import React from 'react';
-import { ShieldCheck, Cpu, Zap, Radio, Sparkles } from 'lucide-react';
-import { TURTLE_CHARACTERS } from '../lib/characters';
-import { TurtleAvatar } from './TurtleAvatar';
+import { ArrowRight, Play, Check, ArrowUpRight } from 'lucide-react';
+import { ReviewPreview } from './ReviewPreview';
 
 export interface HeroHeaderProps {
   className?: string;
+  onTryDemo?: () => void;
 }
 
-export function HeroHeader({ className = '' }: HeroHeaderProps) {
-  const characters = [
-    TURTLE_CHARACTERS.speedy,
-    TURTLE_CHARACTERS.sheldon,
-    TURTLE_CHARACTERS.sensei,
-    TURTLE_CHARACTERS.judge,
-  ];
-
+export function HeroHeader({ className = '', onTryDemo }: HeroHeaderProps) {
   return (
-    <header className={`w-full max-w-4xl mx-auto text-center flex flex-col items-center space-y-6 pt-4 pb-2 ${className}`}>
-      {/* Shell Badge */}
-      <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold tracking-wide uppercase shadow-sm">
-        <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-        <span>Code-Turtle Live &bull; AI Review Council</span>
-      </div>
-
-      {/* Main Title */}
-      <div className="space-y-3">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-100 font-mono">
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-            Code-Turtle
-          </span>{' '}
-          Council
+    <section className={`hero page-width ${className}`} aria-labelledby="hero-title">
+      <div className="hero-copy">
+        <div className="eyebrow">
+          <span className="status-dot" /> A THOUGHTFUL SECOND LOOK AT YOUR CODE</div>
+        <h1 id="hero-title">Review with care.<br />
+          <span>Ship with<br className="desktop-break" /> confidence.</span>
         </h1>
-        <p className="text-lg sm:text-xl text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
-          Three AI review personas with compiler facts and citation existence checks.
-        </p>
+        <p className="hero-description">Meet Code Turtle. Your AI review council for C# pull requests, bringing performance, security, and architecture into focus.</p>
+        <div className="hero-actions">
+          {onTryDemo && <button type="button" className="button button-green" onClick={onTryDemo} aria-label="Try Demo: Try a sample review">
+            <Play size={15} fill="currentColor" /> Try a sample review <ArrowRight size={17} />
+          </button>}
+          <a className="text-link" href="#how-it-works">See how it works <ArrowUpRight size={15} />
+          </a>
+        </div>
+        <div className="hero-assurances">
+          <span>
+            <Check size={14} /> No sign-up for the demo</span>
+          <span>
+            <Check size={14} /> Built for C# / .NET</span>
+        </div>
       </div>
-
-      {/* Mini character avatars row */}
-      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
-        {characters.map((char) => (
-          <div
-            key={char.id}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 shadow-sm hover:border-slate-700 transition-colors"
-            title={`${char.name}: ${char.title}`}
-          >
-            <TurtleAvatar character={char} size="sm" />
-            <span className="text-xs font-medium text-slate-300 whitespace-nowrap">{char.name}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Value Proposition Pills */}
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-400 font-mono">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/60 border border-slate-800">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          Roslyn Citation Guard
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/60 border border-slate-800">
-          <Cpu className="w-3.5 h-3.5 text-amber-400" />
-          Parallel Council
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/60 border border-slate-800">
-          <Zap className="w-3.5 h-3.5 text-teal-400" />
-          Citation Checks
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900/60 border border-slate-800">
-          <Radio className="w-3.5 h-3.5 text-cyan-400" />
-          Live SSE Streaming
-        </span>
-      </div>
-    </header>
+      <ReviewPreview />
+    </section>
   );
 }

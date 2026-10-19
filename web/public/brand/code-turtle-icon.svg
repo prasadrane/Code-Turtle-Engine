@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Code Turtle icon</title>
+  <g fill="#285b40" stroke="#285b40">
+    <path d="m20 18-5-7m5 35-5 7m25-35 5-7m-5 35 5 7" fill="none" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="54" cy="32" r="7"/><path d="m10 29-5 3 5 3"/><rect x="9" y="14" width="40" height="36" rx="18"/>
+  </g>
+  <path d="m23 26-6 6 6 6m12-12 6 6-6 6m-4-15-4 18" stroke="#f8f9f5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

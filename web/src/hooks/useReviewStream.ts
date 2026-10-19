@@ -198,7 +198,7 @@ export function useReviewStream(options: UseReviewStreamOptions = {}): UseReview
       reset();
       setIsStreaming(true);
       setPhase('validating');
-      setPhaseMessage('Submitting pull request to Code-Turtle Council...');
+      setPhaseMessage('Submitting pull request to Code Turtle Council...');
       try {
         if (options.accessToken) {
           const session = await fetch(`${apiBase}/api/session`, { method: 'POST', credentials: 'include',

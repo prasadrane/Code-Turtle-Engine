@@ -1,4 +1,12 @@
-# 🐢 Code Turtle Engine
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/code-turtle-logo-reversed.svg">
+    <img src="web/public/brand/code-turtle-logo.svg" alt="Code Turtle" width="320">
+  </picture>
+</p>
+
+<h1 align="center">Code Turtle</h1>
+<p align="center"><strong>Review with care. Ship with confidence.</strong></p>
 
 Compiler-grounded AI code review for C#, with a local CLI and self-hosted beta web UI.
 Roslyn extracts facts from changed members, three model personas suggest findings,
@@ -7,11 +15,82 @@ symbol references; it does not verify recommendation correctness or changed-code
 
 [![CI](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/prasadrane/Code-Turtle-Engine/actions/workflows/ci.yml)
 
-![Web dashboard preview (historical)](docs/assets/dashboard-preview.png)
+[Web UI](web/README.md) · [Brand guide](web/public/brand/brand-guide.md) ·
+[Architecture](ARCHITECTURE.md) · [Self-hosted beta](docs/beta/BETA.md)
+
+![Code Turtle product page in the forest-green, sage, and warm-white theme](docs/assets/product-preview.jpg)
+
+*Current product UI, captured locally from the production build. The hero contains
+an illustrative preview; the interactive sample review uses a recorded replay.*
 
 The web API now defaults to disabled; the browser demo remains offline. See
 [isolation and local-access controls](docs/ISOLATION.md) before enabling a trusted-local
 server. Public source acquisition and hosted release remain gated.
+
+## A thoughtful second look
+
+- **Context before commentary.** Roslyn extracts compiler facts from changed C#
+  members before the council reviews them.
+- **Three perspectives, one review.** Performance, security, and architecture
+  personas examine the structured payload in parallel.
+- **A trail you can follow.** Citation checks distinguish symbol-name existence
+  from recommendation correctness. Developers make the final call.
+
+<details>
+<summary>Review workspace — completed recorded sample</summary>
+
+![Code Turtle review workspace with replay controls, phase timeline, and three reviewer personas](docs/assets/review-workspace.jpg)
+
+The dark forest workspace includes playback controls, provisional persona findings,
+citation evidence, filters, and a final report. This capture shows a pre-recorded
+sample; it is not evidence of a new live model review.
+
+</details>
+
+<details>
+<summary>Brand library — logos, palette, and typography</summary>
+
+![Code Turtle brand library with primary and reversed wordmarks, color palette, and usage guidance](docs/assets/brand-preview.jpg)
+
+Run the web UI and open `/brand` to download the logos, icon, theme tokens,
+and brand guide.
+
+</details>
+
+<details>
+<summary>Mobile product page</summary>
+
+<img src="docs/assets/mobile-preview.jpg" alt="Code Turtle product page at a 390-pixel mobile viewport" width="280">
+
+</details>
+
+## Brand and theme
+
+Use **Code Turtle** in prose and the supplied lowercase **codeturtle.** wordmark
+in the logo. The turtle carries code brackets in its shell: care and steady
+progress, with a clear connection to the product.
+
+| Color | Hex | Role |
+|---|---|---|
+| Forest | `#285B40` | Primary actions and turtle icon |
+| Ink | `#203B30` | Headings, body text, dark identity surfaces |
+| Paper | `#F8F9F5` | Main page background |
+| Sage | `#E9EEE4` | Quiet supporting surfaces |
+| Lime | `#D6EDB6` | Accents and reversed wordmark |
+| Slate leaf | `#68746B` | Supporting text |
+
+The interface pairs system sans serif typography with monospace code and labels.
+Light product surfaces lead into a dark forest review console, with severity
+labels and icons alongside color.
+
+[Primary logo](web/public/brand/code-turtle-logo.svg) ·
+[Reversed logo](web/public/brand/code-turtle-logo-reversed.svg) ·
+[Turtle icon](web/public/brand/code-turtle-icon.svg) ·
+[Theme tokens](web/public/brand/theme.css) ·
+[Full brand guide](web/public/brand/brand-guide.md)
+
+Screenshot states and refresh instructions are documented in
+[docs/assets/README.md](docs/assets/README.md).
 
 ## Verification policy
 

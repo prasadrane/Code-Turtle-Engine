@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { HeroHeader } from '@/components/HeroHeader';
+import { SiteHeader } from '@/components/SiteHeader';
+import { ProductFeatures, WorkflowStrip, SiteFooter } from '@/components/ProductStory';
+import { TurtleMark } from '@/components/BrandLogo';
 import { PrInput } from '@/components/PrInput';
 import { PhaseTimeline } from '@/components/PhaseTimeline';
 import { CouncilChamber } from '@/components/CouncilChamber';
@@ -10,25 +13,28 @@ import { FinalReportView } from '@/components/FinalReportView';
 import { LanguageRejectionModal } from '@/components/LanguageRejectionModal';
 import { useDemoReplay } from '@/hooks/useDemoReplay';
 import { useReviewStream } from '@/hooks/useReviewStream';
-import { Sparkles, Radio, RotateCcw, FastForward, Play, Pause, AlertCircle } from 'lucide-react';
+import { Radio, RotateCcw, FastForward, Play, Pause, AlertCircle, KeyRound, ArrowUpRight } from 'lucide-react';
 
 type ReviewMode = 'idle' | 'demo' | 'live';
 
 export default function HomePage() {
   const [mode, setMode] = useState<ReviewMode>('idle');
-  const [activePrUrl, setActivePrUrl] = useState<string>('');
-
-  const demo = useDemoReplay({ speedMultiplier: 1 });
+  const [activePrUrl, setActivePrUrl] = useState('');
   const [accessToken, setAccessToken] = useState('');
+  const [speed, setSpeed] = useState(1);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const demo = useDemoReplay({ speedMultiplier: 1 });
   const live = useReviewStream({ accessToken });
 
   const handleStartDemo = () => {
     live.reset();
     demo.reset();
+    setSpeed(1);
+    demo.setSpeed(1);
     setMode('demo');
     demo.start();
+    workspaceRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
-
   const handleStartLive = async (prUrl: string) => {
     demo.reset();
     live.reset();
@@ -36,164 +42,102 @@ export default function HomePage() {
     setMode('live');
     await live.startReview(prUrl);
   };
-
-  const handleResetToIdle = () => {
+  const handleReset = () => {
     demo.reset();
     live.reset();
     setMode('idle');
     setActivePrUrl('');
   };
 
-  // Determine active state values based on current mode
   const isDemo = mode === 'demo';
-  const isLive = mode === 'live';
-  const isReviewActive = isDemo || isLive;
-
-  const currentPhase = isDemo ? demo.currentPhase : live.phase;
-  const phaseMessage = isDemo ? demo.phaseMessage : live.phaseMessage;
-  const personaStates = isDemo ? demo.personaStates : live.personas;
-  const findings = isDemo ? demo.findings : live.findings;
-  const guardAudit = isDemo ? demo.guardAudit : live.auditSymbols;
-  const verdict = isDemo ? demo.verdict : live.finalVerdict;
-  const markdown = isDemo ? demo.completedMarkdown : live.completedMarkdown;
+  const isReviewActive = mode !== 'idle';
   const isCompleted = isDemo ? demo.isCompleted : live.isCompleted;
+  const verdict = isDemo ? demo.verdict : live.finalVerdict;
+  const reviewError = isDemo ? demo.error : live.error;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500/30 flex flex-col items-center px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-      {/* Top Header */}
-      <HeroHeader />
-
-      {/* PR Input & Quick Select (Visible in idle or can be toggled) */}
-      {mode === 'idle' && (
-        <section className="w-full max-w-4xl mx-auto flex flex-col items-center space-y-6 pt-2">
-          <label className="block text-sm text-slate-400">Local beta access key (demo needs no key)
-            <input type="password" autoComplete="off" aria-label="Local beta access key"
-              value={accessToken} onChange={event => setAccessToken(event.target.value)}
-              className="block bg-slate-900 border border-slate-700 rounded p-2" />
-          </label>
-          <PrInput
-            onSubmit={handleStartLive}
-            onTryDemo={handleStartDemo}
-            isLoading={live.isStreaming}
-          />
-        </section>
-      )}
-
-      {/* Active Mode Control Bar */}
-      {isReviewActive && (
-        <section className="w-full max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
-          <div className="flex items-center gap-3">
-            {isDemo ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-                <Sparkles className="w-3.5 h-3.5" />
-                Demo Replay Mode — pre-recorded sample, no LLM called
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
-                <Radio className="w-3.5 h-3.5 animate-pulse" />
-                Live Council Review: <span className="font-mono text-[11px] truncate max-w-xs">{activePrUrl}</span>
-              </span>
-            )}
-            {isCompleted && (
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">
-                Complete
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {isDemo && !isCompleted && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => (demo.isPlaying ? demo.pause() : demo.resume())}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700"
-                >
-                  {demo.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  <span>{demo.isPlaying ? 'Pause' : 'Resume'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={demo.skipToEnd}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700"
-                >
-                  <FastForward className="w-3.5 h-3.5" />
-                  <span>Skip to End</span>
-                </button>
-                <div className="flex items-center gap-1 pl-1 text-[11px] font-mono text-slate-400">
-                  <span>Speed:</span>
-                  {[1, 2, 5].map((spd) => (
-                    <button
-                      key={spd}
-                      type="button"
-                      onClick={() => demo.setSpeed(spd)}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
-                    >
-                      {spd}x
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {isLive && live.isStreaming && (
-              <button
-                type="button"
-                onClick={live.cancel}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs"
-              >
-                Cancel Review
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleResetToIdle}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{isCompleted ? 'Review Another PR' : 'Reset'}</span>
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Review Workflow Sections */}
-      {isReviewActive && (
-        <div className="w-full max-w-7xl mx-auto space-y-8 animate-fadeIn">
-          {/* Timeline */}
-          <PhaseTimeline currentPhase={currentPhase} phaseMessage={phaseMessage} />
-
-          {/* Live Error Banner if any */}
-          {live.error && !live.rejection?.isOpen && (
-            <div className="flex items-center gap-2 p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-sm">
-              <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
-              <span>{typeof live.error === 'string' ? live.error : live.error.message}</span>
+    <>
+      <a href="#workspace" className="skip-link">Skip to review workspace</a>
+      <SiteHeader />
+      <main>
+        <HeroHeader onTryDemo={handleStartDemo} />
+        <WorkflowStrip />
+        <ProductFeatures />
+        <section id="workspace" ref={workspaceRef} className={`workspace-section ${isReviewActive ? 'workspace-active' : ''}`} aria-labelledby="workspace-title">
+          <div className="page-width">
+            <div className="section-heading workspace-heading">
+              <div>
+                <span className="eyebrow">YOUR NEXT PULL REQUEST, WITH PERSPECTIVE.</span>
+                <h2 id="workspace-title">Give your code a second look.</h2>
+              </div>
+              <span className="beta-label">
+                <span className="status-dot" /> C# / .NET · Self-hosted beta</span>
             </div>
-          )}
-
-          {/* Council Chamber */}
-          <CouncilChamber personaStates={personaStates} findings={findings} />
-
-          {/* Roslyn Trust Audit Visualizer */}
-          <TrustAuditVisualizer guardAudit={guardAudit} />
-
-          {/* Final Synthesized Report View */}
-          {isCompleted && verdict && (
-            <FinalReportView verdict={verdict} markdown={markdown} />
-          )}
-        </div>
-      )}
-
-      {/* Language Rejection Modal */}
-      <LanguageRejectionModal
-        isOpen={Boolean(live.rejection?.isOpen)}
-        type={live.rejection?.type}
-        detectedLanguage={live.rejection?.detectedLanguage}
-        customMessage={live.rejection?.customMessage}
-        onClose={live.clearRejection}
-        onRetry={handleStartDemo}
-      />
-    </main>
+            {!isReviewActive ? (
+              <div className="workspace-card">
+                <div className="workspace-card-heading">
+                  <span className="workspace-mark">
+                    <TurtleMark />
+                  </span>
+                  <div>
+                    <h3>Let’s take a look.</h3>
+                    <p>Paste a GitHub pull request URL to start a council review.</p>
+                  </div>
+                  <span className="workspace-language">C#</span>
+                </div>
+                <PrInput onSubmit={handleStartLive} onTryDemo={handleStartDemo} showDemo={false} isLoading={live.isStreaming} />
+                <details className="access-settings">
+                  <summary>
+                    <KeyRound size={14} /> Connect your local beta server <span>Optional for the sample review</span>
+                  </summary>
+                  <div className="access-settings-body">
+                    <label htmlFor="access-key">Local beta access key</label>
+                    <input id="access-key" type="password" autoComplete="off" aria-describedby="access-help" value={accessToken} onChange={event => setAccessToken(event.target.value)} placeholder="Enter your server access key" />
+                    <p id="access-help">Use the key from your self-hosted server. It stays in this page’s memory. Live reviews require a configured backend and trusted repositories.</p>
+                  </div>
+                </details>
+                <div className="workspace-help">
+                  <span>Just exploring? The recorded sample runs without a server or an API key.</span>
+                  <button onClick={handleStartDemo} className="text-link">Watch the sample <ArrowUpRight size={14} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="review-console">
+                <div className="review-control-bar">
+                  <div className="review-mode">
+                    <span className="status-dot" />{isDemo ? 'Sample review' : <>
+                      <Radio size={14} /> Live council review</>}<span className="review-state">{isCompleted ? 'Complete' : 'In progress'}</span>
+                  </div>
+                  <div className="review-controls">
+                    {isDemo && !isCompleted && <>
+                      <button onClick={() => demo.isPlaying ? demo.pause() : demo.resume()}>{demo.isPlaying ? <Pause size={13} /> : <Play size={13} />}{demo.isPlaying ? 'Pause' : 'Resume'}</button>
+                      <button onClick={demo.skipToEnd}>
+                        <FastForward size={13} /> Skip to End</button>
+                      <div className="speed-controls" aria-label="Replay speed">{[1, 2, 5].map(value => <button key={value} aria-pressed={speed === value} onClick={() => { setSpeed(value); demo.setSpeed(value); }}>{value}x</button>)}</div>
+                    </>}
+                    {!isDemo && live.isStreaming && <button onClick={live.cancel}>Cancel Review</button>}
+                    <button onClick={handleReset}>
+                      <RotateCcw size={13} />{isCompleted ? 'Review Another PR' : 'Reset'}</button>
+                  </div>
+                </div>
+                <p className="review-disclosure">{isDemo ? 'Pre-recorded sample. No model calls are made. Historical citation evidence may be unavailable.' : activePrUrl}</p>
+                <div className="review-content">
+                  <PhaseTimeline currentPhase={isDemo ? demo.currentPhase : live.phase} phaseMessage={isDemo ? demo.phaseMessage : live.phaseMessage} />
+                  {reviewError && !live.rejection?.isOpen && <div role="alert" className="review-error">
+                    <AlertCircle size={18} />{typeof reviewError === 'string' ? reviewError : reviewError.message}</div>}
+                  <CouncilChamber personaStates={isDemo ? demo.personaStates : live.personas} findings={isDemo ? demo.findings : live.findings} title="AI Review Council" />
+                  <TrustAuditVisualizer guardAudit={isDemo ? demo.guardAudit : live.auditSymbols} />
+                  {isCompleted && verdict && <FinalReportView verdict={verdict} markdown={isDemo ? demo.completedMarkdown : live.completedMarkdown} />}
+                </div>
+              </div>
+            )}
+            <p className="workspace-footnote">Compiler facts inform the review. Citation checks establish symbol-name existence; recommendations still need your judgment.</p>
+          </div>
+        </section>
+      </main>
+      <SiteFooter />
+      <LanguageRejectionModal isOpen={Boolean(live.rejection?.isOpen)} type={live.rejection?.type} detectedLanguage={live.rejection?.detectedLanguage} customMessage={live.rejection?.customMessage} onClose={live.clearRejection} onRetry={handleStartDemo} />
+    </>
   );
 }
