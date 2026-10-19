@@ -21,20 +21,28 @@ class WorkerBuildContractTests(unittest.TestCase):
         self.assertIsNotNone(job, 'Worker isolation must remain a CI job')
         return job.group(1)
 
-    def test_ci_installs_exact_worker_sdk(self):
-        # Roll-forward can select a newer feature band without installing the image's SDK.
+    def worker_setup(self):
         setup = re.search(r'^      - uses: actions/setup-dotnet@[^\n]+\n(.*?)(?=^      -|\Z)',
                           self.worker_job(), re.MULTILINE | re.DOTALL)
         self.assertIsNotNone(setup, 'Worker isolation must install its SDK')
-        self.assertRegex(setup.group(1),
+        return setup.group(1)
+
+    def test_ci_installs_exact_worker_sdk(self):
+        # Roll-forward can select a newer feature band without installing the image's SDK.
+        self.assertRegex(self.worker_setup(),
                          rf'(?m)^          dotnet-version: [\'\"]?{re.escape(SDK_VERSION)}[\'\"]?\s*$')
 
     def test_ci_installs_worker_sdk_apart_from_runner_sdks(self):
-        env = re.search(r'^    env:\n(.*?)(?=^    \S|\Z)',
-                        self.worker_job(), re.MULTILINE | re.DOTALL)
-        self.assertIsNotNone(env, 'Worker job must select its SDK installation directory')
+        env = re.search(r'^        env:\n(.*?)(?=^        \S|\Z)',
+                        self.worker_setup(), re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(env, 'SDK setup step must select its installation directory')
         self.assertRegex(env.group(1),
-                         r'(?m)^      DOTNET_INSTALL_DIR: [\'\"]?\$\{\{ runner\.temp \}\}/code-turtle-dotnet[\'\"]?\s*$')
+                         r'(?m)^          DOTNET_INSTALL_DIR: [\'\"]?\$\{\{ runner\.temp \}\}/code-turtle-dotnet[\'\"]?\s*$')
+        job_env = re.search(r'^    env:\n(.*?)(?=^    \S|\Z)',
+                            self.worker_job(), re.MULTILINE | re.DOTALL)
+        if job_env:
+            self.assertNotRegex(job_env.group(1), r'\$\{\{\s*runner\.',
+                                'Runner context is available in step env, not job env')
 
     def test_newer_sdk_alone_cannot_satisfy_worker_image_contract(self):
         with tempfile.TemporaryDirectory() as directory:

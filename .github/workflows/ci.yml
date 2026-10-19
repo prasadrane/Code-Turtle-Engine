@@ -47,7 +47,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       TURTLE_LIVE: '0'
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/code-turtle-dotnet
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,14 +55,16 @@ jobs:
         with:
           # The worker image builder requires this exact installed SDK directory.
           dotnet-version: '10.0.100'
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/code-turtle-dotnet
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Verify worker SDK installation
         run: |
           command -v dotnet
-          test "$DOTNET_ROOT" = "$DOTNET_INSTALL_DIR"
-          test "$(command -v dotnet)" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$DOTNET_ROOT" = "$RUNNER_TEMP/code-turtle-dotnet"
+          test "$(command -v dotnet)" = "$DOTNET_ROOT/dotnet"
           dotnet --list-sdks
           du -sh "$DOTNET_ROOT"
       - run: dotnet publish src/CodeTurtleEngine.Worker -c Release -m:2 -o work/worker/app
