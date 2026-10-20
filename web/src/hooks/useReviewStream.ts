@@ -1,6 +1,7 @@
-import { useReducer, useRef, useCallback, useEffect } from 'react';
+import { useReducer, useRef, useCallback, useEffect, useState } from 'react';
 import { initialReviewState, reviewReducer } from '@/lib/reviewState';
 import type { ReviewChanges } from '@/lib/changes';
+import { browserFrontendOrigin, resolveApiConnection, reviewConnectionMessage } from '@/lib/apiConnection';
 
 export interface UseReviewStreamOptions { apiBase?: string; accessToken?: string; }
 export interface RejectionState { isOpen: boolean; type?: string; detectedLanguage?: string; customMessage?: string; }
@@ -8,7 +9,12 @@ const events = ['phase', 'stage', 'persona_started', 'persona_quip', 'persona_fi
   'persona_completed', 'persona_failed', 'guard_started', 'symbol_checked', 'guard_audit', 'arbiter_merge', 'verdict', 'completed', 'error'];
 
 export function useReviewStream(options: UseReviewStreamOptions = {}) {
-  const apiBase = options.apiBase ?? (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000');
+  const configuredApiBase = options.apiBase ?? process.env.NEXT_PUBLIC_API_BASE;
+  const production = process.env.NODE_ENV === 'production';
+  // The first browser render matches SSR. Origin-specific guidance arrives after hydration.
+  const [frontendOrigin, setFrontendOrigin] = useState<string | null>(null);
+  useEffect(() => { setFrontendOrigin(browserFrontendOrigin()); }, []);
+  const { apiBase, connectionError } = resolveApiConnection(configuredApiBase, production, frontendOrigin);
   const [state, dispatch] = useReducer(reviewReducer, initialReviewState);
   const eventSource = useRef<EventSource | null>(null);
   const activeJob = useRef<string | null>(null);
@@ -17,7 +23,7 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
   const terminal = useRef(false);
   const closeStream = useCallback(() => { eventSource.current?.close(); eventSource.current = null; }, []);
   const cancelJob = useCallback(() => {
-    if (activeJob.current) void fetch(`${apiBase}/api/review/${activeJob.current}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+    if (activeJob.current && apiBase) void fetch(`${apiBase}/api/review/${activeJob.current}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
     activeJob.current = null;
   }, [apiBase]);
   const stop = useCallback(() => {
@@ -33,6 +39,13 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
 
   const startReview = useCallback(async (prUrl: string) => {
     reset();
+    // Recheck the current browser origin even if a click arrives before the hydration effect.
+    const connection = resolveApiConnection(configuredApiBase, production, browserFrontendOrigin());
+    if (!connection.apiBase || connection.connectionError) {
+      dispatch({ type: 'set', value: { status: 'failed', error: connection.connectionError } });
+      return;
+    }
+    const requestApiBase = connection.apiBase;
     const current = generation.current;
     terminal.current = false;
     const request = new AbortController();
@@ -41,7 +54,7 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
     const stale = () => current !== generation.current;
     const loadChanges = async (jobId: string) => {
       try {
-        const response = await fetch(`${apiBase}/api/review/${jobId}/changes`, { credentials: 'include', cache: 'no-store', signal: request.signal });
+        const response = await fetch(`${requestApiBase}/api/review/${jobId}/changes`, { credentials: 'include', cache: 'no-store', signal: request.signal });
         if (stale()) return;
         if (!response.ok || response.status === 202) throw new Error(response.status === 404 ? 'The source artifact expired or this session cannot access it.' : 'The source artifact is not available.');
         const artifact = await response.json();
@@ -49,17 +62,17 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
         if (artifact.schemaVersion !== 1 || !Array.isArray(artifact.files)) throw new Error(artifact.unavailableReason || 'No supported source artifact was returned.');
         dispatch({ type: 'set', value: { changes: artifact as ReviewChanges } });
       } catch (error) {
-        if (!stale()) dispatch({ type: 'set', value: { changesError: error instanceof Error ? error.message : 'Source artifact unavailable.' } });
+        if (!stale()) dispatch({ type: 'set', value: { changesError: reviewConnectionMessage(error, 'Source artifact unavailable.') } });
       }
     };
     try {
       if (options.accessToken) {
-        const response = await fetch(`${apiBase}/api/session`, { method: 'POST', credentials: 'include', signal: request.signal,
+        const response = await fetch(`${requestApiBase}/api/session`, { method: 'POST', credentials: 'include', signal: request.signal,
           headers: { Authorization: `Bearer ${options.accessToken}` } });
         if (stale()) return;
         if (!response.ok) throw new Error(response.status === 503 ? 'Live reviews are disabled on this server. Configure trusted-local access first.' : 'Local beta authentication failed. Check your access key and server origin.');
       }
-      const response = await fetch(`${apiBase}/api/review`, { method: 'POST', credentials: 'include', signal: request.signal,
+      const response = await fetch(`${requestApiBase}/api/review`, { method: 'POST', credentials: 'include', signal: request.signal,
         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prUrl }) });
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -75,15 +88,15 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
       }
       const data = await response.json();
       if (stale()) {
-        if (data.jobId) void fetch(`${apiBase}/api/review/${data.jobId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+        if (data.jobId) void fetch(`${requestApiBase}/api/review/${data.jobId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
         return;
       }
       if (typeof data.jobId !== 'string') throw new Error('The server did not return a review identifier.');
       activeJob.current = data.jobId;
       dispatch({ type: 'set', value: { status: 'queued', hasStarted: true, phaseMessage: 'Your review is queued.' } });
       const streamPath = data.streamUrl || `/api/review/${data.jobId}/stream`;
-      const streamUrl = new URL(streamPath, apiBase);
-      if (streamUrl.origin !== new URL(apiBase).origin) throw new Error('The review stream must use the configured server.');
+      const streamUrl = new URL(streamPath, requestApiBase);
+      if (streamUrl.origin !== new URL(requestApiBase).origin) throw new Error('The review stream must use the configured server.');
       const source = new EventSource(streamUrl.toString(), { withCredentials: true });
       eventSource.current = source;
       events.forEach(event => source.addEventListener(event, (message: MessageEvent) => {
@@ -105,11 +118,11 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
         closeStream();
       };
     } catch (error) {
-      if (!stale()) dispatch({ type: 'set', value: { status: 'failed', error: error instanceof Error ? error.message : 'Network error occurred.' } });
+      if (!stale()) dispatch({ type: 'set', value: { status: 'failed', error: reviewConnectionMessage(error, 'Network error occurred.') } });
     }
-  }, [apiBase, options.accessToken, reset, closeStream]);
+  }, [configuredApiBase, production, options.accessToken, reset, closeStream]);
   useEffect(() => () => { stop(); }, [stop]);
-  return { ...state, isStreaming: ['submitting', 'queued', 'running'].includes(state.status), isCompleted: state.status === 'completed',
+  return { ...state, apiBase, connectionError, isStreaming: ['submitting', 'queued', 'running'].includes(state.status), isCompleted: state.status === 'completed',
     currentPhase: state.phase, personaStates: state.personas, guardAudit: state.auditSymbols, verdict: state.finalVerdict,
     markdown: state.completedMarkdown, startReview, cancel, reset, clearRejection };
 }

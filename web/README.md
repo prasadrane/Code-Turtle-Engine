@@ -39,6 +39,12 @@ npm run build
 npm start
 ```
 
+With no `NEXT_PUBLIC_API_BASE` configured at build time, this production preview
+runs the sample and disables live submission. To test live reviews in a local
+production preview, set `NEXT_PUBLIC_API_BASE=http://localhost:5000` in
+`web/.env.local` before building. Rebuild after changing it; `npm start` cannot
+change an API origin already embedded in the browser bundle.
+
 ## Review workspace
 
 ![Completed illustrative sample in the light Code Turtle workspace](../docs/assets/review-workspace.jpg)
@@ -58,11 +64,13 @@ not to a model-supplied line number. Uncertain findings remain in the list. Remo
 code and non-C# files are labeled outside analysis coverage. GitHub posting and
 split diff are not implemented in this increment.
 
-Live reviews require a configured self-hosted backend and trusted repositories.
-`NEXT_PUBLIC_API_BASE` selects that backend; if unset, live review requests use
-`http://localhost:5000`. Leaving it unset does **not** disable live review controls.
-The **Connect your local beta server** disclosure accepts the server's beta access
-key, which is held in page memory for the session.
+Live reviews require a running trusted-local backend and allowlisted repositories.
+In development, an unset or blank `NEXT_PUBLIC_API_BASE` uses
+`http://localhost:5000`. Production builds require an explicit valid HTTP(S)
+backend origin; otherwise the entry explains local setup before submission and
+keeps the sample available. Never include access keys in this public variable.
+The **Connect your local beta server** disclosure appears when a connection is
+configured and accepts the server's beta access key, held in page memory.
 Use the same hostname for both services (for example, `localhost` for both), so the
 short-lived session cookie can be used by the browser. Source artifacts are bound
 to the creating session, held in memory, and expire with the review job. The UI
@@ -70,7 +78,11 @@ shows an explicit unavailable state when an artifact cannot be retrieved.
 
 See [.env.example](.env.example), the [beta guide](../docs/beta/BETA.md), and
 [isolation controls](../docs/ISOLATION.md) before enabling the API. A frontend
-preview alone does not provide a hosted review service.
+preview alone does not provide a hosted review service. The public Vercel site is
+a frontend/sample experience; its build must not point at `localhost`. The current
+API accepts loopback clients only, so run the UI locally alongside it. See the
+[local web setup steps](../docs/beta/BETA.md#run-the-local-web-ui) for exact origins,
+keys, repository allowlists, and connection troubleshooting.
 
 ## Checks
 

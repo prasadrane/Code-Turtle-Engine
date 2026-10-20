@@ -150,8 +150,14 @@ dotnet run --project src/CodeTurtleEngine.Web --urls http://localhost:5000
 cd web && npm run dev
 ```
 
-Open localhost:3000; local demos need no provider calls. Public-hosting isolation
-and security work remain out of scope; no deployment configuration is claimed.
+Open localhost:3000; samples need no provider calls. Development defaults the API
+origin to localhost:5000. Production builds disable live submission unless a valid
+`NEXT_PUBLIC_API_BASE` was provided before `npm run build`; changing it requires a
+rebuild/redeploy. Use the same local hostname for the UI and API session cookie.
+The public Vercel frontend provides the sample; the trusted-local API accepts only
+loopback clients. Follow the [local web setup guide](docs/beta/BETA.md#run-the-local-web-ui)
+for access keys, origins, and repository allowlists. Public backend hosting remains
+gated.
 
 `review <repo>` supports `--project <csproj|sln>`, `--diff <ref>`, and `--out <file>`.
 With `--diff`, baseline-to-HEAD excludes uncommitted changes; without it, HEAD is

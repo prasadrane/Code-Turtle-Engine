@@ -19,12 +19,14 @@ export interface PrInputProps {
   presets?: PrPreset[];
   className?: string;
   showDemo?: boolean;
+  descriptionId?: string;
 }
 
-export function PrInput({ onSubmit, onTryDemo, isLoading = false, disabled = false, initialUrl = '', presets = DEFAULT_PRESETS, className = '', showDemo = true }: PrInputProps) {
+export function PrInput({ onSubmit, onTryDemo, isLoading = false, disabled = false, initialUrl = '', presets = DEFAULT_PRESETS, className = '', showDemo = true, descriptionId }: PrInputProps) {
   const [url, setUrl] = useState(initialUrl);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const id = useId();
+  const describedBy = [descriptionId, errorMessage ? `${id}-error` : undefined].filter(Boolean).join(' ') || undefined;
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (disabled || isLoading) return;
@@ -43,9 +45,9 @@ export function PrInput({ onSubmit, onTryDemo, isLoading = false, disabled = fal
       <div className="pr-input-row">
         <div className="pr-url-field">
           <GitPullRequest size={19} />
-          <input id={id} type="url" value={url} onChange={event => { setUrl(event.target.value); setErrorMessage(null); }} disabled={disabled || isLoading} placeholder="https://github.com/owner/repo/pull/123" aria-label="GitHub Pull Request URL" aria-invalid={Boolean(errorMessage)} aria-describedby={errorMessage ? `${id}-error` : undefined} />
+          <input id={id} type="url" value={url} onChange={event => { setUrl(event.target.value); setErrorMessage(null); }} disabled={disabled || isLoading} placeholder="https://github.com/owner/repo/pull/123" aria-label="GitHub Pull Request URL" aria-invalid={Boolean(errorMessage)} aria-describedby={describedBy} />
         </div>
-        <button type="submit" disabled={disabled || isLoading} className="button button-green">{isLoading ? 'Reviewing...' : 'Start Review'}<ArrowRight size={17} />
+        <button type="submit" disabled={disabled || isLoading} aria-describedby={descriptionId} className="button button-green">{isLoading ? 'Reviewing...' : 'Start Review'}<ArrowRight size={17} />
         </button>
       </div>
     </form>
@@ -53,8 +55,8 @@ export function PrInput({ onSubmit, onTryDemo, isLoading = false, disabled = fal
       <AlertCircle size={16} />
       <span>{errorMessage}</span>
     </div>}
-    <div className="preset-row">
+    {(showDemo || presets.length > 0) && <div className="preset-row">
       <span>Example URLs</span>{showDemo && <button type="button" onClick={onTryDemo} disabled={disabled || isLoading} className="preset-demo" aria-label="Try Demo">
-        <Play size={12} /> Try Demo</button>}{presets.map(preset => <button key={preset.url} type="button" onClick={() => { setUrl(preset.url); setErrorMessage(null); }} disabled={disabled || isLoading} title={preset.description || preset.url}>{preset.label}</button>)}</div>
+        <Play size={12} /> Try Demo</button>}{presets.map(preset => <button key={preset.url} type="button" onClick={() => { setUrl(preset.url); setErrorMessage(null); }} disabled={disabled || isLoading} title={preset.description || preset.url}>{preset.label}</button>)}</div>}
   </div>;
 }

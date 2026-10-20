@@ -62,8 +62,47 @@ members sharing a bearer key share that bearer identity; browser-created jobs an
 source artifacts are bound to their creating session. Artifacts expire with the
 job and are delivered with `no-store`. Do not expose it with an unreviewed proxy.
 
+## Run the local web UI
+
+The public Vercel frontend provides the illustrative sample, not a hosted review
+backend. The current API accepts loopback clients only. Run both services locally
+under the same hostname (`localhost` for both, not a mix of `localhost` and
+`127.0.0.1`), because the browser session cookie uses `SameSite=Strict`.
+
+After configuring the authorized model endpoint above, configure the API in its
+own terminal. For example, using Bash from the repository root:
+
+```bash
+export Access__Mode=TrustedLocal
+export Access__ApiKey='<choose-a-local-access-key>'
+export Access__Origins__0=http://localhost:3000
+export Access__TrustedRepositories__0=owner/repo
+dotnet run --project src/CodeTurtleEngine.Web --urls http://localhost:5000
+```
+
+In another terminal, run `cd web`, `npm ci`, and `npm run dev`, then open
+http://localhost:3000. Enter the local access key under **Connect your local beta
+server** and submit a PR from the allowed repository. Restore/build only trusted
+target dependencies first. Model reviews use the configured provider and budget.
+
+Development uses http://localhost:5000 when `NEXT_PUBLIC_API_BASE` is unset or
+blank. For a local production preview (`npm run build` then `npm start`), set
+`NEXT_PUBLIC_API_BASE=http://localhost:5000` in `web/.env.local` **before building**.
+Without an explicit valid HTTP(S) origin, production shows local setup guidance
+and disables live submission; the sample remains available. Next.js embeds public
+variables at build time: changing this value requires a rebuild/redeploy, not just
+restarting the server. Never put a key or token in `NEXT_PUBLIC_API_BASE`.
+
+Do not point a public Vercel build at a loopback API. The browser would contact
+the visitor's machine, and the current local session/access policy does not make
+that a supported public service. To run a live review, open the local UI instead.
+
 ## Troubleshooting
 
+- Cannot connect: check the API process and http://localhost:5000/health, the
+  frontend's build-time API origin, browser CORS/mixed-content errors, and the
+  exact hostname/port in the API origin allowlist. A changed port needs a matching
+  allowlist entry. On the public frontend, use the sample or run both services locally.
 - API 503: default/Hosted gate is closed; do not bypass the isolation gate.
 - API 401/403: check local key, loopback peer, exact origin and repository allowlist.
 - API 429: request, session, queue or retention capacity reached; wait or cancel.
