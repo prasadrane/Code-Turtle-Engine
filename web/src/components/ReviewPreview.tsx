@@ -37,25 +37,25 @@ export function ReviewPreview() {
         </div>
         <div className="code-block" aria-label="Illustrative C# code snippet">
           <div>
-            <span className="line-number">12</span>
+            <span className="preview-line-number">12</span>
             <code>
               <span className="syntax-purple">public async</span> Task&lt;Order&gt;</code>
           </div>
           <div>
-            <span className="line-number">13</span>
+            <span className="preview-line-number">13</span>
             <code>  <span className="syntax-green">GetOrderAsync</span>(<span className="syntax-purple">int</span> id)</code>
           </div>
           <div>
-            <span className="line-number">14</span>
+            <span className="preview-line-number">14</span>
             <code>{'{'}</code>
           </div>
           <div className="code-highlight">
-            <span className="line-number">15</span>
+            <span className="preview-line-number">15</span>
             <code>  <span className="syntax-purple">return await</span> _orders.FindAsync(id);</code>
             <span className="code-pin">1</span>
           </div>
           <div>
-            <span className="line-number">16</span>
+            <span className="preview-line-number">16</span>
             <code>{'}'}</code>
           </div>
         </div>
@@ -95,7 +95,7 @@ export function ReviewPreview() {
           <span>Clarity, right down to the symbols.</span>
         </div>
       </div>
-      <span className="preview-caption">Illustrative preview · explore the sample review below</span>
+      <span className="preview-caption">Illustrative preview · explore the sample review</span>
     </div>
   );
 }

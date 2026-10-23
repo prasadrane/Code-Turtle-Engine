@@ -1,13 +1,13 @@
 import React from 'react';
+import Link from 'next/link';
 import { ArrowRight, Play, Check, ArrowUpRight } from 'lucide-react';
 import { ReviewPreview } from './ReviewPreview';
 
 export interface HeroHeaderProps {
   className?: string;
-  onTryDemo?: () => void;
 }
 
-export function HeroHeader({ className = '', onTryDemo }: HeroHeaderProps) {
+export function HeroHeader({ className = '' }: HeroHeaderProps) {
   return (
     <section className={`hero page-width ${className}`} aria-labelledby="hero-title">
       <div className="hero-copy">
@@ -18,9 +18,9 @@ export function HeroHeader({ className = '', onTryDemo }: HeroHeaderProps) {
         </h1>
         <p className="hero-description">Meet Code Turtle. Your AI review council for C# pull requests, bringing performance, security, and architecture into focus.</p>
         <div className="hero-actions">
-          {onTryDemo && <button type="button" className="button button-green" onClick={onTryDemo} aria-label="Try Demo: Try a sample review">
+          <Link href="/review?sample=1" className="button button-green">
             <Play size={15} fill="currentColor" /> Try a sample review <ArrowRight size={17} />
-          </button>}
+          </Link>
           <a className="text-link" href="#how-it-works">See how it works <ArrowUpRight size={15} />
           </a>
         </div>

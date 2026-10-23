@@ -8,7 +8,8 @@ import { ReviewTabs } from './ReviewTabs';
 
 export interface FinalReportViewProps {
   verdict?: CouncilVerdict | null; markdown?: string | null; stats?: Record<string, unknown> | null;
-  className?: string; reportOrigin?: ReportOrigin; onInspect?: (findingIndex: number) => void; anchoredFindings?: number[];
+  className?: string; reportOrigin?: ReportOrigin;
+  onInspect?: (findingIndex: number, origin: HTMLButtonElement, restorePanel: () => void) => void; anchoredFindings?: number[];
 }
 const tabs = [{ id: 'synthesized', label: 'Synthesized Verdict' }, { id: 'personas', label: 'Persona Breakdown' }, { id: 'markdown', label: 'Markdown Review' }];
 
@@ -39,7 +40,8 @@ export function FinalReportView({ verdict, markdown, stats, className = '', repo
       {findings.length === 0 && personas.some(persona => persona.findings.length > 0) && 'All raw findings were removed after arbitration / guard. '}
       Citation checks establish symbol-name existence. Recommendations and model locations are not verified.</p>
     <ReviewTabs tabs={tabs} active={activeTab} onChange={setActiveTab} label="Review report">
-      {activeTab === 'synthesized' && <div data-testid="synthesized-verdict-panel">
+      {/* Retain finding actions so returning from code can focus the exact origin after report-tab detours. */}
+      <div data-testid="synthesized-verdict-panel" hidden={activeTab !== 'synthesized'}>
         {findings.length > 0 && <div className="finding-filters">
           <label className="finding-search"><Search size={16} /><span className="sr-only">Search findings</span>
             <input aria-label="Search findings" data-testid="finding-search-input" placeholder="Search findings, paths, or symbols" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></label>
@@ -52,9 +54,10 @@ export function FinalReportView({ verdict, markdown, stats, className = '', repo
         </div>}
         <div className="finding-list">{filtered.length ? filtered.map(({ finding, index }) => <div key={`${finding.title}-${index}`}>
           <FindingCard finding={finding} guardAudit={audit} />
-          {onInspect && anchoredFindings.includes(index) && <button type="button" className="inspect-finding" data-inspect-finding={index} onClick={() => onInspect(index)}>View code context <ArrowUpRight size={14} /></button>}
+          {onInspect && anchoredFindings.includes(index) && <button type="button" className="inspect-finding" data-inspect-finding={index}
+            onClick={event => onInspect(index, event.currentTarget, () => setActiveTab('synthesized'))}>View code context <ArrowUpRight size={14} /></button>}
         </div>) : <p className="workspace-empty">{findings.length ? 'No findings match the current filter selection.' : 'No retained findings. This does not establish that the code is clean.'}</p>}</div>
-      </div>}
+      </div>
       {activeTab === 'personas' && <PersonaBreakdownPanel personasVerdicts={personas} guardAudit={audit} retained={findings} />}
       {activeTab === 'markdown' && <div data-testid="markdown-review-panel" className="markdown-report">
         <div className="markdown-toolbar"><div><strong>{reportOrigin === 'historical' ? 'Historical report output' : 'Review report'}</strong>

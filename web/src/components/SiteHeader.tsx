@@ -10,11 +10,11 @@ export function SiteHeader() {
         <BrandLogo />
       </Link>
       <nav aria-label="Main navigation" className="main-nav">
-        <Link href="/#workspace">Product</Link>
+        <Link href="/review">Product</Link>
         <Link href="/#how-it-works">How it works</Link>
         <Link href="/citation-demo">Citation evidence</Link>
       </nav>
-      <Link className="button button-small button-dark" href="/#workspace">Open workspace <ArrowUpRight size={15} />
+      <Link className="button button-small button-dark" href="/review">Open workspace <ArrowUpRight size={15} />
       </Link>
     </div>
   </header>;
