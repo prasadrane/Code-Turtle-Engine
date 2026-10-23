@@ -98,7 +98,7 @@ public static class BenchReport
         sb.AppendLine("## Limits");
         sb.AppendLine();
         if (replay) sb.AppendLine("- Replay measures local pipeline processing, not independent model latency. Model identity and response provenance must accompany the saved answers.");
-        sb.AppendLine("- Invented = cited name resolves to no type or member in the compilation (SymbolOracle). Unverified (legacy field name) = absent from the full payload, not rejected by the guard. Compilation-only citations can be retained; no metric verifies recommendation correctness.");
+        sb.AppendLine("- Invented (legacy field) = citation rejected by the current SymbolOracle, including mismatched or unsupported explicit signatures; rejection alone does not prove fabrication. Unverified (legacy field name) = absent from the full payload, not rejected by the guard. Compilation-only citations can be retained; no metric verifies recommendation correctness.");
         sb.AppendLine("- Small corpus; seeded defects are authored by this project; model identity and provenance must be inspected per run (historical runs may mix models).");
         sb.AppendLine("- The guard covers the citation channel only; prose and locations are not verified.");
         sb.AppendLine("- Precision/recall use deterministic matching (same file and either line ±3 or the enclosing method named; persona mapped from defect class); valid findings outside the labels count as false positives.");

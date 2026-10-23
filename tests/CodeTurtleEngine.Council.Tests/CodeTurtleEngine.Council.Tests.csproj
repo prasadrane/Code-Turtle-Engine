@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CodeTurtleEngine.Council\CodeTurtleEngine.Council.csproj" />
+    <ProjectReference Include="../../samples/CodeTurtleEngine.CitationDemo/CodeTurtleEngine.CitationDemo.csproj" />
   </ItemGroup>
 
 </Project>

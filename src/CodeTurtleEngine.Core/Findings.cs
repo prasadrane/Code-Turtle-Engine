@@ -15,7 +15,11 @@ public sealed record PersonaVerdict(
 public sealed record GuardResult(
     string CitedFqn,
     bool Verified,
-    string Evidence = "LegacyUnknown");
+    string Evidence = "LegacyUnknown")
+{
+    public CitationResolution? Resolution { get; init; }
+    public IReadOnlyList<CitationPayloadContext>? PayloadContexts { get; init; }
+}
 
 public sealed record FindingAudit(ReviewFinding Original, bool Retained, string Status);
 

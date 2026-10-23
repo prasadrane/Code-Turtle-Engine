@@ -33,6 +33,12 @@ export interface GuardResult {
   citedFqn: string;
   verified: boolean;
   evidence?: 'Payload' | 'Compilation' | 'Rejected' | 'LegacyUnknown';
+  resolution?: {
+    exists: boolean;
+    match: 'Signature' | 'NameOnly' | 'Rejected';
+    symbols: { assembly: string; documentationId: string; display: string }[];
+  } | null;
+  payloadContexts?: { file: string; member: string; startLine: number; endLine: number }[] | null;
 }
 
 export interface CouncilVerdict {

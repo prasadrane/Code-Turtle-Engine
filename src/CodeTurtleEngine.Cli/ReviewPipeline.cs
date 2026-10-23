@@ -42,7 +42,7 @@ public sealed class ReviewPipeline
                 : Array.Empty<SourceFile>();
             var verdicts = await _personas.RunAsync(promptPayload, sources, rubric, ct).ConfigureAwait(false);
             var merged = _arbiter.Merge(verdicts);
-            var guarded = _guard.Verify(merged, payload, new SymbolOracle(loaded.Projects).Exists);
+            var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
             const int ExpectedReviewPersonas = 3; // matches PersonaRunner's review personas
             if (verdicts.Count < ExpectedReviewPersonas)

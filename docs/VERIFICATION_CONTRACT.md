@@ -14,11 +14,36 @@ are not evidence. Duplicate fully qualified source types across projects are
 ambiguous and rejected. Error types and members with unresolved signature types
 are excluded. `Verified` describes citation existence only.
 
-Existence is type/member-name granularity. SymbolOracle normalizes generic arguments,
-parameter lists, aliases, nullable and array suffixes, and supports inherited members.
-It does **not** verify an exact overload, argument binding, location, changed-code
+Name-only citations establish type/member-name existence, not an overload. Audits
+optionally include Resolution: NameOnly, Signature, or Rejected, with assembly
+identity, Roslyn documentation ID, and display text for resolved declarations.
+Different assembly identities with the same fully qualified type name fail closed.
+A name-only overload set exposes all matching declarations and never claims a
+selected signature. Legacy audits without Resolution keep their earlier limits.
+
+Explicit parameter lists are conservatively compared to declaration signatures,
+including parameter types, array rank and ref/out/in modes. C# primitive aliases
+and global:: are normalized. Method generic parameters must use the declaration's
+parameter names; inference, constructed generic method substitution, constructed
+generic owner substitution, tuple signatures, function pointers and invocation
+binding are not supported. Unsupported or malformed explicit signatures reject;
+rejection is not by itself proof of a fabricated API. Extension methods can be
+cited by their static declaration signature, not as a verified reduced invocation.
+Inherited/interface declarations can resolve, but this is not a call-site lookup.
+
+PayloadContexts separately lists file/member ranges whose extracted ResolvedSymbols
+contain the citation's member name (an explicit signature is reduced to its name
+for this lookup only). It does not establish that the exact overload was referenced,
+that a finding's claimed location matches, or that code on changed lines uses it.
+Extraction includes members in changed files, and metadata may include declarations,
+field and constructor types as well as invocations. An empty context list means no
+matching extracted name, not proof of irrelevance. Payload still means exact raw
+name membership in the full payload plus oracle acceptance; a signature citation
+can have Compilation evidence and separately have name-level payload context.
+
+Neither identity nor context verifies argument binding, defect location, changed-code
 relevance, prose, severity, or recommendation correctness. A real unrelated symbol
-can have `Compilation` evidence; that does not ground a recommendation in changed code.
+can have Compilation evidence and survive Strip. Prompt trimming limits are unchanged.
 
 | Citations | Strip advisory (default) | Strip strict | Flag advisory or strict |
 |---|---|---|---|

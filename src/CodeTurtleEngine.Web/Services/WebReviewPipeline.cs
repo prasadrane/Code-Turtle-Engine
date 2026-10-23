@@ -175,7 +175,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     await writer.WriteAsync(SseEvent.ArbiterMerge("Judge Shellsworth", totalRaw, merged.Count, arbiterQuip), ct).ConfigureAwait(false);
 
                     // 13. Write SSE guard_audit
-                    var guarded = _guard.Verify(merged, payload, new SymbolOracle(loaded.Projects).Exists);
+                    var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve);
                     var verified = guarded.Audit.Count(a => a.Verified);
                     var stripped = _councilOptions.Guard == GuardMode.Strip ? guarded.Audit.Count(a => !a.Verified) : 0;
                     await writer.WriteAsync(SseEvent.GuardAudit("Judge Shellsworth", verified, stripped, guarded.Audit.Count, guarded.Audit), ct).ConfigureAwait(false);

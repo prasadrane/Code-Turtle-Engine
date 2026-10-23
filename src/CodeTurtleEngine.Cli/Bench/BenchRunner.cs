@@ -131,7 +131,7 @@ public sealed class BenchRunner
         var rows = new List<BenchRow> { new(entry.Id, arm, rep, Score(result.Verdict.Synthesized), sw.ElapsedMilliseconds, personas, null) };
         if (mode == PromptMode.Grounded)
         {
-            var stripped = StripGuard.Verify(result.Verdict.Synthesized, result.Payload, oracle.Exists).KeptFindings;
+            var stripped = StripGuard.Verify(result.Verdict.Synthesized, result.Payload, citationResolver: oracle.Resolve).KeptFindings;
             rows.Add(new BenchRow(entry.Id, BenchArm.CodeTurtle, rep, Score(stripped), sw.ElapsedMilliseconds, personas, null));
         }
         return rows;

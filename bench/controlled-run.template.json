@@ -27,7 +27,19 @@
       "src/CodeTurtleEngine.Cli/Bench/BenchRunner.cs",
       "src/CodeTurtleEngine.Cli/Bench/BenchScorer.cs",
       "src/CodeTurtleEngine.Council/TurtleShellGuard.cs",
-      "src/CodeTurtleEngine.Gatekeeper/SymbolOracle.cs"
+      "src/CodeTurtleEngine.Gatekeeper/SymbolOracle.cs",
+      "src/CodeTurtleEngine.Gatekeeper/CitationSignature.cs",
+      "src/CodeTurtleEngine.Council/CitationContext.cs",
+      "src/CodeTurtleEngine.Core/CitationResolution.cs",
+      "src/CodeTurtleEngine.Core/Findings.cs",
+      "src/CodeTurtleEngine.Cli/ReviewPipeline.cs",
+      "src/CodeTurtleEngine.Cli/Bench/PromptReplay.cs",
+      "src/CodeTurtleEngine.Council/PromptBuilder.cs",
+      "src/CodeTurtleEngine.Council/PersonaRunner.cs",
+      "src/CodeTurtleEngine.Council/Arbiter.cs",
+      "Directory.Build.props",
+      "global.json",
+      "src/CodeTurtleEngine.Cli/appsettings.json"
     ]
   },
   "entries": [
