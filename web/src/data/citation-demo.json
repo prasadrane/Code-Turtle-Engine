@@ -1,0 +1,274 @@
+{
+  "evidenceCategory": "authored-fixture",
+  "limitations": "No model calls. Citation checks do not establish recommendation correctness.",
+  "fixtureSha256": "be387bafb693224fe418691704d2041e66a96ed7b2272226009396578c72ed2a",
+  "sources": [
+    {
+      "path": "Changed.cs",
+      "text": "namespace Demo;\npublic class Changed\n{\n    public void Review()\n    {\n        new Dependency().Run(1);\n    }\n}"
+    },
+    {
+      "path": "Dependency.cs",
+      "text": "namespace Demo;\npublic class Dependency\n{\n    public void Run(int value) { }\n    public void Run(string value) { }\n    public void Unrelated() { }\n}"
+    }
+  ],
+  "original": [
+    {
+      "persona": "SecurityAuditor",
+      "severity": "Info",
+      "title": "Valid declaration signature",
+      "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+      "location": "Changed.cs:6",
+      "citedSymbolFqns": [
+        "Demo.Dependency.Run(int)"
+      ]
+    },
+    {
+      "persona": "SecurityAuditor",
+      "severity": "Info",
+      "title": "Fabricated overload",
+      "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+      "location": "Changed.cs:6",
+      "citedSymbolFqns": [
+        "Demo.Dependency.Run(bool)"
+      ]
+    },
+    {
+      "persona": "SecurityAuditor",
+      "severity": "Info",
+      "title": "Fabricated member",
+      "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+      "location": "Changed.cs:6",
+      "citedSymbolFqns": [
+        "Demo.Dependency.DoesNotExist"
+      ]
+    },
+    {
+      "persona": "SecurityAuditor",
+      "severity": "Info",
+      "title": "Real but unrelated member",
+      "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+      "location": "Changed.cs:6",
+      "citedSymbolFqns": [
+        "Demo.Dependency.Unrelated"
+      ]
+    },
+    {
+      "persona": "SecurityAuditor",
+      "severity": "Info",
+      "title": "Name only: overload unspecified",
+      "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+      "location": "Changed.cs:6",
+      "citedSymbolFqns": [
+        "Demo.Dependency.Run"
+      ]
+    }
+  ],
+  "outcome": {
+    "keptFindings": [
+      {
+        "persona": "SecurityAuditor",
+        "severity": "Info",
+        "title": "Valid declaration signature",
+        "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+        "location": "Changed.cs:6",
+        "citedSymbolFqns": [
+          "Demo.Dependency.Run(int)"
+        ]
+      },
+      {
+        "persona": "SecurityAuditor",
+        "severity": "Info",
+        "title": "Real but unrelated member",
+        "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+        "location": "Changed.cs:6",
+        "citedSymbolFqns": [
+          "Demo.Dependency.Unrelated"
+        ]
+      },
+      {
+        "persona": "SecurityAuditor",
+        "severity": "Info",
+        "title": "Name only: overload unspecified",
+        "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+        "location": "Changed.cs:6",
+        "citedSymbolFqns": [
+          "Demo.Dependency.Run"
+        ]
+      }
+    ],
+    "audit": [
+      {
+        "citedFqn": "Demo.Dependency.Run(int)",
+        "verified": true,
+        "evidence": "Compilation",
+        "resolution": {
+          "exists": true,
+          "match": "Signature",
+          "symbols": [
+            {
+              "assembly": "CitationDemo, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+              "documentationId": "M:Demo.Dependency.Run(System.Int32)",
+              "display": "Demo.Dependency.Run(int)"
+            }
+          ]
+        },
+        "payloadContexts": [
+          {
+            "file": "Changed.cs",
+            "member": "Review",
+            "startLine": 4,
+            "endLine": 7
+          }
+        ]
+      },
+      {
+        "citedFqn": "Demo.Dependency.Run(bool)",
+        "verified": false,
+        "evidence": "Rejected",
+        "resolution": {
+          "exists": false,
+          "match": "Rejected",
+          "symbols": []
+        },
+        "payloadContexts": [
+          {
+            "file": "Changed.cs",
+            "member": "Review",
+            "startLine": 4,
+            "endLine": 7
+          }
+        ]
+      },
+      {
+        "citedFqn": "Demo.Dependency.DoesNotExist",
+        "verified": false,
+        "evidence": "Rejected",
+        "resolution": {
+          "exists": false,
+          "match": "Rejected",
+          "symbols": []
+        },
+        "payloadContexts": []
+      },
+      {
+        "citedFqn": "Demo.Dependency.Unrelated",
+        "verified": true,
+        "evidence": "Compilation",
+        "resolution": {
+          "exists": true,
+          "match": "NameOnly",
+          "symbols": [
+            {
+              "assembly": "CitationDemo, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+              "documentationId": "M:Demo.Dependency.Unrelated",
+              "display": "Demo.Dependency.Unrelated()"
+            }
+          ]
+        },
+        "payloadContexts": []
+      },
+      {
+        "citedFqn": "Demo.Dependency.Run",
+        "verified": true,
+        "evidence": "Payload",
+        "resolution": {
+          "exists": true,
+          "match": "NameOnly",
+          "symbols": [
+            {
+              "assembly": "CitationDemo, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+              "documentationId": "M:Demo.Dependency.Run(System.Int32)",
+              "display": "Demo.Dependency.Run(int)"
+            },
+            {
+              "assembly": "CitationDemo, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+              "documentationId": "M:Demo.Dependency.Run(System.String)",
+              "display": "Demo.Dependency.Run(string)"
+            }
+          ]
+        },
+        "payloadContexts": [
+          {
+            "file": "Changed.cs",
+            "member": "Review",
+            "startLine": 4,
+            "endLine": 7
+          }
+        ]
+      }
+    ],
+    "findingAudit": [
+      {
+        "original": {
+          "persona": "SecurityAuditor",
+          "severity": "Info",
+          "title": "Valid declaration signature",
+          "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+          "location": "Changed.cs:6",
+          "citedSymbolFqns": [
+            "Demo.Dependency.Run(int)"
+          ]
+        },
+        "retained": true,
+        "status": "CitationExistenceOnly"
+      },
+      {
+        "original": {
+          "persona": "SecurityAuditor",
+          "severity": "Info",
+          "title": "Fabricated overload",
+          "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+          "location": "Changed.cs:6",
+          "citedSymbolFqns": [
+            "Demo.Dependency.Run(bool)"
+          ]
+        },
+        "retained": false,
+        "status": "RejectedCitations"
+      },
+      {
+        "original": {
+          "persona": "SecurityAuditor",
+          "severity": "Info",
+          "title": "Fabricated member",
+          "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+          "location": "Changed.cs:6",
+          "citedSymbolFqns": [
+            "Demo.Dependency.DoesNotExist"
+          ]
+        },
+        "retained": false,
+        "status": "RejectedCitations"
+      },
+      {
+        "original": {
+          "persona": "SecurityAuditor",
+          "severity": "Info",
+          "title": "Real but unrelated member",
+          "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+          "location": "Changed.cs:6",
+          "citedSymbolFqns": [
+            "Demo.Dependency.Unrelated"
+          ]
+        },
+        "retained": true,
+        "status": "CitationExistenceOnly"
+      },
+      {
+        "original": {
+          "persona": "SecurityAuditor",
+          "severity": "Info",
+          "title": "Name only: overload unspecified",
+          "detail": "Authored suggestion to demonstrate the guard; this is not a verified defect.",
+          "location": "Changed.cs:6",
+          "citedSymbolFqns": [
+            "Demo.Dependency.Run"
+          ]
+        },
+        "retained": true,
+        "status": "CitationExistenceOnly"
+      }
+    ]
+  }
+}

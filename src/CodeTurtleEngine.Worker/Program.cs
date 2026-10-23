@@ -63,7 +63,7 @@ try
                     throw new InvalidDataException();
                 var merged = new Arbiter().Merge(request.Findings.GroupBy(f => f.Persona).Select(g => new PersonaVerdict(g.Key, g.ToList())).ToList());
                 var guarded = new TurtleShellGuard(new CouncilOptions { Guard = request.Guard, RequireCitationsInStripMode = request.Strict })
-                    .Verify(merged, payload, oracle.Exists);
+                    .Verify(merged, payload, citationResolver: oracle.Resolve);
                 result = new { ArchiveSha256 = hash, Outcome = guarded, Markdown = new Arbiter().RenderMarkdown(guarded.KeptFindings, payload) };
             }
             else throw new InvalidDataException("Unknown operation.");

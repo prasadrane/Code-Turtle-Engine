@@ -1,0 +1,60 @@
+{
+  "classPersonas": {
+    "MissingConfigureAwait": "AllocationsPerformance",
+    "FireAndForgetTask": "AllocationsPerformance",
+    "SyncOverAsync": "AllocationsPerformance",
+    "BoxingAllocation": "AllocationsPerformance",
+    "LinqClosureCapture": "AllocationsPerformance",
+    "NonThreadSafeCollection": "AllocationsPerformance",
+    "SqlInjection": "SecurityAuditor",
+    "HardcodedSecret": "SecurityAuditor",
+    "PathTraversal": "SecurityAuditor",
+    "CaptiveDependency": "IdiomaticArchitect",
+    "ServiceLocator": "IdiomaticArchitect",
+    "SwallowedException": "IdiomaticArchitect"
+  },
+  "entries": [
+    {
+      "id": "hardcoded-secret",
+      "kind": "Seeded",
+      "project": "Shop.csproj",
+      "baseDir": "seeded/base",
+      "headDir": "seeded/hardcoded-secret"
+    },
+    {
+      "id": "swallowed-exception",
+      "kind": "Seeded",
+      "project": "Shop.csproj",
+      "baseDir": "seeded/base",
+      "headDir": "seeded/swallowed-exception"
+    },
+    {
+      "id": "sync-over-async",
+      "kind": "Seeded",
+      "project": "Shop.csproj",
+      "baseDir": "seeded/base",
+      "headDir": "seeded/sync-over-async"
+    },
+    {
+      "id": "boxing",
+      "kind": "Seeded",
+      "project": "Shop.csproj",
+      "baseDir": "seeded/base",
+      "headDir": "seeded/boxing"
+    },
+    {
+      "id": "path-traversal",
+      "kind": "Seeded",
+      "project": "Shop.csproj",
+      "baseDir": "seeded/base",
+      "headDir": "seeded/path-traversal"
+    },
+    {
+      "id": "clean-refactor",
+      "kind": "Seeded",
+      "project": "Shop.csproj",
+      "baseDir": "seeded/base",
+      "headDir": "seeded/clean-refactor"
+    }
+  ]
+}

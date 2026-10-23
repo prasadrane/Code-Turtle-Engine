@@ -1,0 +1,67 @@
+{
+  "evidence_category": "empirical",
+  "model_id": null,
+  "model_confirmation": null,
+  "endpoint": null,
+  "generation_settings": {
+    "temperature": null,
+    "max_output_tokens": null,
+    "seed": null
+  },
+  "files": {
+    "corpus": [
+      "bench/citation-evaluation-corpus.json",
+      "bench/seeded"
+    ],
+    "labels": [
+      "bench/citation-evaluation-corpus.json"
+    ],
+    "schema": [
+      "src/CodeTurtleEngine.Council/PromptBuilder.cs"
+    ],
+    "rubric": [
+      "turtle/rubric_v1.md"
+    ],
+    "harness": [
+      "tools/benchmark_protocol.py",
+      "src/CodeTurtleEngine.Cli/Bench/BenchRunner.cs",
+      "src/CodeTurtleEngine.Cli/Bench/BenchScorer.cs",
+      "src/CodeTurtleEngine.Council/TurtleShellGuard.cs",
+      "src/CodeTurtleEngine.Gatekeeper/SymbolOracle.cs",
+      "src/CodeTurtleEngine.Gatekeeper/CitationSignature.cs",
+      "src/CodeTurtleEngine.Council/CitationContext.cs",
+      "src/CodeTurtleEngine.Core/CitationResolution.cs",
+      "src/CodeTurtleEngine.Core/Findings.cs",
+      "src/CodeTurtleEngine.Cli/ReviewPipeline.cs",
+      "src/CodeTurtleEngine.Cli/Bench/PromptReplay.cs",
+      "src/CodeTurtleEngine.Council/PromptBuilder.cs",
+      "src/CodeTurtleEngine.Council/PersonaRunner.cs",
+      "src/CodeTurtleEngine.Council/Arbiter.cs",
+      "Directory.Build.props",
+      "global.json",
+      "src/CodeTurtleEngine.Cli/appsettings.json"
+    ]
+  },
+  "entries": [
+    "hardcoded-secret",
+    "swallowed-exception",
+    "sync-over-async",
+    "boxing",
+    "path-traversal",
+    "clean-refactor"
+  ],
+  "repetitions": 3,
+  "reviewer_groups": {
+    "council": [
+      "AllocationsPerformance",
+      "SecurityAuditor",
+      "IdiomaticArchitect"
+    ]
+  },
+  "budget": {
+    "max_samples": null,
+    "max_usd": null,
+    "max_usd_per_attempt": null
+  },
+  "independence_attestation": null
+}

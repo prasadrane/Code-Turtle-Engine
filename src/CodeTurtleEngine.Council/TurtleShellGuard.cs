@@ -11,7 +11,8 @@ public sealed record GuardOutcome(
 
 public interface ITurtleShellGuard
 {
-    GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null);
+    GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null,
+        Func<string, CitationResolution>? citationResolver = null);
 }
 
 public sealed class TurtleShellGuard : ITurtleShellGuard
@@ -39,7 +40,8 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
     public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload) =>
         Verify(findings, payload, null);
 
-    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null)
+    public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null,
+        Func<string, CitationResolution>? citationResolver = null)
     {
         var allow = BuildAllowList(payload);
 
@@ -52,11 +54,16 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
             foreach (var cite in finding.CitedSymbolFqns)
             {
                 var inPayload = allow.Contains(cite);
-                var inCompilation = compilationOracle?.Invoke(cite);
+                var resolution = citationResolver?.Invoke(cite);
+                var inCompilation = resolution?.Exists ?? compilationOracle?.Invoke(cite);
                 // When a compilation oracle is present it is authoritative, even for payload names.
                 var ok = inCompilation ?? inPayload;
                 var evidence = !ok ? "Rejected" : inPayload ? "Payload" : "Compilation";
-                audit.Add(new GuardResult(cite, ok, evidence));
+                audit.Add(new GuardResult(cite, ok, evidence)
+                {
+                    Resolution = resolution,
+                    PayloadContexts = CitationContext.Find(payload, cite)
+                });
                 if (ok) verified.Add(cite);
             }
 

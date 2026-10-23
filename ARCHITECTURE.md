@@ -67,8 +67,10 @@ StructuredChat request. Gateway route fallback remains a separate transport poli
 
 The arbiter deduplicates normalized title + location, retaining the highest severity,
 then sorts deterministically. Guard Strip/Flag policies and uncited advisory/strict
-behavior are defined in the contract. Existence checks discard parameter lists and
-cannot establish exact overload or call correctness. No citation label verifies
+behavior are defined in the contract. Name-only checks do not select overloads. Supported explicit parameter lists are
+conservatively matched against declaration signatures; assembly/declaration identities
+and name-level extracted context are recorded separately. Unsupported signatures
+reject, and no check establishes call-site binding. No citation label verifies
 prose, relevance, locations, or recommended changes.
 
 ## Web states
