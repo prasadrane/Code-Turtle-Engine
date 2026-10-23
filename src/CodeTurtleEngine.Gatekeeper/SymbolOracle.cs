@@ -39,7 +39,10 @@ public sealed class SymbolOracle
         var raw = fqn.Trim();
         var paren = raw.IndexOf('(');
         var signature = paren >= 0;
-        var name = Normalize(signature ? raw[..paren] : raw);
+        // Suffix normalization is only valid for name-only type displays. Applying
+        // it to an explicit member head would accept malformed Run?(int)/Run[](int).
+        var name = signature ? raw[..paren].Trim() : Normalize(raw);
+        if (signature && name.StartsWith("global::", StringComparison.Ordinal)) name = name[8..];
         var rejected = new CitationResolution(false, "Rejected", []);
         if (name.Length == 0) return rejected;
         if (!signature && ResolveType(name) is { } namedType)

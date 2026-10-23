@@ -34,6 +34,8 @@ public class CitationResolutionTests
     [InlineData("Demo.Target.ByRef(int)")]
     [InlineData("Demo.Target.Array(int)")]
     [InlineData("Demo.Target.Run(int) trailing")]
+    [InlineData("Demo.Target.Run?(int)")]
+    [InlineData("Demo.Target.Run[](int)")]
     public void Fabricated_Signature_Cannot_Pass_By_Member_Name(string citation) =>
         Assert.False(new SymbolOracle(Compile()).Exists(citation));
 

@@ -33,3 +33,16 @@ survive Strip. Fresh model quality remains unmeasured.
 No provider calls, spending, new model responses, pilot activity, explicit deployment,
 merge, second-machine acceptance, browser visual inspection, or screen recording
 was performed during reconstruction. The benchmark design is prepared, not collected.
+
+## Review follow-ups
+
+Review of the reconstructed diff found that suffix normalization could turn invalid
+Run?(int)/Run[](int) heads into valid signatures. Explicit member heads now preserve
+those suffixes and reject, with dedicated regressions. Context lookup also handles
+dots inside generic arguments without losing the member name. The demo's reproduction
+link is pinned to a reachable source commit so it works before merge.
+
+The first remote run on bcba1d1 passed backend (364 tests), frontend (119 tests,
+typecheck and build), and tooling. Those results precede the review fixes; use the
+new head's CI for acceptance. No browser visual inspection or live model evaluation
+has been added by these follow-ups.
