@@ -56,7 +56,7 @@ export function SiteFooter() {
         <p>Review with care. Ship with confidence.</p>
       </div>
       <div className="footer-links">
-        <Link href="/#workspace">Workspace <ArrowUpRight size={13} />
+        <Link href="/review">Workspace <ArrowUpRight size={13} />
         </Link>
       </div>
       <TurtleMark className="footer-turtle" />

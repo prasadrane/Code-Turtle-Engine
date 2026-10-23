@@ -51,7 +51,7 @@ export function CitationDemo() {
       <div className={styles.comparison}>{report.sources.map(source => <article key={source.path}><h3>{source.path}</h3><pre><code>{source.text}</code></pre></article>)}</div>
     </section>
     <footer className={styles.footer}><p>{report.limitations}</p><p>Source fixture SHA-256: <code>{report.fixtureSha256}</code></p>
-      <a href="https://github.com/prasadrane/Code-Turtle-Engine/blob/bcba1d11f7897a73c30e9b868d5825130d0af3da/docs/RECRUITER_DEMO.md">Reproduce locally and inspect evidence</a> · <Link href="/">Return to the review workspace</Link>
+      <a href="https://github.com/prasadrane/Code-Turtle-Engine/blob/bcba1d11f7897a73c30e9b868d5825130d0af3da/docs/RECRUITER_DEMO.md">Reproduce locally and inspect evidence</a> · <Link href="/review">Return to the review workspace</Link>
     </footer>
   </main></>;
 }

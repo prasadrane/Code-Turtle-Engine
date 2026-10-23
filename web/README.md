@@ -14,6 +14,23 @@ workspace, and an illustrative sample with source diffs and inline comments.
 
 ![Code Turtle product page](../docs/assets/product-preview.jpg)
 
+## Routes
+
+- `/` is the marketing site, including an illustrative review preview.
+- `/review` opens the review launcher in a separate app shell.
+- `/review?sample=1` starts an illustrative replay without a server or model calls.
+- `/citation-demo` explains citation evidence using an authored, reproducible fixture.
+
+Opening the sample again starts a fresh replay. New review returns to `/review`
+and clears the current review's view state. Reviews are held in memory; these URLs
+do not restore or share a completed live report.
+
+During submitting, queued, or running live reviews, app-owned navigation away and
+New review ask before stopping the job. Staying keeps the review active. Reload
+and tab close have a best-effort browser warning; cancellation requests can fail.
+Browser Back/Forward is not blocked. Leaving the app stops the local review UI and
+attempts to cancel its server job. Sample replay has no leave confirmation.
+
 ## Run locally
 
 Use Node 24.19.0. From the repository root:

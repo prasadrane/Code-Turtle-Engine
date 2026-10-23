@@ -5,6 +5,7 @@ import { CitationDemo } from '@/components/CitationDemo';
 
 it('shows authored provenance and lets a viewer compare rejection, relevance, and overload limits', () => {
   render(<CitationDemo />);
+  expect(screen.getByRole('link', { name: 'Return to the review workspace' }).getAttribute('href')).toBe('/review');
   expect(screen.getByText(/Authored fixture · no model calls/)).toBeTruthy();
   expect(screen.getByText('Declaration signature matched')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /2. Fabricated overload/ }));

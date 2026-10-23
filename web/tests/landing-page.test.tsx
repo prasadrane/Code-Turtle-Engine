@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { PrInput, DEFAULT_PRESETS } from '@/components/PrInput';
 import { HeroHeader } from '@/components/HeroHeader';
@@ -226,45 +226,20 @@ describe('useReviewStream Hook', () => {
 });
 
 describe('HomePage Integration', () => {
-  it('renders idle landing page with PrInput and HeroHeader', () => {
+  it('keeps the illustrative teaser and links into the separate review app', () => {
     render(<HomePage />);
-
-    expect(screen.getByText(/^AI REVIEW COUNCIL$/i)).toBeTruthy();
-    expect(screen.getByPlaceholderText(/github\.com\/owner\/repo\/pull\/123/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /try demo/i })).toBeTruthy();
+    expect(screen.getByText(/Illustrative preview/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /try a sample review/i }).getAttribute('href')).toBe('/review?sample=1');
+    expect(screen.getByRole('link', { name: /open workspace/i }).getAttribute('href')).toBe('/review');
+    expect(screen.getByRole('link', { name: /^workspace/i }).getAttribute('href')).toBe('/review');
+    expect(screen.queryByLabelText('GitHub Pull Request URL')).toBeNull();
+    expect(screen.queryByTestId('review-workspace')).toBeNull();
   });
 
-  it('transitions to demo mode when Try Demo is clicked', async () => {
-    render(<HomePage />);
-
-    const demoBtn = screen.getByRole('button', { name: /try demo/i });
-    fireEvent.click(demoBtn);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('phase-timeline')).toBeTruthy();
-      expect(screen.getByTestId('council-chamber')).toBeTruthy();
-    });
-  });
-
-  it('can complete and reset the sample review without a backend', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch');
-    render(<HomePage />);
-    fireEvent.click(screen.getByRole('button', { name: /try demo/i }));
-    expect(screen.getByText(/Illustrative sample · authored findings/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /skip to end/i }));
-    await waitFor(() => expect(screen.getByTestId('final-report-view')).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /review another pr/i }));
-    expect(screen.getByLabelText('GitHub Pull Request URL')).toBeTruthy();
-    expect(screen.queryByTestId('council-chamber')).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
-  });
-
-  it('keeps developer style guidance out of product navigation and server access optional', () => {
+  it('keeps developer style guidance out of product navigation', () => {
     render(<HomePage />);
     expect(screen.queryByRole('link', { name: 'Our brand' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Brand & assets' })).toBeNull();
-    expect(screen.getByLabelText('Local beta access key').closest('details')?.open).toBe(false);
-    expect(screen.getByRole('link', { name: /open workspace/i }).getAttribute('href')).toBe('/#workspace');
+    expect(screen.queryByLabelText('Local beta access key')).toBeNull();
   });
 });

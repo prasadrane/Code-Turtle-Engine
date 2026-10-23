@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import './workspace.css';
+import './review-content.css';
 
 export const metadata: Metadata = {
   title: { default: 'Code Turtle — Review with care. Ship with confidence.', template: '%s | Code Turtle' },

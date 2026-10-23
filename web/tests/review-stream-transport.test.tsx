@@ -35,6 +35,40 @@ function setupTransport(artifactResponse = Promise.resolve(response(artifact))) 
 }
 afterEach(() => vi.unstubAllGlobals());
 
+it('aborts the request, closes the stream, and attempts authenticated job cancellation on unmount', async () => {
+  const transport = setupTransport();
+  const { result, unmount } = renderHook(() => useReviewStream());
+  await act(async () => { await result.current.startReview('https://github.com/o/r/pull/1'); });
+  const stream = Stream.instances[0];
+  const [, request] = transport.mock.calls.find(([, options]) => options?.method === 'POST')!;
+  const signal = request.signal as AbortSignal;
+  expect(signal.aborted).toBe(false);
+  unmount();
+  expect(signal.aborted).toBe(true);
+  expect(stream.close).toHaveBeenCalledOnce();
+  expect(transport).toHaveBeenCalledWith(expect.stringContaining('/api/review/job-0'),
+    expect.objectContaining({ method: 'DELETE', credentials: 'include' }));
+});
+
+it('cancels a job returned after unmount without creating a stale event stream', async () => {
+  Stream.instances = [];
+  vi.stubGlobal('EventSource', Stream);
+  let resolve!: (value: ReturnType<typeof response>) => void;
+  const pending = new Promise<ReturnType<typeof response>>(done => { resolve = done; });
+  const transport = vi.fn().mockImplementation((_: string, options: RequestInit) =>
+    options.method === 'DELETE' ? Promise.resolve(response(null, 204)) : pending);
+  vi.stubGlobal('fetch', transport);
+  const { result, unmount } = renderHook(() => useReviewStream());
+  let starting!: Promise<void>;
+  act(() => { starting = result.current.startReview('https://github.com/o/r/pull/1'); });
+  expect(result.current.status).toBe('submitting');
+  unmount();
+  await act(async () => { resolve(response({ jobId: 'late-job' })); await starting; });
+  expect(Stream.instances).toHaveLength(0);
+  expect(transport).toHaveBeenCalledWith(expect.stringContaining('/api/review/late-job'),
+    expect.objectContaining({ method: 'DELETE', credentials: 'include' }));
+});
+
 it('loads the pinned browser artifact after completion and ignores late stream events', async () => {
   const transport = setupTransport();
   const { result } = renderHook(() => useReviewStream());
