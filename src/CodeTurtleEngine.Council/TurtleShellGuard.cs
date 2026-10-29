@@ -52,8 +52,26 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
         foreach (var finding in findings)
         {
+            // Always audit citations (L0 invariant: every citation must be recorded in audit)
+            var verified = new List<string>();
+            foreach (var cite in finding.CitedSymbolFqns)
+            {
+                var inPayload = allow.Contains(cite);
+                var resolution = citationResolver?.Invoke(cite);
+                var inCompilation = resolution?.Exists ?? compilationOracle?.Invoke(cite);
+                var ok = inCompilation ?? inPayload;
+                var evidence = !ok ? "Rejected" : inPayload ? "Payload" : "Compilation";
+                audit.Add(new GuardResult(cite, ok, evidence)
+                {
+                    Resolution = resolution,
+                    PayloadContexts = CitationContext.Find(payload, cite)
+                });
+                if (ok) verified.Add(cite);
+            }
+
             // L1: Hunk & Location intersection
-            if (_options.EnableHunkIntersectionGuard)
+            bool locationFailed = false;
+            if (_options.EnableHunkIntersectionGuard && payload.Files.Count > 0)
             {
                 var (file, startLine, endLine) = ParseLocation(finding.Location);
                 var matchedFile = payload.Files.FirstOrDefault(f =>
@@ -63,11 +81,9 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                 if (matchedFile is null)
                 {
                     findingStatuses[finding] = "OffDiffLocation";
-                    if (_options.Guard == GuardMode.Flag) kept.Add(finding);
-                    continue;
+                    locationFailed = true;
                 }
-
-                if (startLine > 0 && matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
+                else if (startLine > 0 && matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
                 {
                     var inRange = matchedFile.Methods.Any(m =>
                         (m.StartLine == 0 && m.EndLine == 0) ||
@@ -75,8 +91,7 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                     if (!inRange)
                     {
                         findingStatuses[finding] = "OffDiffLocation";
-                        if (_options.Guard == GuardMode.Flag) kept.Add(finding);
-                        continue;
+                        locationFailed = true;
                     }
                 }
             }
@@ -94,23 +109,6 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                 }
             }
 
-            // Citations check (L0)
-            var verified = new List<string>();
-            foreach (var cite in currentFinding.CitedSymbolFqns)
-            {
-                var inPayload = allow.Contains(cite);
-                var resolution = citationResolver?.Invoke(cite);
-                var inCompilation = resolution?.Exists ?? compilationOracle?.Invoke(cite);
-                var ok = inCompilation ?? inPayload;
-                var evidence = !ok ? "Rejected" : inPayload ? "Payload" : "Compilation";
-                audit.Add(new GuardResult(cite, ok, evidence)
-                {
-                    Resolution = resolution,
-                    PayloadContexts = CitationContext.Find(payload, cite)
-                });
-                if (ok) verified.Add(cite);
-            }
-
             if (_options.Guard == GuardMode.Flag)
             {
                 kept.Add(currentFinding);
@@ -118,6 +116,11 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
             }
 
             // Strip mode:
+            if (locationFailed)
+            {
+                continue;
+            }
+
             if (_options.RequireCitationsInStripMode && currentFinding.CitedSymbolFqns.Count == 0)
             {
                 continue;
