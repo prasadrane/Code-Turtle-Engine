@@ -1,0 +1,38 @@
+trigger: none
+pr:
+  branches:
+    include:
+      - main
+      - release/*
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  DOTNET_VERSION: '10.0.100'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Install .NET SDK'
+  inputs:
+    packageType: 'sdk'
+    version: $(DOTNET_VERSION)
+
+- script: |
+    dotnet build --configuration $(buildConfiguration)
+  displayName: 'Build Code Turtle and Target Solution'
+
+- script: |
+    dotnet run --project src/CodeTurtleEngine.Cli -- review . --out $(Build.ArtifactStagingDirectory)/review.md
+  displayName: 'Execute Roslyn Grounded Review'
+  env:
+    TURTLE_LLM_API_KEY: $(TURTLE_LLM_API_KEY)
+    TURTLE_LLM_BASE_URL: $(TURTLE_LLM_BASE_URL)
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Review Report'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/review.md'
+    ArtifactName: 'CodeTurtleReview'
+    publishLocation: 'Container'
