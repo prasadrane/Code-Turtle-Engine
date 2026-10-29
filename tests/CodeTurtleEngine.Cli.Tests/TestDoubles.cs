@@ -16,10 +16,18 @@ internal sealed class FakeDiff : IDiffProvider
 internal sealed class FakeLoader : ICompilationLoader
 {
     private readonly Compilation _compilation;
-    public FakeLoader(Compilation? compilation = null) => _compilation = compilation ?? CSharpCompilation.Create("Stub");
+    private readonly string[] _degraded;
+    public FakeLoader(Compilation? compilation = null, string[]? degraded = null)
+    {
+        _compilation = compilation ?? CSharpCompilation.Create("Stub");
+        _degraded = degraded ?? Array.Empty<string>();
+    }
 
     public Task<LoadedCompilation> LoadAsync(string projectOrSolutionPath, CancellationToken ct = default)
-        => Task.FromResult(new LoadedCompilation(_compilation, new Noop()));
+        => LoadAsync(projectOrSolutionPath, null, ct);
+
+    public Task<LoadedCompilation> LoadAsync(string projectOrSolutionPath, IReadOnlyList<string>? changedFiles, CancellationToken ct = default)
+        => Task.FromResult(new LoadedCompilation(_compilation, new Noop()) { DegradedProjects = _degraded });
 
     private sealed class Noop : IDisposable { public void Dispose() { } }
 }

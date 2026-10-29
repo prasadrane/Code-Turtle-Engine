@@ -28,7 +28,7 @@ public sealed class ReviewPipeline
     public async Task<ReviewResult> RunAsync(string repoPath, string projectPath, string? baselineRef, CancellationToken ct = default)
     {
         var changed = _diff.GetChangedCSharpFiles(repoPath, baselineRef);
-        var loaded = await _loader.LoadAsync(projectPath, ct).ConfigureAwait(false);
+        var loaded = await _loader.LoadAsync(projectPath, changed, ct).ConfigureAwait(false);
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
@@ -47,6 +47,8 @@ public sealed class ReviewPipeline
             const int ExpectedReviewPersonas = 3; // matches PersonaRunner's review personas
             if (verdicts.Count < ExpectedReviewPersonas)
                 markdown = $"> Degraded review: {verdicts.Count}/{ExpectedReviewPersonas} council personas succeeded.\n\n" + markdown;
+            if (loaded.DegradedProjects.Count > 0)
+                markdown = $"> Degraded projects (unmodified, excluded from compilation oracle): {string.Join(", ", loaded.DegradedProjects)}\n\n" + markdown;
             if (loaded.Diagnostics.Count > 0)
                 markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
                     string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;

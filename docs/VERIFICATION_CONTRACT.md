@@ -1,9 +1,15 @@
 # Citation existence contract
 
 This contract applies to CLI, web, and the derived guarded benchmark arm.
-Product review stops on workspace failures or any project compilation error. There
-is no partial-compilation mode. Warnings alone permit review. Missing references
-and unresolved dependencies cannot produce a completed review. Project compilations
+Product review requires full, clean compilation for all projects containing files
+changed by the review diff. In multi-project solutions, projects containing no
+modified files that fail to load or compile due to missing dependencies, workloads,
+or external build targets are flagged as Degraded rather than aborting the entire
+review. Projects flagged as Degraded are excluded from the compilation oracle, and
+their symbols cannot provide Compilation citation evidence. If a project
+containing changed files fails to compile, or if zero projects compile successfully,
+the review fails closed. Warnings alone permit review. Missing references
+and unresolved dependencies in changed projects cannot produce a completed review. Project compilations
 keep their own references, parse options, and semantic models; trees are not merged.
 
 A citation's audit evidence is `Payload` when its exact ordinal name occurs in the

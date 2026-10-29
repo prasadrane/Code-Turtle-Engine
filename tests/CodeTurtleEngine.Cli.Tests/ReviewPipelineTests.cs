@@ -67,4 +67,21 @@ public class ReviewPipelineTests
         Assert.Equal("Demo", result.Payload.RepoSlug);
         Directory.Delete(home, true);
     }
+    [Fact]
+    public async Task Renders_Degraded_Projects_Notice_In_Markdown()
+    {
+        var home = Path.Combine(Path.GetTempPath(), "turtle-pipe-" + Guid.NewGuid().ToString("N"));
+        var rubricPath = Path.GetTempFileName();
+        File.WriteAllText(rubricPath, "# Review Rubric v1");
+        var options = new TurtleOptions { RubricPath = rubricPath, Council = new CouncilOptions { Quorum = 1 } };
+        var personas = new RecordingPersonas();
+
+        var result = await new ReviewPipeline(new FakeDiff(new[] { "src/A.cs" }),
+            new FakeLoader(degraded: new[] { "BrokenUnrelatedProj" }), personas,
+            new Arbiter(), new TurtleShellGuard(options.Council), new RubricLoader(), new ArtifactWriter(home), options)
+            .RunAsync("/repo", "/repo/Demo.csproj", null);
+
+        Assert.Contains("Degraded projects (unmodified, excluded from compilation oracle): BrokenUnrelatedProj", result.Markdown);
+        Directory.Delete(home, true);
+    }
 }

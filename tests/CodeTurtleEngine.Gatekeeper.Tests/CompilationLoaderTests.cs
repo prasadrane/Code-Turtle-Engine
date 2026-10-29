@@ -51,5 +51,67 @@ public class CompilationLoaderTests
             Assert.DoesNotContain(project.SyntaxTrees, t => t.FilePath.EndsWith("ServiceA.cs"));
         }
     }
-}
+    [Fact]
+    public async Task Tolerates_Unchanged_Project_Errors_And_Marks_Degraded()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "turtle-multi-degraded-" + Guid.NewGuid().ToString("N"));
+        CopyDirectory(Path.GetDirectoryName(TestPaths.MultiProjectSln)!, temp);
+        try
+        {
+            var brokenFile = Path.Combine(temp, "ProjB", "ServiceB.cs");
+            await File.WriteAllTextAsync(brokenFile, "namespace MultiProject.ProjB; public class ServiceB { MissingType field; }");
+            var slnPath = Path.Combine(temp, "MultiProject.sln");
 
+            var loader = new MsBuildCompilationLoader();
+            var loaded = await loader.LoadAsync(slnPath, new[] { "ServiceA.cs" });
+
+            using (loaded.Workspace)
+            {
+                Assert.Single(loaded.Projects);
+                Assert.Equal("ProjA", loaded.Projects[0].AssemblyName);
+                Assert.Contains("ProjB", loaded.DegradedProjects);
+                Assert.Contains(loaded.Diagnostics, d => d.Contains("ProjB"));
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(temp, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task Throws_When_Changed_Project_Has_Compilation_Errors()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "turtle-multi-throw-" + Guid.NewGuid().ToString("N"));
+        CopyDirectory(Path.GetDirectoryName(TestPaths.MultiProjectSln)!, temp);
+        try
+        {
+            var brokenFile = Path.Combine(temp, "ProjB", "ServiceB.cs");
+            await File.WriteAllTextAsync(brokenFile, "namespace MultiProject.ProjB; public class ServiceB { MissingType field; }");
+            var slnPath = Path.Combine(temp, "MultiProject.sln");
+
+            var loader = new MsBuildCompilationLoader();
+            var ex = await Assert.ThrowsAsync<CompilationException>(() => loader.LoadAsync(slnPath, new[] { "ServiceB.cs" }));
+            Assert.Contains("ProjB", ex.Message);
+        }
+        finally
+        {
+            try { Directory.Delete(temp, true); } catch { }
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            if (file.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar) ||
+                file.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar))
+                continue;
+            var rel = Path.GetRelativePath(sourceDir, file);
+            var dest = Path.Combine(destinationDir, rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            File.Copy(file, dest, true);
+        }
+    }
+}
