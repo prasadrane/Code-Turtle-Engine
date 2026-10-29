@@ -175,7 +175,25 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     await writer.WriteAsync(SseEvent.ArbiterMerge("Judge Shellsworth", totalRaw, merged.Count, arbiterQuip), ct).ConfigureAwait(false);
 
                     // 13. Write SSE guard_audit
-                    var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve);
+                    Func<string, int, int, string?> sourceResolver = (file, startLine, endLine) =>
+                    {
+                        var tree = loaded.Projects
+                            .SelectMany(c => c.SyntaxTrees)
+                            .FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, file));
+                        if (tree is not null)
+                        {
+                            var text = tree.GetText();
+                            var start = startLine - 1;
+                            var end = endLine > 0 ? endLine - 1 : start;
+                            if (start >= 0 && start < text.Lines.Count && end >= start && end < text.Lines.Count)
+                            {
+                                var span = Microsoft.CodeAnalysis.Text.TextSpan.FromBounds(text.Lines[start].Start, text.Lines[end].End);
+                                return text.ToString(span);
+                            }
+                        }
+                        return null;
+                    };
+                    var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve, sourceResolver: sourceResolver);
                     var verified = guarded.Audit.Count(a => a.Verified);
                     var stripped = _councilOptions.Guard == GuardMode.Strip ? guarded.Audit.Count(a => !a.Verified) : 0;
                     await writer.WriteAsync(SseEvent.GuardAudit("Judge Shellsworth", verified, stripped, guarded.Audit.Count, guarded.Audit), ct).ConfigureAwait(false);

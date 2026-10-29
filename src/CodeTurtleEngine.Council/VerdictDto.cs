@@ -7,6 +7,8 @@ public sealed record FindingDto(
     string Title,
     string Detail,
     string Location,
-    IReadOnlyList<string> CitedSymbolFqns);
+    IReadOnlyList<string> CitedSymbolFqns,
+    string? OriginalCode = null,
+    string? SuggestedCode = null);
 
 public sealed record VerdictDto(IReadOnlyList<FindingDto> Findings);

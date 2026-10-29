@@ -49,11 +49,14 @@ public static class PullRequestMarker
 
     public static PullRequestMetadata? Parse(string text)
     {
+        if (string.IsNullOrWhiteSpace(text)) return null;
         var start = text.IndexOf(MarkerPrefix, StringComparison.Ordinal);
         if (start < 0) return null;
+        start += MarkerPrefix.Length;
         var end = text.IndexOf(MarkerSuffix, start, StringComparison.Ordinal);
         if (end < 0) return null;
-        var json = text.Substring(start + MarkerPrefix.Length, end - (start + MarkerPrefix.Length)).Trim();
+
+        var json = text.Substring(start, end - start).Trim();
         try
         {
             return JsonSerializer.Deserialize<PullRequestMetadata>(json);
@@ -98,6 +101,21 @@ public static class BatchedReviewBuilder
             comments.Add(new PullRequestComment(path, Math.Max(1, line), body));
         }
         return comments;
+    }
+
+    public static BatchedReviewRequest BuildReviewRequest(
+        string commitSha,
+        string summaryMarkdown,
+        IEnumerable<ReviewFinding> findings,
+        PullRequestMetadata? previousMetadata = null,
+        int maxComments = 5)
+    {
+        var findingList = findings.ToList();
+        var newFindings = FilterNewFindings(findingList, previousMetadata);
+        var comments = BuildComments(newFindings, maxComments);
+        var hashes = findingList.Select(FindingFingerprint.Compute).Distinct().ToList();
+        var metadata = new PullRequestMetadata(commitSha, hashes);
+        return new BatchedReviewRequest(commitSha, summaryMarkdown, comments, metadata);
     }
 
     private static (string path, int line) ParseLocation(string location)

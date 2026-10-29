@@ -15,7 +15,9 @@ public static class PromptBuilder
           "Title":{"type":"string"},
           "Detail":{"type":"string"},
           "Location":{"type":"string"},
-          "CitedSymbolFqns":{"type":"array","items":{"type":"string"}}
+          "CitedSymbolFqns":{"type":"array","items":{"type":"string"}},
+          "OriginalCode":{"type":["string","null"]},
+          "SuggestedCode":{"type":["string","null"]}
         },"required":["Severity","Title","Detail","Location","CitedSymbolFqns"]}}},
       "required":["Findings"]}
     """;

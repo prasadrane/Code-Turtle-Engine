@@ -47,6 +47,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -58,8 +59,8 @@ jobs:
           format: 'spdx-json'
           output-file: 'sbom.spdx.json'
 
-      - name: Attest Build Provenance (SLSA Level 3)
-        uses: actions/attest-build-provenance@v1
+      - name: Attest Build Provenance (SLSA Build Provenance)
+        uses: actions/attest-build-provenance@v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.push.outputs.digest }}

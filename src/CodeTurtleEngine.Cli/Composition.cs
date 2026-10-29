@@ -39,6 +39,7 @@ public static class Composition
         sc.AddSingleton<RubricLoader>();
         sc.AddSingleton(new ArtifactWriter(home));
         sc.AddSingleton<ReviewPipeline>();
+        sc.AddSingleton<ExtractionPipeline>();
         return sc.BuildServiceProvider();
     }
 

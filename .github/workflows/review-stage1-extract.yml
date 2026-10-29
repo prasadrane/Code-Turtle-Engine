@@ -22,14 +22,13 @@ jobs:
           global-json-file: global.json
 
       - name: Prepare Artifact Directory
-        run: |
-          mkdir -p turtle-artifacts
-          echo '{"pr": ${{ github.event.pull_request.number }}, "sha": "${{ github.event.pull_request.head.sha }}"}' > turtle-artifacts/pr.json
+        run: mkdir -p turtle-artifacts
 
       - name: Build and Extract Roslyn Payload
         run: |
-          dotnet build --configuration Release
-          dotnet run --project src/CodeTurtleEngine.Cli --no-build -- review . --out turtle-artifacts/review-preview.md || true
+          git fetch origin ${{ github.base_ref }}
+          dotnet build -c Release
+          dotnet run -c Release --no-build --project src/CodeTurtleEngine.Cli -- extract . --diff origin/${{ github.base_ref }} --out turtle-artifacts
 
       - name: Upload Semantic Artifacts
         uses: actions/upload-artifact@v4

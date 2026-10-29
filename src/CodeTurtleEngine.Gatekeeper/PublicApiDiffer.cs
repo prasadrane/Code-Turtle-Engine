@@ -25,31 +25,26 @@ public static class PublicApiDiffer
                 continue;
             }
 
-            // Check members
             var baseMembers = GetExportedMembers(baseType);
             var headMembers = GetExportedMembers(headType);
 
-            foreach (var (memFqn, baseMember) in baseMembers)
+            foreach (var (memKey, (memFqn, baseMember)) in baseMembers)
             {
-                if (baseMember is IMethodSymbol baseMethod)
-                {
-                    var matchingMethod = headMembers.Values
-                        .OfType<IMethodSymbol>()
-                        .FirstOrDefault(m => m.Name == baseMethod.Name && ParametersMatch(baseMethod, m));
-
-                    if (matchingMethod is null)
-                    {
-                        changes.Add(new ApiBreakingChange("CP0002", memFqn, $"Member '{memFqn}' was removed or made non-public."));
-                    }
-                    else if (baseMethod.ReturnType.ToDisplayString() != matchingMethod.ReturnType.ToDisplayString())
-                    {
-                        changes.Add(new ApiBreakingChange("CP0003", memFqn,
-                            $"Member '{memFqn}' return type changed from '{baseMethod.ReturnType.ToDisplayString()}' to '{matchingMethod.ReturnType.ToDisplayString()}'."));
-                    }
-                }
-                else if (!headMembers.ContainsKey(memFqn))
+                if (!headMembers.TryGetValue(memKey, out var headEntry))
                 {
                     changes.Add(new ApiBreakingChange("CP0002", memFqn, $"Member '{memFqn}' was removed or made non-public."));
+                    continue;
+                }
+
+                var headMember = headEntry.Symbol;
+                if (baseMember is IMethodSymbol baseMethod && headMember is IMethodSymbol headMethod)
+                {
+                    if (baseMethod.MethodKind != MethodKind.Constructor &&
+                        baseMethod.ReturnType.ToDisplayString() != headMethod.ReturnType.ToDisplayString())
+                    {
+                        changes.Add(new ApiBreakingChange("CP0003", memFqn,
+                            $"Member '{memFqn}' return type changed from '{baseMethod.ReturnType.ToDisplayString()}' to '{headMethod.ReturnType.ToDisplayString()}'."));
+                    }
                 }
             }
         }
@@ -57,15 +52,23 @@ public static class PublicApiDiffer
         return changes;
     }
 
-    private static bool ParametersMatch(IMethodSymbol a, IMethodSymbol b)
+    private static string GetMemberKey(ISymbol member)
     {
-        if (a.Parameters.Length != b.Parameters.Length) return false;
-        for (int i = 0; i < a.Parameters.Length; i++)
+        if (member is IMethodSymbol method)
         {
-            if (a.Parameters[i].Type.ToDisplayString() != b.Parameters[i].Type.ToDisplayString())
-                return false;
+            var paramTypes = string.Join(", ", method.Parameters.Select(p => p.Type.ToDisplayString()));
+            var typeArgs = method.TypeParameters.Length > 0
+                ? $"<{string.Join(", ", method.TypeParameters.Select(p => p.Name))}>"
+                : "";
+            var name = method.MethodKind == MethodKind.Constructor ? "#ctor" : method.Name;
+            return $"{name}{typeArgs}({paramTypes})";
         }
-        return true;
+        if (member is IPropertySymbol prop && prop.Parameters.Length > 0)
+        {
+            var paramTypes = string.Join(", ", prop.Parameters.Select(p => p.Type.ToDisplayString()));
+            return $"{prop.Name}[{paramTypes}]";
+        }
+        return member.Name;
     }
 
     private static Dictionary<string, INamedTypeSymbol> GetExportedTypes(INamespaceSymbol ns, IAssemblySymbol targetAssembly)
@@ -94,17 +97,18 @@ public static class PublicApiDiffer
         }
     }
 
-    private static Dictionary<string, ISymbol> GetExportedMembers(INamedTypeSymbol type)
+    private static Dictionary<string, (string Fqn, ISymbol Symbol)> GetExportedMembers(INamedTypeSymbol type)
     {
-        var dict = new Dictionary<string, ISymbol>(StringComparer.Ordinal);
+        var dict = new Dictionary<string, (string Fqn, ISymbol Symbol)>(StringComparer.Ordinal);
         foreach (var member in type.GetMembers())
         {
-            if (member is IMethodSymbol method && (method.MethodKind == MethodKind.Constructor || method.MethodKind == MethodKind.StaticConstructor))
+            if (member is IMethodSymbol method && method.MethodKind == MethodKind.StaticConstructor)
                 continue;
             if (IsExported(member.DeclaredAccessibility))
             {
+                var key = GetMemberKey(member);
                 var fqn = $"{type.ToDisplayString()}.{member.Name}";
-                dict[fqn] = member;
+                dict[key] = (fqn, member);
             }
         }
         return dict;

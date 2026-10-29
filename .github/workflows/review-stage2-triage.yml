@@ -7,16 +7,22 @@ on:
 permissions:
   pull-requests: write
   issues: write
+  contents: read
 
 jobs:
   triage:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.pull_requests[0] != null }}
     steps:
-      - name: Checkout Trusted Repository (Base/Main)
+      - name: Checkout Trusted Repository
         uses: actions/checkout@v4
         with:
           ref: main
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
 
       - name: Download Artifacts from Stage 1
         uses: actions/download-artifact@v4
@@ -26,32 +32,88 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate PR Number & Data Security
-        id: validate
-        run: |
-          PR_NUM=$(jq -r '.pr' downloaded-artifacts/pr.json)
-          SHA=$(jq -r '.sha' downloaded-artifacts/pr.json)
-          if ! [[ "$PR_NUM" =~ ^[0-9]+$ ]]; then
-            echo "Invalid PR number: $PR_NUM"
-            exit 1
-          fi
-          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
-          echo "head_sha=$SHA" >> $GITHUB_OUTPUT
+      - name: Validate PR and Run Grounded Review
+        id: review
+        env:
+          TURTLE_LLM_BASE_URL: ${{ secrets.TURTLE_LLM_BASE_URL }}
+          TURTLE_LLM_API_KEY: ${{ secrets.TURTLE_LLM_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.workflow_run.pull_requests[0];
+            if (!pr || !pr.number) {
+              throw new Error("No associated pull request found in trusted workflow run event.");
+            }
+            const prNumber = pr.number;
+            const headSha = pr.head.sha;
+            if (!/^[0-9a-fA-F]{40}$/.test(headSha)) {
+              throw new Error("Invalid commit SHA: " + headSha);
+            }
 
-      - name: Post Advisory Review Comment
+            // Verify with GitHub API that PR head SHA matches
+            const { data: currentPr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            if (currentPr.head.sha !== headSha) {
+              core.warning(`PR head SHA changed from ${headSha} to ${currentPr.head.sha}; skipping stale run.`);
+              return;
+            }
+
+            core.setOutput("pr_number", prNumber.toString());
+            core.setOutput("head_sha", headSha);
+
+      - name: Generate Review from Extracted Payload
+        if: steps.review.outputs.pr_number != ''
+        env:
+          TURTLE_LLM_BASE_URL: ${{ secrets.TURTLE_LLM_BASE_URL }}
+          TURTLE_LLM_API_KEY: ${{ secrets.TURTLE_LLM_API_KEY }}
+        run: |
+          dotnet build -c Release
+          dotnet run -c Release --no-build --project src/CodeTurtleEngine.Cli -- review . --payload downloaded-artifacts/payload.json --out review.md
+
+      - name: Post or Update PR Comment
+        if: steps.review.outputs.pr_number != ''
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const prNumber = ${{ steps.validate.outputs.pr_number }};
-            const reviewPath = 'downloaded-artifacts/review-preview.md';
-            if (fs.existsSync(reviewPath)) {
-              const body = fs.readFileSync(reviewPath, 'utf8');
+            const prNumber = parseInt('${{ steps.review.outputs.pr_number }}', 10);
+            if (!fs.existsSync('review.md')) {
+              console.log('No review.md generated.');
+              return;
+            }
+            const body = fs.readFileSync('review.md', 'utf8');
+            const marker = '<!-- code-turtle-review -->';
+            const taggedBody = `${body}\n\n${marker}`;
+
+            // Check for existing review comments to update instead of spamming
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: taggedBody
+              });
+              console.log(`Updated comment ${existing.id} on PR #${prNumber}`);
+            } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber,
-                body: body
+                body: taggedBody
               });
+              console.log(`Created new comment on PR #${prNumber}`);
             }

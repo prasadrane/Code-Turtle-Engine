@@ -78,7 +78,10 @@ public static class SarifTriagePipeline
             return hunkList.Any(h =>
                 (NormalizePath(d.FilePath).EndsWith(NormalizePath(h.FilePath), StringComparison.OrdinalIgnoreCase) ||
                  NormalizePath(h.FilePath).EndsWith(NormalizePath(d.FilePath), StringComparison.OrdinalIgnoreCase)) &&
-                (h.LineCount == 0 || (d.StartLine >= h.StartLine && d.StartLine < h.StartLine + Math.Max(1, h.LineCount))));
+                h.LineCount > 0 &&
+                d.StartLine >= h.StartLine &&
+                d.StartLine < h.StartLine + h.LineCount &&
+                d.EndLine < h.StartLine + h.LineCount);
         }).ToList();
     }
 

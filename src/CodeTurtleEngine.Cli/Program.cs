@@ -7,12 +7,16 @@ var repoArg = new Argument<string>("repo") { Description = "Path to the target g
 var projectOpt = new Option<string?>("--project") { Description = "Path to the .csproj/.sln to compile (default: discovered in repo)" };
 var diffOpt = new Option<string?>("--diff") { Description = "Baseline ref (branch or SHA). Default: working tree vs HEAD" };
 var outOpt = new Option<string?>("--out") { Description = "Also write the markdown review to this path" };
+var payloadOpt = new Option<string?>("--payload") { Description = "Path to pre-extracted RoslynPayload JSON file" };
+var sarifOpt = new Option<string?>("--sarif") { Description = "Path to SARIF 2.1 static analysis report to triage" };
 
 var review = new Command("review", "Review a repository's changed C# files");
 review.Arguments.Add(repoArg);
 review.Options.Add(projectOpt);
 review.Options.Add(diffOpt);
 review.Options.Add(outOpt);
+review.Options.Add(payloadOpt);
+review.Options.Add(sarifOpt);
 
 review.SetAction(async (parseResult, ct) =>
 {
@@ -22,18 +26,69 @@ review.SetAction(async (parseResult, ct) =>
         var project = parseResult.GetValue(projectOpt);
         var diff = parseResult.GetValue(diffOpt);
         var outPath = parseResult.GetValue(outOpt);
+        var payloadPath = parseResult.GetValue(payloadOpt);
+        var sarifPath = parseResult.GetValue(sarifOpt);
 
-        var services = Composition.BuildServices(repo);
+        var services = Composition.BuildServices(repo, o =>
+        {
+            if (sarifPath is not null) o.SarifPath = sarifPath;
+        });
         var pipeline = services.GetRequiredService<ReviewPipeline>();
         var projectPath = project ?? Composition.DiscoverProject(repo);
+        CodeTurtleEngine.Core.RoslynPayload? preExtracted = null;
+        if (payloadPath is not null && File.Exists(payloadPath))
+        {
+            var extraction = services.GetRequiredService<ExtractionPipeline>();
+            preExtracted = extraction.DeserializePayload(File.ReadAllText(payloadPath));
+        }
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await pipeline.RunAsync(repo, projectPath, diff, ct).ConfigureAwait(false);
+        var result = await pipeline.RunAsync(repo, projectPath, diff, preExtracted, ct).ConfigureAwait(false);
         sw.Stop();
 
         Console.Out.WriteLine(result.Markdown);
         if (outPath is not null) File.WriteAllText(outPath, result.Markdown);
         Console.Error.WriteLine($"Artifacts: {result.ArtifactDir}");
         Console.Error.WriteLine($"elapsed: {sw.ElapsedMilliseconds} ms");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"error: {ex.Message}");
+        return 1;
+    }
+});
+
+var extractRepoArg = new Argument<string>("repo") { Description = "Path to the target git repository" };
+var extractProjectOpt = new Option<string?>("--project") { Description = "Path to the .csproj/.sln to compile (default: discovered in repo)" };
+var extractDiffOpt = new Option<string?>("--diff") { Description = "Baseline ref (branch or SHA)" };
+var extractOutOpt = new Option<string>("--out") { Description = "Output directory for extracted artifacts", Required = true };
+
+var extract = new Command("extract", "Extract Roslyn semantic payload and PR metadata without LLM credentials");
+extract.Arguments.Add(extractRepoArg);
+extract.Options.Add(extractProjectOpt);
+extract.Options.Add(extractDiffOpt);
+extract.Options.Add(extractOutOpt);
+
+extract.SetAction(async (parseResult, ct) =>
+{
+    try
+    {
+        var repo = parseResult.GetValue(extractRepoArg) ?? throw new InvalidOperationException("repo argument is required");
+        var project = parseResult.GetValue(extractProjectOpt);
+        var diff = parseResult.GetValue(extractDiffOpt);
+        var outDir = parseResult.GetValue(extractOutOpt)!;
+
+        var services = Composition.BuildServices(repo);
+        var extraction = services.GetRequiredService<ExtractionPipeline>();
+        var projectPath = project ?? Composition.DiscoverProject(repo);
+        var payload = await extraction.ExtractAsync(repo, projectPath, diff, ct).ConfigureAwait(false);
+
+        Directory.CreateDirectory(outDir);
+        var json = extraction.SerializePayload(payload);
+        var payloadFile = Path.Combine(outDir, "payload.json");
+        await File.WriteAllTextAsync(payloadFile, json, ct).ConfigureAwait(false);
+        Console.Error.WriteLine($"Extracted payload to {payloadFile} ({payload.Files.Count} files)");
         return 0;
     }
     catch (Exception ex)
@@ -122,5 +177,6 @@ bench.SetAction(async (parseResult, ct) =>
 
 var root = new RootCommand("Code Turtle Engine - AI PR reviewer grounded in Roslyn compiler truths");
 root.Subcommands.Add(review);
+root.Subcommands.Add(extract);
 root.Subcommands.Add(bench);
 return await root.Parse(args).InvokeAsync().ConfigureAwait(false);

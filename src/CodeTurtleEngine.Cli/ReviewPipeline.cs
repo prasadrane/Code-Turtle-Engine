@@ -25,14 +25,18 @@ public sealed class ReviewPipeline
         _guard = guard; _rubricLoader = rubricLoader; _artifacts = artifacts; _options = options;
     }
 
-    public async Task<ReviewResult> RunAsync(string repoPath, string projectPath, string? baselineRef, CancellationToken ct = default)
+    public Task<ReviewResult> RunAsync(string repoPath, string projectPath, string? baselineRef, CancellationToken ct = default) =>
+        RunAsync(repoPath, projectPath, baselineRef, null, ct);
+
+    public async Task<ReviewResult> RunAsync(string repoPath, string projectPath, string? baselineRef,
+        RoslynPayload? preExtractedPayload, CancellationToken ct = default)
     {
         var changed = _diff.GetChangedCSharpFiles(repoPath, baselineRef);
         var loaded = await _loader.LoadAsync(projectPath, changed, ct).ConfigureAwait(false);
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
-            var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed);
+            var payload = preExtractedPayload ?? new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed);
             var rubric = _rubricLoader.Load(ResolveRubric());
             // THE INVARIANT: trimming applies ONLY to the LLM prompt projection. The guard
             // must keep verifying against the FULL payload's ResolvedSymbols allow-list.
@@ -42,7 +46,49 @@ public sealed class ReviewPipeline
                 : Array.Empty<SourceFile>();
             var verdicts = await _personas.RunAsync(promptPayload, sources, rubric, ct).ConfigureAwait(false);
             var merged = _arbiter.Merge(verdicts);
-            var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve);
+
+            if (!string.IsNullOrEmpty(_options.SarifPath) && File.Exists(_options.SarifPath))
+            {
+                var sarifJson = await File.ReadAllTextAsync(_options.SarifPath, ct).ConfigureAwait(false);
+                var diags = SarifTriagePipeline.ParseSarifJson(sarifJson);
+                var hunks = payload.Files.SelectMany(f => f.Methods.Select(m =>
+                    new DiffHunk(f.FilePath, m.StartLine, Math.Max(1, m.EndLine - m.StartLine + 1)))).ToList();
+                var intersected = SarifTriagePipeline.IntersectWithDiffHunks(diags, hunks);
+                var sarifFindings = SarifTriagePipeline.ConvertToFindings(SarifTriagePipeline.Deduplicate(intersected));
+                merged = merged.Concat(sarifFindings).ToList();
+            }
+
+            Func<string, int, int, string?> sourceResolver = (file, startLine, endLine) =>
+            {
+                var tree = loaded.Projects
+                    .SelectMany(c => c.SyntaxTrees)
+                    .FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, file));
+                if (tree is not null)
+                {
+                    var text = tree.GetText();
+                    var start = startLine - 1;
+                    var end = endLine > 0 ? endLine - 1 : start;
+                    if (start >= 0 && start < text.Lines.Count && end >= start && end < text.Lines.Count)
+                    {
+                        var span = Microsoft.CodeAnalysis.Text.TextSpan.FromBounds(text.Lines[start].Start, text.Lines[end].End);
+                        return text.ToString(span);
+                    }
+                }
+                var fullPath = Path.Combine(repoPath, file);
+                if (File.Exists(fullPath))
+                {
+                    var lines = File.ReadAllLines(fullPath);
+                    var start = startLine - 1;
+                    var end = endLine > 0 ? endLine - 1 : start;
+                    if (start >= 0 && start < lines.Length && end >= start && end < lines.Length)
+                    {
+                        return string.Join(Environment.NewLine, lines.Skip(start).Take(end - start + 1));
+                    }
+                }
+                return null;
+            };
+
+            var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve, sourceResolver: sourceResolver);
             var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
             const int ExpectedReviewPersonas = 3; // matches PersonaRunner's review personas
             if (verdicts.Count < ExpectedReviewPersonas)
@@ -54,6 +100,11 @@ public sealed class ReviewPipeline
                     string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
             var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
             var dir = _artifacts.Write(repoSlug, payload, verdict, markdown, loaded.Diagnostics);
+
+            var batched = BatchedReviewBuilder.BuildReviewRequest(payload.DiffBaseline, markdown, guarded.KeptFindings);
+            File.WriteAllText(Path.Combine(dir, "batched-review.json"),
+                System.Text.Json.JsonSerializer.Serialize(batched, TurtleJson.Options));
+
             return new ReviewResult(markdown, verdict, dir, payload);
         }
         finally

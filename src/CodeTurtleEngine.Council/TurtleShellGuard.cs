@@ -80,14 +80,21 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
                 if (matchedFile is null)
                 {
-                    findingStatuses[finding] = "OffDiffLocation";
-                    locationFailed = true;
+                    var declaredOnDiff = finding.CitedSymbolFqns.Any(cite =>
+                        payload.Files.Any(f => f.Methods.Any(m =>
+                            m.Method == cite || cite.EndsWith("." + m.Method, StringComparison.Ordinal))));
+                    if (!declaredOnDiff)
+                    {
+                        findingStatuses[finding] = "OffDiffLocation";
+                        locationFailed = true;
+                    }
                 }
                 else if (startLine > 0 && matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
                 {
+                    var end = endLine > 0 ? endLine : startLine;
                     var inRange = matchedFile.Methods.Any(m =>
                         (m.StartLine == 0 && m.EndLine == 0) ||
-                        (startLine >= m.StartLine && (endLine == 0 || endLine <= m.EndLine || startLine <= m.EndLine)));
+                        (startLine >= m.StartLine && (m.EndLine == 0 || end <= m.EndLine)));
                     if (!inRange)
                     {
                         findingStatuses[finding] = "OffDiffLocation";
@@ -98,11 +105,11 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
             // L2: Quote verification
             var currentFinding = finding;
-            if (_options.EnableQuoteVerificationGuard && finding.OriginalCode is not null && sourceResolver is not null)
+            if (_options.EnableQuoteVerificationGuard && finding.OriginalCode is not null)
             {
                 var (file, startLine, endLine) = ParseLocation(finding.Location);
-                var actual = sourceResolver(file, startLine, endLine);
-                if (actual is not null && NormalizeWhitespace(actual) != NormalizeWhitespace(finding.OriginalCode))
+                var actual = sourceResolver?.Invoke(file, startLine, endLine);
+                if (actual is null || !IsQuoteMatch(actual, finding.OriginalCode))
                 {
                     findingStatuses[finding] = "QuoteMismatch";
                     currentFinding = finding with { SuggestedCode = null };
@@ -165,6 +172,15 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
         return (file, 0, 0);
     }
 
-    private static string NormalizeWhitespace(string input) =>
-        Regex.Replace(input.Trim(), @"\s+", " ");
+            private static bool IsQuoteMatch(string actual, string expected) =>
+        NormalizeCodeLines(actual) == NormalizeCodeLines(expected);
+
+    private static string NormalizeCodeLines(string code)
+    {
+        var lines = code.Replace("\r\n", "\n").Replace('\r', '\n')
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0);
+        return string.Join("\n", lines);
+    }
 }

@@ -24,7 +24,7 @@ steps:
   displayName: 'Build Code Turtle and Target Solution'
 
 - script: |
-    dotnet run --project src/CodeTurtleEngine.Cli -- review . --out $(Build.ArtifactStagingDirectory)/review.md
+    dotnet run -c $(buildConfiguration) --project src/CodeTurtleEngine.Cli --no-build -- review . --out $(Build.ArtifactStagingDirectory)/review.md
   displayName: 'Execute Roslyn Grounded Review'
   env:
     TURTLE_LLM_API_KEY: $(TURTLE_LLM_API_KEY)
@@ -36,3 +36,41 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)/review.md'
     ArtifactName: 'CodeTurtleReview'
     publishLocation: 'Container'
+
+- script: |
+    if [ -z "$SYSTEM_PULLREQUEST_PULLREQUESTID" ]; then
+      echo "Not a PR build; skipping Azure DevOps PR thread update."
+      exit 0
+    fi
+    REVIEW_FILE="$(Build.ArtifactStagingDirectory)/review.md"
+    if [ ! -f "$REVIEW_FILE" ]; then
+      echo "Review file not found; skipping."
+      exit 0
+    fi
+
+    COMMENT_BODY=$(cat "$REVIEW_FILE")
+    MARKER="<!-- code-turtle-review -->"
+    FULL_BODY="${COMMENT_BODY}\n\n${MARKER}"
+
+    URL="$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.ID)/pullRequests/$(System.PullRequest.PullRequestId)/threads?api-version=7.0"
+    
+    # Query existing threads
+    EXISTING_THREADS=$(curl -s -H "Authorization: Bearer $(System.AccessToken)" "$URL")
+    MATCHING_THREAD_ID=$(echo "$EXISTING_THREADS" | jq -r ".value[]? | select(.comments[]?.content | contains(\"$MARKER\")) | .id" | head -n 1)
+
+    if [ -n "$MATCHING_THREAD_ID" ] && [ "$MATCHING_THREAD_ID" != "null" ]; then
+      echo "Updating existing PR thread $MATCHING_THREAD_ID"
+      COMMENT_PAYLOAD=$(jq -n --arg content "$FULL_BODY" '{content: $content, commentType: 1}')
+      curl -s -X POST -H "Authorization: Bearer $(System.AccessToken)" -H "Content-Type: application/json" \
+        -d "$COMMENT_PAYLOAD" \
+        "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.ID)/pullRequests/$(System.PullRequest.PullRequestId)/threads/$MATCHING_THREAD_ID/comments?api-version=7.0"
+    else
+      echo "Creating new PR thread"
+      THREAD_PAYLOAD=$(jq -n --arg content "$FULL_BODY" '{comments: [{content: $content, commentType: 1}], status: 1}')
+      curl -s -X POST -H "Authorization: Bearer $(System.AccessToken)" -H "Content-Type: application/json" \
+        -d "$THREAD_PAYLOAD" "$URL"
+    fi
+  displayName: 'Publish Iteration-Aware Azure DevOps PR Thread'
+  condition: and(succeeded(), ne(variables['System.PullRequest.PullRequestId'], ''))
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
