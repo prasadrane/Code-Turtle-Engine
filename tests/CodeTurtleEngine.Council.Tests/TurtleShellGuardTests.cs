@@ -5,16 +5,22 @@ namespace CodeTurtleEngine.Council.Tests;
 
 public class TurtleShellGuardTests
 {
-    private static RoslynPayload PayloadWith(string resolvedSymbol) => new("R", "HEAD", new[]
-    {
-        new FileFacts("F.cs", new[]
-        {
-            new MethodFacts("M", Array.Empty<string>(), null, Array.Empty<string>(), new[] { resolvedSymbol })
-        })
-    });
+    private static RoslynPayload PayloadWith(string resolvedSymbol) => new("R", "HEAD", [
+        new FileFacts("F.cs", [new MethodFacts("M", [], null, [], [resolvedSymbol])])
+    ]);
+
+    private static RoslynPayload PayloadWithRange(int start, int end) => new("R", "HEAD", [
+        new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: start, EndLine: end)])
+    ]);
 
     private static ReviewFinding Finding(string title, params string[] cites) =>
         new(PersonaRole.SecurityAuditor, Severity.Error, title, "d", "F.cs:1", cites);
+
+    private static ReviewFinding FindingAt(string location) =>
+        new(PersonaRole.SecurityAuditor, Severity.Error, "Probe", "d", location, ["SampleRepo.Real"]);
+
+    private static TurtleShellGuard Guard() =>
+        new(new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true, EnableQuoteVerificationGuard = true });
 
     [Fact]
     public void Strip_Removes_Hallucinated_Citations_And_Ungrounded_Findings()
@@ -26,7 +32,6 @@ public class TurtleShellGuardTests
             Finding("Mixed", "SampleRepo.Real", "SampleRepo.Fake")
         };
         var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip });
-
         var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
 
         Assert.Equal(2, outcome.KeptFindings.Count);
@@ -41,7 +46,6 @@ public class TurtleShellGuardTests
     {
         var findings = new[] { Finding("Hallucinated", "SampleRepo.Fake") };
         var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Flag });
-
         var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
 
         Assert.Single(outcome.KeptFindings);
@@ -53,7 +57,6 @@ public class TurtleShellGuardTests
     {
         var findings = new[] { Finding("General note") };
         var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip });
-
         var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
 
         Assert.Single(outcome.KeptFindings);
@@ -62,17 +65,14 @@ public class TurtleShellGuardTests
     [Fact]
     public void BuildAllowList_Collects_All_Resolved_Symbols_Ordinal()
     {
-        var payload = new RoslynPayload("r", "HEAD", new[]
-        {
-            new FileFacts("A.cs", new[]
-            {
-                new MethodFacts("M1", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "Demo.A", "Demo.B" }),
-                new MethodFacts("M2", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "Demo.B" })
-            })
-        });
+        var payload = new RoslynPayload("r", "HEAD", [
+            new FileFacts("A.cs", [
+                new MethodFacts("M1", [], null, [], ["Demo.A", "Demo.B"]),
+                new MethodFacts("M2", [], null, [], ["Demo.B"])
+            ])
+        ]);
 
         var allow = TurtleShellGuard.BuildAllowList(payload);
-
         Assert.Equal(2, allow.Count);
         Assert.Contains("Demo.A", allow);
         Assert.DoesNotContain("demo.a", allow);
@@ -91,7 +91,6 @@ public class TurtleShellGuardTests
         };
 
         var outcome = guard.Verify(findings, payload, cite => cite is "System.Threading.Tasks.Task" or "SampleRepo.IPaymentGateway" or "SampleRepo.IPaymentGateway.ChargeAsync");
-
         Assert.Equal(3, outcome.KeptFindings.Count);
         Assert.All(outcome.Audit, a => Assert.True(a.Verified));
     }
@@ -100,26 +99,17 @@ public class TurtleShellGuardTests
     public void Strip_Drops_Uncited_Finding_When_RequireCitationsInStripMode_Is_True()
     {
         var findings = new[] { Finding("Uncited advisory") };
-        var guard = new TurtleShellGuard(new CouncilOptions
-        {
-            Guard = GuardMode.Strip,
-            RequireCitationsInStripMode = true
-        });
-
+        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, RequireCitationsInStripMode = true });
         var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
 
         Assert.Empty(outcome.KeptFindings);
     }
+
     [Fact]
     public void Strip_Drops_Finding_When_Location_Does_Not_Intersect_Payload_Files()
     {
-        var findings = new[]
-        {
-            new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Error, "Off-file", "detail", "Untouched.cs:10", new[] { "SampleRepo.Real" })
-        };
-        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true });
-
-        var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
+        var findings = new[] { FindingAt("Untouched.cs:10") };
+        var outcome = Guard().Verify(findings, PayloadWith("SampleRepo.Real"));
 
         Assert.Empty(outcome.KeptFindings);
         Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
@@ -128,20 +118,8 @@ public class TurtleShellGuardTests
     [Fact]
     public void Strip_Drops_Finding_When_Line_Is_Outside_Payload_Method_Ranges()
     {
-        var payload = new RoslynPayload("R", "HEAD", new[]
-        {
-            new FileFacts("F.cs", new[]
-            {
-                new MethodFacts("M", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "SampleRepo.Real" }, StartLine: 10, EndLine: 20)
-            })
-        });
-        var findings = new[]
-        {
-            new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Error, "Off-line", "detail", "F.cs:50", new[] { "SampleRepo.Real" })
-        };
-        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true });
-
-        var outcome = guard.Verify(findings, payload);
+        var findings = new[] { FindingAt("F.cs:50") };
+        var outcome = Guard().Verify(findings, PayloadWithRange(10, 20));
 
         Assert.Empty(outcome.KeptFindings);
         Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
@@ -150,28 +128,82 @@ public class TurtleShellGuardTests
     [Fact]
     public void Strip_Drops_Suggestion_When_OriginalCode_Does_Not_Match_Source()
     {
-        var payload = new RoslynPayload("R", "HEAD", new[]
-        {
-            new FileFacts("F.cs", new[]
-            {
-                new MethodFacts("M", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "SampleRepo.Real" }, StartLine: 10, EndLine: 20)
-            })
-        });
-        var findings = new[]
-        {
-            new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Error, "Bad quote", "detail", "F.cs:15", new[] { "SampleRepo.Real" })
-            {
-                OriginalCode = "int a = 1;",
-                SuggestedCode = "int a = 2;"
-            }
-        };
-        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, EnableQuoteVerificationGuard = true });
-
-        // Source resolver returns mismatched code
-        var outcome = guard.Verify(findings, payload, sourceResolver: (file, start, end) => "string a = \"mismatch\";");
+        var findings = new[] { FindingAt("F.cs:15") with { OriginalCode = "int a = 1;", SuggestedCode = "int a = 2;" } };
+        var outcome = Guard().Verify(findings, PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "string a = \"mismatch\";");
 
         Assert.Single(outcome.KeptFindings);
-        Assert.Null(outcome.KeptFindings[0].SuggestedCode); // Cleared because quote did not match
+        Assert.Null(outcome.KeptFindings[0].SuggestedCode);
         Assert.Equal("QuoteMismatch", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void Strip_Rejects_Unmatched_File_Even_If_Citation_Matches_Payload()
+    {
+        var findings = new[] { FindingAt("Wrong.cs:999") };
+        var outcome = Guard().Verify(findings, PayloadWithRange(10, 20));
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
+    }
+
+    [Theory]
+    [InlineData("F.cs:15-1")]
+    [InlineData("F.cs:0")]
+    [InlineData("F.cs:-5")]
+    [InlineData("F.cs:")]
+    [InlineData("F.cs:abc")]
+    public void Strip_Rejects_Malformed_Missing_Zero_Negative_And_Reversed_Spans(string malformedLocation)
+    {
+        var findings = new[] { FindingAt(malformedLocation) };
+        var outcome = Guard().Verify(findings, PayloadWithRange(10, 20));
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("MalformedLocation", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void Strip_Enforces_Actual_Diff_Hunk_Boundaries_When_Present()
+    {
+        var payload = new RoslynPayload("R", "HEAD", [
+            new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: 10, EndLine: 50)],
+                DiffHunks: [new DiffHunk("F.cs", 10, 5)]) // lines 10..14
+        ]);
+        var findings = new[]
+        {
+            FindingAt("F.cs:12") with { Title = "In hunk" },
+            FindingAt("F.cs:18") with { Title = "In method but off hunk" },
+            FindingAt("F.cs:12-25") with { Title = "Span exceeding hunk" }
+        };
+        var outcome = Guard().Verify(findings, payload);
+
+        Assert.Single(outcome.KeptFindings);
+        Assert.Equal("In hunk", outcome.KeptFindings[0].Title);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.First(a => a.Original.Title == "In method but off hunk").Status);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.First(a => a.Original.Title == "Span exceeding hunk").Status);
+    }
+
+    [Fact]
+    public void Strip_Drops_Suggestion_When_OriginalCode_Is_Missing_Or_Whitespace()
+    {
+        var findings = new[] { FindingAt("F.cs:15") with { OriginalCode = null, SuggestedCode = "replacement" } };
+        var outcome = Guard().Verify(findings, PayloadWithRange(10, 20));
+
+        Assert.Single(outcome.KeptFindings);
+        Assert.Null(outcome.KeptFindings[0].SuggestedCode);
+        Assert.Equal("MissingQuote", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void QuoteVerification_Preserves_Multiline_Verbatim_Strings_And_Empty_Lines()
+    {
+        var finding = FindingAt("F.cs:15-18") with { OriginalCode = "var s = @\"a\n\n b\";", SuggestedCode = "var s = \"c\";" };
+        var outcome1 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\nb\";");
+        Assert.Single(outcome1.KeptFindings);
+        Assert.Null(outcome1.KeptFindings[0].SuggestedCode);
+        Assert.Equal("QuoteMismatch", outcome1.FindingAudit.Single().Status);
+
+        var outcome2 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "    var s = @\"a\n\n     b\";");
+        Assert.Single(outcome2.KeptFindings);
+        Assert.NotNull(outcome2.KeptFindings[0].SuggestedCode);
     }
 }

@@ -76,7 +76,11 @@ public sealed class StreamingPersonaRunner : IStreamingPersonaRunner
             var msgs = PromptBuilder.Build(role, payload, rubric, _options.MaxFindingsPerPersona);
             var dto = await _chat.CompleteStructuredAsync<VerdictDto>(ModelRoleFor(role), msgs, PromptBuilder.VerdictSchema, ct).ConfigureAwait(false);
             var findings = dto.Findings
-                .Select(f => new ReviewFinding(role, f.Severity, f.Title, f.Detail, f.Location, f.CitedSymbolFqns))
+                .Select(f => new ReviewFinding(role, f.Severity, f.Title, f.Detail, f.Location, f.CitedSymbolFqns)
+                {
+                    OriginalCode = f.OriginalCode,
+                    SuggestedCode = f.SuggestedCode
+                })
                 .ToList();
             var verdict = new PersonaVerdict(role, findings);
             await onCompleted(verdict).ConfigureAwait(false);

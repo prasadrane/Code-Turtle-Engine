@@ -67,7 +67,7 @@ public partial class WebReviewPipelineTests
         {
             Payload = payload;
             var verdict = new PersonaVerdict(PersonaRole.SecurityAuditor,
-                [new(PersonaRole.SecurityAuditor, Severity.Warning, "Inspect member", "Advisory", "Wrong.cs:999", ["Service.Read"])]);
+                [new(PersonaRole.SecurityAuditor, Severity.Warning, "Inspect member", "Advisory", "Service.cs:4", ["Service.Read"])]);
             await onStarted(verdict.Persona);
             await onCompleted(verdict);
             return [verdict];

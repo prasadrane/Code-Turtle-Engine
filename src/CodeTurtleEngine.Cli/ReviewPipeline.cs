@@ -32,11 +32,12 @@ public sealed class ReviewPipeline
         RoslynPayload? preExtractedPayload, CancellationToken ct = default)
     {
         var changed = _diff.GetChangedCSharpFiles(repoPath, baselineRef);
+        var hunks = _diff.GetDiffHunks(repoPath, baselineRef);
         var loaded = await _loader.LoadAsync(projectPath, changed, ct).ConfigureAwait(false);
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
-            var payload = preExtractedPayload ?? new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed);
+            var payload = preExtractedPayload ?? new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed, hunks);
             var rubric = _rubricLoader.Load(ResolveRubric());
             // THE INVARIANT: trimming applies ONLY to the LLM prompt projection. The guard
             // must keep verifying against the FULL payload's ResolvedSymbols allow-list.
@@ -51,9 +52,10 @@ public sealed class ReviewPipeline
             {
                 var sarifJson = await File.ReadAllTextAsync(_options.SarifPath, ct).ConfigureAwait(false);
                 var diags = SarifTriagePipeline.ParseSarifJson(sarifJson);
-                var hunks = payload.Files.SelectMany(f => f.Methods.Select(m =>
-                    new DiffHunk(f.FilePath, m.StartLine, Math.Max(1, m.EndLine - m.StartLine + 1)))).ToList();
-                var intersected = SarifTriagePipeline.IntersectWithDiffHunks(diags, hunks);
+                var targetHunks = hunks.Count > 0
+                    ? hunks
+                    : payload.Files.SelectMany(f => f.DiffHunks ?? Enumerable.Empty<DiffHunk>()).ToList();
+                var intersected = SarifTriagePipeline.IntersectWithDiffHunks(diags, targetHunks);
                 var sarifFindings = SarifTriagePipeline.ConvertToFindings(SarifTriagePipeline.Deduplicate(intersected));
                 merged = merged.Concat(sarifFindings).ToList();
             }

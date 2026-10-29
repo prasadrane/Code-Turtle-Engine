@@ -11,17 +11,20 @@ public sealed class PayloadGenerator
 
     public PayloadGenerator(IReadOnlyList<Compilation> compilations) => _compilations = compilations;
 
-    public RoslynPayload Build(string repoSlug, string diffBaseline, IReadOnlyList<string> changedRelativePaths)
+    public RoslynPayload Build(string repoSlug, string diffBaseline, IReadOnlyList<string> changedRelativePaths,
+        IReadOnlyList<DiffHunk>? diffHunks = null)
     {
         var files = new List<FileFacts>();
         foreach (var rel in changedRelativePaths)
         {
+            var fileHunks = diffHunks?.Where(h =>
+                RepoPaths.EndsWith(rel, h.FilePath) || RepoPaths.EndsWith(h.FilePath, rel)).ToList();
             foreach (var compilation in _compilations)
             {
                 var tree = compilation.SyntaxTrees.FirstOrDefault(t => RepoPaths.EndsWith(t.FilePath, rel));
                 if (tree is null) continue;
                 var methods = new SemanticAnalyzer(compilation).AnalyzeTree(tree);
-                if (methods.Count > 0) files.Add(new FileFacts(rel, methods));
+                if (methods.Count > 0) files.Add(new FileFacts(rel, methods, fileHunks));
             }
         }
         return new RoslynPayload(repoSlug, diffBaseline, files);

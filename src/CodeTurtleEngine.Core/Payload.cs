@@ -1,5 +1,10 @@
 namespace CodeTurtleEngine.Core;
 
+public sealed record DiffHunk(
+    string FilePath,
+    int StartLine,
+    int LineCount);
+
 public sealed record MethodFacts(
     string Method,
     IReadOnlyList<string> Allocations,
@@ -12,7 +17,8 @@ public sealed record MethodFacts(
 
 public sealed record FileFacts(
     string FilePath,
-    IReadOnlyList<MethodFacts> Methods);
+    IReadOnlyList<MethodFacts> Methods,
+    IReadOnlyList<DiffHunk>? DiffHunks = null);
 
 public sealed record RoslynPayload(
     string RepoSlug,

@@ -56,7 +56,7 @@ public static class PublicApiDiffer
     {
         if (member is IMethodSymbol method)
         {
-            var paramTypes = string.Join(", ", method.Parameters.Select(p => p.Type.ToDisplayString()));
+            var paramTypes = string.Join(", ", method.Parameters.Select(FormatParameter));
             var typeArgs = method.TypeParameters.Length > 0
                 ? $"<{string.Join(", ", method.TypeParameters.Select(p => p.Name))}>"
                 : "";
@@ -65,10 +65,23 @@ public static class PublicApiDiffer
         }
         if (member is IPropertySymbol prop && prop.Parameters.Length > 0)
         {
-            var paramTypes = string.Join(", ", prop.Parameters.Select(p => p.Type.ToDisplayString()));
+            var paramTypes = string.Join(", ", prop.Parameters.Select(FormatParameter));
             return $"{prop.Name}[{paramTypes}]";
         }
         return member.Name;
+    }
+
+    private static string FormatParameter(IParameterSymbol p)
+    {
+        var prefix = p.RefKind switch
+        {
+            RefKind.Ref => "ref ",
+            RefKind.Out => "out ",
+            RefKind.In => "in ",
+            RefKind.RefReadOnlyParameter => "ref readonly ",
+            _ => ""
+        };
+        return $"{prefix}{p.Type.ToDisplayString()}";
     }
 
     private static Dictionary<string, INamedTypeSymbol> GetExportedTypes(INamespaceSymbol ns, IAssemblySymbol targetAssembly)

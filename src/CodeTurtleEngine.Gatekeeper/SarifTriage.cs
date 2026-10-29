@@ -11,11 +11,6 @@ public sealed record SarifDiagnostic(
     int EndLine,
     string Level = "warning");
 
-public sealed record DiffHunk(
-    string FilePath,
-    int StartLine,
-    int LineCount);
-
 public static class SarifTriagePipeline
 {
     public static IReadOnlyList<SarifDiagnostic> ParseSarifJson(string sarifJson)
@@ -24,7 +19,8 @@ public static class SarifTriagePipeline
         if (string.IsNullOrWhiteSpace(sarifJson)) return list;
 
         using var doc = JsonDocument.Parse(sarifJson);
-        if (!doc.RootElement.TryGetProperty("runs", out var runs) || runs.ValueKind != JsonValueKind.Array)
+        var root = doc.RootElement;
+        if (!root.TryGetProperty("runs", out var runs) || runs.ValueKind != JsonValueKind.Array)
             return list;
 
         foreach (var run in runs.EnumerateArray())
@@ -34,11 +30,10 @@ public static class SarifTriagePipeline
 
             foreach (var result in results.EnumerateArray())
             {
-                var ruleId = result.TryGetProperty("ruleId", out var rProp) ? rProp.GetString() ?? "" : "";
-                var level = result.TryGetProperty("level", out var lProp) ? lProp.GetString() ?? "warning" : "warning";
-                var message = "";
-                if (result.TryGetProperty("message", out var mProp) && mProp.TryGetProperty("text", out var tProp))
-                    message = tProp.GetString() ?? "";
+                var ruleId = result.TryGetProperty("ruleId", out var r) ? r.GetString() ?? "UNKNOWN" : "UNKNOWN";
+                var message = result.TryGetProperty("message", out var m) && m.TryGetProperty("text", out var t)
+                    ? t.GetString() ?? "" : "";
+                var level = result.TryGetProperty("level", out var l) ? l.GetString() ?? "warning" : "warning";
 
                 if (result.TryGetProperty("locations", out var locs) && locs.ValueKind == JsonValueKind.Array)
                 {
@@ -46,17 +41,15 @@ public static class SarifTriagePipeline
                     {
                         if (loc.TryGetProperty("physicalLocation", out var pl))
                         {
-                            var uri = "";
-                            if (pl.TryGetProperty("artifactLocation", out var al) && al.TryGetProperty("uri", out var uProp))
-                                uri = uProp.GetString() ?? "";
+                            var uri = pl.TryGetProperty("artifactLocation", out var al) && al.TryGetProperty("uri", out var u)
+                                ? u.GetString() ?? "" : "";
+                            var region = pl.TryGetProperty("region", out var reg) ? reg : default;
+                            var startLine = region.ValueKind == JsonValueKind.Object && region.TryGetProperty("startLine", out var sl)
+                                ? sl.GetInt32() : 0;
+                            var endLine = region.ValueKind == JsonValueKind.Object && region.TryGetProperty("endLine", out var el)
+                                ? el.GetInt32() : startLine;
 
-                            var startLine = 0;
-                            var endLine = 0;
-                            if (pl.TryGetProperty("region", out var reg))
-                            {
-                                if (reg.TryGetProperty("startLine", out var slProp)) startLine = slProp.GetInt32();
-                                if (reg.TryGetProperty("endLine", out var elProp)) endLine = elProp.GetInt32();
-                            }
+                            if (startLine <= 0) continue;
                             if (endLine < startLine) endLine = startLine;
 
                             list.Add(new SarifDiagnostic(ruleId, message, NormalizePath(uri), startLine, endLine, level));

@@ -18,11 +18,12 @@ public sealed class ExtractionPipeline
     public async Task<RoslynPayload> ExtractAsync(string repoPath, string projectPath, string? baselineRef, CancellationToken ct = default)
     {
         var changed = _diff.GetChangedCSharpFiles(repoPath, baselineRef);
+        var hunks = _diff.GetDiffHunks(repoPath, baselineRef);
         var loaded = await _loader.LoadAsync(projectPath, changed, ct).ConfigureAwait(false);
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
-            return new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed);
+            return new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed, hunks);
         }
         finally
         {

@@ -168,6 +168,31 @@ public class StreamingPersonaRunnerTests
         Assert.Equal(3, maxConcurrent);
     }
 
+    [Fact]
+    public async Task Preserves_OriginalCode_And_SuggestedCode_In_ReviewFindings()
+    {
+        var chat = new FakeStructuredChat((role, msgs) => new VerdictDto(new[]
+        {
+            new FindingDto(Severity.Warning, "Refactor", "detail", "Service.cs:1", new[] { "TestRepo.Service" })
+            {
+                OriginalCode = "int x = 1;",
+                SuggestedCode = "int x = 2;"
+            }
+        }));
+
+        var runner = new StreamingPersonaRunner(chat, new CouncilOptions { Quorum = 1 });
+        var verdicts = await runner.RunWithCallbacksAsync(
+            TestPayload(),
+            "rubric",
+            _ => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            (_, _) => Task.CompletedTask);
+
+        var finding = Assert.Single(verdicts[0].Findings);
+        Assert.Equal("int x = 1;", finding.OriginalCode);
+        Assert.Equal("int x = 2;", finding.SuggestedCode);
+    }
+
     private sealed class FakeStructuredChat : IStructuredChatClient
     {
         private readonly Func<string, IReadOnlyList<ChatMessage>, object> _responder;

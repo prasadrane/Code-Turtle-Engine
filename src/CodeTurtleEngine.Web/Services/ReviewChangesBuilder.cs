@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using CodeTurtleEngine.Core;
 using CodeTurtleEngine.Web.Models;
 using LibGit2Sharp;
+using DiffHunk = CodeTurtleEngine.Web.Models.DiffHunk;
 
 namespace CodeTurtleEngine.Web.Services;
 

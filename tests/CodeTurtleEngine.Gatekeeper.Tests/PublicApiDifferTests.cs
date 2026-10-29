@@ -64,4 +64,44 @@ public class PublicApiDifferTests
 
         Assert.Empty(changes);
     }
+
+    [Fact]
+    public void Detects_Changed_Parameter_Passing_Mode_Ref_Out_In()
+    {
+        var baseComp = CreateCompilation("namespace Lib; public class Service { public void Process(int val, int count) {} }");
+        var headRef = CreateCompilation("namespace Lib; public class Service { public void Process(ref int val, int count) {} }");
+        var headOut = CreateCompilation("namespace Lib; public class Service { public void Process(int val, out int count) { count = 0; } }");
+
+        var changesRef = PublicApiDiffer.Diff(baseComp, headRef);
+        var changesOut = PublicApiDiffer.Diff(baseComp, headOut);
+
+        Assert.Contains(changesRef, c => c.DiagnosticId == "CP0002" && c.SymbolFqn.Contains("Process"));
+        Assert.Contains(changesOut, c => c.DiagnosticId == "CP0002" && c.SymbolFqn.Contains("Process"));
+    }
+
+    [Fact]
+    public void Detects_Removed_Overload_When_Other_Overload_Remains()
+    {
+        var baseComp = CreateCompilation("namespace Lib; public class Service { public void M(int x) {} public void M(string s) {} }");
+        var headComp = CreateCompilation("namespace Lib; public class Service { public void M(string s) {} }");
+
+        var changes = PublicApiDiffer.Diff(baseComp, headComp);
+
+        Assert.Single(changes);
+        Assert.Equal("CP0002", changes[0].DiagnosticId);
+        Assert.Equal("Lib.Service.M", changes[0].SymbolFqn);
+    }
+
+    [Fact]
+    public void Detects_Removed_Constructor()
+    {
+        var baseComp = CreateCompilation("namespace Lib; public class Service { public Service(int x) {} }");
+        var headComp = CreateCompilation("namespace Lib; public class Service { public Service() {} }");
+
+        var changes = PublicApiDiffer.Diff(baseComp, headComp);
+
+        Assert.Single(changes);
+        Assert.Equal("CP0002", changes[0].DiagnosticId);
+        Assert.Equal("Lib.Service..ctor", changes[0].SymbolFqn);
+    }
 }

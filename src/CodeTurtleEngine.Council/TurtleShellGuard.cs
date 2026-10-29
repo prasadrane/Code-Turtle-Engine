@@ -71,48 +71,77 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
             // L1: Hunk & Location intersection
             bool locationFailed = false;
-            if (_options.EnableHunkIntersectionGuard && payload.Files.Count > 0)
+            if (_options.EnableHunkIntersectionGuard)
             {
-                var (file, startLine, endLine) = ParseLocation(finding.Location);
-                var matchedFile = payload.Files.FirstOrDefault(f =>
-                    f.FilePath.EndsWith(file, StringComparison.OrdinalIgnoreCase) ||
-                    file.EndsWith(f.FilePath, StringComparison.OrdinalIgnoreCase));
-
-                if (matchedFile is null)
+                var (file, startLine, endLine, valid) = ParseLocation(finding.Location);
+                if (!valid)
                 {
-                    var declaredOnDiff = finding.CitedSymbolFqns.Any(cite =>
-                        payload.Files.Any(f => f.Methods.Any(m =>
-                            m.Method == cite || cite.EndsWith("." + m.Method, StringComparison.Ordinal))));
-                    if (!declaredOnDiff)
+                    findingStatuses[finding] = "MalformedLocation";
+                    locationFailed = true;
+                }
+                else if (payload.Files.Count > 0)
+                {
+                    var matchedFile = payload.Files.FirstOrDefault(f => PathMatches(f.FilePath, file));
+                    if (matchedFile is null)
                     {
                         findingStatuses[finding] = "OffDiffLocation";
                         locationFailed = true;
                     }
-                }
-                else if (startLine > 0 && matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
-                {
-                    var end = endLine > 0 ? endLine : startLine;
-                    var inRange = matchedFile.Methods.Any(m =>
-                        (m.StartLine == 0 && m.EndLine == 0) ||
-                        (startLine >= m.StartLine && (m.EndLine == 0 || end <= m.EndLine)));
-                    if (!inRange)
+                    else if (matchedFile.DiffHunks is { Count: > 0 } hunks)
                     {
-                        findingStatuses[finding] = "OffDiffLocation";
-                        locationFailed = true;
+                        var inHunk = hunks.Any(h => h.LineCount > 0 &&
+                            startLine >= h.StartLine &&
+                            endLine <= (h.StartLine + h.LineCount - 1));
+                        if (!inHunk)
+                        {
+                            findingStatuses[finding] = "OffDiffLocation";
+                            locationFailed = true;
+                        }
+                    }
+                    else if (matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
+                    {
+                        var inRange = matchedFile.Methods.Any(m =>
+                            (m.StartLine == 0 && m.EndLine == 0) ||
+                            (startLine >= m.StartLine && (m.EndLine == 0 || endLine <= m.EndLine)));
+                        if (!inRange)
+                        {
+                            findingStatuses[finding] = "OffDiffLocation";
+                            locationFailed = true;
+                        }
                     }
                 }
             }
 
             // L2: Quote verification
             var currentFinding = finding;
-            if (_options.EnableQuoteVerificationGuard && finding.OriginalCode is not null)
+            if (_options.EnableQuoteVerificationGuard)
             {
-                var (file, startLine, endLine) = ParseLocation(finding.Location);
-                var actual = sourceResolver?.Invoke(file, startLine, endLine);
-                if (actual is null || !IsQuoteMatch(actual, finding.OriginalCode))
+                if (finding.SuggestedCode is not null)
                 {
-                    findingStatuses[finding] = "QuoteMismatch";
-                    currentFinding = finding with { SuggestedCode = null };
+                    if (string.IsNullOrWhiteSpace(finding.OriginalCode))
+                    {
+                        findingStatuses[finding] = "MissingQuote";
+                        currentFinding = finding with { SuggestedCode = null };
+                    }
+                    else
+                    {
+                        var (file, startLine, endLine, valid) = ParseLocation(finding.Location);
+                        var actual = valid ? sourceResolver?.Invoke(file, startLine, endLine) : null;
+                        if (actual is null || !IsQuoteMatch(actual, finding.OriginalCode))
+                        {
+                            findingStatuses[finding] = "QuoteMismatch";
+                            currentFinding = finding with { SuggestedCode = null };
+                        }
+                    }
+                }
+                else if (finding.OriginalCode is not null && sourceResolver is not null)
+                {
+                    var (file, startLine, endLine, valid) = ParseLocation(finding.Location);
+                    var actual = valid ? sourceResolver.Invoke(file, startLine, endLine) : null;
+                    if (actual is null || !IsQuoteMatch(actual, finding.OriginalCode))
+                    {
+                        findingStatuses[finding] = "QuoteMismatch";
+                    }
                 }
             }
 
@@ -156,31 +185,87 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
         return new GuardOutcome(kept, audit) { FindingAudit = findingAudit };
     }
 
-    private static (string file, int startLine, int endLine) ParseLocation(string location)
+    private static (string file, int startLine, int endLine, bool valid) ParseLocation(string location)
     {
-        if (string.IsNullOrWhiteSpace(location)) return ("", 0, 0);
+        if (string.IsNullOrWhiteSpace(location)) return ("", 0, 0, false);
         var colon = location.LastIndexOf(':');
-        if (colon < 0) return (location.Trim(), 0, 0);
+        if (colon <= 0 || colon >= location.Length - 1) return ("", 0, 0, false);
 
         var file = location.Substring(0, colon).Trim();
+        if (string.IsNullOrWhiteSpace(file)) return ("", 0, 0, false);
+
         var lineSpan = location.Substring(colon + 1).Trim();
         var dash = lineSpan.IndexOf('-');
-        if (dash > 0 && int.TryParse(lineSpan.Substring(0, dash), out var start) && int.TryParse(lineSpan.Substring(dash + 1), out var end))
-            return (file, start, end);
-        if (int.TryParse(lineSpan, out var single))
-            return (file, single, single);
-        return (file, 0, 0);
+        if (dash >= 0)
+        {
+            if (dash == 0 || dash == lineSpan.Length - 1) return (file, 0, 0, false);
+            var part1 = lineSpan.Substring(0, dash);
+            var part2 = lineSpan.Substring(dash + 1);
+            if (part2.Contains('-')) return (file, 0, 0, false);
+            if (int.TryParse(part1, out var start) && int.TryParse(part2, out var end))
+            {
+                if (start > 0 && end > 0 && end >= start)
+                    return (file, start, end, true);
+            }
+            return (file, 0, 0, false);
+        }
+
+        if (int.TryParse(lineSpan, out var single) && single > 0)
+            return (file, single, single, true);
+
+        return (file, 0, 0, false);
     }
 
-            private static bool IsQuoteMatch(string actual, string expected) =>
-        NormalizeCodeLines(actual) == NormalizeCodeLines(expected);
-
-    private static string NormalizeCodeLines(string code)
+    private static bool PathMatches(string pathA, string pathB)
     {
-        var lines = code.Replace("\r\n", "\n").Replace('\r', '\n')
-            .Split('\n')
-            .Select(l => l.Trim())
-            .Where(l => l.Length > 0);
-        return string.Join("\n", lines);
+        var normA = pathA.Replace('\\', '/').TrimStart('/');
+        var normB = pathB.Replace('\\', '/').TrimStart('/');
+        return normA.Equals(normB, StringComparison.OrdinalIgnoreCase) ||
+               normA.EndsWith("/" + normB, StringComparison.OrdinalIgnoreCase) ||
+               normB.EndsWith("/" + normA, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsQuoteMatch(string actual, string expected) =>
+        NormalizeSnippet(actual) == NormalizeSnippet(expected);
+
+    private static string NormalizeSnippet(string code)
+    {
+        if (string.IsNullOrEmpty(code)) return string.Empty;
+        var lines = code.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+
+        int start = 0;
+        while (start < lines.Length && string.IsNullOrWhiteSpace(lines[start])) start++;
+        int end = lines.Length - 1;
+        while (end >= start && string.IsNullOrWhiteSpace(lines[end])) end--;
+
+        if (start > end) return string.Empty;
+
+        int minIndent = int.MaxValue;
+        for (int i = start; i <= end; i++)
+        {
+            var line = lines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            int indent = 0;
+            while (indent < line.Length && (line[indent] == ' ' || line[indent] == '\t')) indent++;
+            if (indent < minIndent) minIndent = indent;
+        }
+        if (minIndent == int.MaxValue) minIndent = 0;
+
+        var resultLines = new List<string>(end - start + 1);
+        for (int i = start; i <= end; i++)
+        {
+            var line = lines[i].TrimEnd();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                resultLines.Add(string.Empty);
+            }
+            else
+            {
+                var stripped = line.Length >= minIndent ? line.Substring(minIndent) : line.TrimStart();
+                resultLines.Add(stripped);
+            }
+        }
+
+        return string.Join("\n", resultLines);
     }
 }
