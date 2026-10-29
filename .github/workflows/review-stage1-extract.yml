@@ -1,0 +1,39 @@
+name: Code Turtle Stage 1 - Extract
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Prepare Artifact Directory
+        run: |
+          mkdir -p turtle-artifacts
+          echo '{"pr": ${{ github.event.pull_request.number }}, "sha": "${{ github.event.pull_request.head.sha }}"}' > turtle-artifacts/pr.json
+
+      - name: Build and Extract Roslyn Payload
+        run: |
+          dotnet build --configuration Release
+          dotnet run --project src/CodeTurtleEngine.Cli --no-build -- review . --out turtle-artifacts/review-preview.md || true
+
+      - name: Upload Semantic Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: turtle-artifacts
+          path: turtle-artifacts/
+          retention-days: 1

@@ -1,0 +1,57 @@
+name: Code Turtle Stage 2 - Triage
+on:
+  workflow_run:
+    workflows: ["Code Turtle Stage 1 - Extract"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout Trusted Repository (Base/Main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download Artifacts from Stage 1
+        uses: actions/download-artifact@v4
+        with:
+          name: turtle-artifacts
+          path: downloaded-artifacts
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate PR Number & Data Security
+        id: validate
+        run: |
+          PR_NUM=$(jq -r '.pr' downloaded-artifacts/pr.json)
+          SHA=$(jq -r '.sha' downloaded-artifacts/pr.json)
+          if ! [[ "$PR_NUM" =~ ^[0-9]+$ ]]; then
+            echo "Invalid PR number: $PR_NUM"
+            exit 1
+          fi
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "head_sha=$SHA" >> $GITHUB_OUTPUT
+
+      - name: Post Advisory Review Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const prNumber = ${{ steps.validate.outputs.pr_number }};
+            const reviewPath = 'downloaded-artifacts/review-preview.md';
+            if (fs.existsSync(reviewPath)) {
+              const body = fs.readFileSync(reviewPath, 'utf8');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
