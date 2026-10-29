@@ -110,4 +110,68 @@ public class TurtleShellGuardTests
 
         Assert.Empty(outcome.KeptFindings);
     }
+    [Fact]
+    public void Strip_Drops_Finding_When_Location_Does_Not_Intersect_Payload_Files()
+    {
+        var findings = new[]
+        {
+            new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Error, "Off-file", "detail", "Untouched.cs:10", new[] { "SampleRepo.Real" })
+        };
+        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true });
+
+        var outcome = guard.Verify(findings, PayloadWith("SampleRepo.Real"));
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void Strip_Drops_Finding_When_Line_Is_Outside_Payload_Method_Ranges()
+    {
+        var payload = new RoslynPayload("R", "HEAD", new[]
+        {
+            new FileFacts("F.cs", new[]
+            {
+                new MethodFacts("M", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "SampleRepo.Real" }, StartLine: 10, EndLine: 20)
+            })
+        });
+        var findings = new[]
+        {
+            new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Error, "Off-line", "detail", "F.cs:50", new[] { "SampleRepo.Real" })
+        };
+        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true });
+
+        var outcome = guard.Verify(findings, payload);
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void Strip_Drops_Suggestion_When_OriginalCode_Does_Not_Match_Source()
+    {
+        var payload = new RoslynPayload("R", "HEAD", new[]
+        {
+            new FileFacts("F.cs", new[]
+            {
+                new MethodFacts("M", Array.Empty<string>(), null, Array.Empty<string>(), new[] { "SampleRepo.Real" }, StartLine: 10, EndLine: 20)
+            })
+        });
+        var findings = new[]
+        {
+            new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Error, "Bad quote", "detail", "F.cs:15", new[] { "SampleRepo.Real" })
+            {
+                OriginalCode = "int a = 1;",
+                SuggestedCode = "int a = 2;"
+            }
+        };
+        var guard = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip, EnableQuoteVerificationGuard = true });
+
+        // Source resolver returns mismatched code
+        var outcome = guard.Verify(findings, payload, sourceResolver: (file, start, end) => "string a = \"mismatch\";");
+
+        Assert.Single(outcome.KeptFindings);
+        Assert.Null(outcome.KeptFindings[0].SuggestedCode); // Cleared because quote did not match
+        Assert.Equal("QuoteMismatch", outcome.FindingAudit.Single().Status);
+    }
 }

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace CodeTurtleEngine.Core;
 
 public sealed record ReviewFinding(
@@ -6,7 +8,14 @@ public sealed record ReviewFinding(
     string Title,
     string Detail,
     string Location,
-    IReadOnlyList<string> CitedSymbolFqns);
+    IReadOnlyList<string> CitedSymbolFqns)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OriginalCode { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SuggestedCode { get; init; }
+}
 
 public sealed record PersonaVerdict(
     PersonaRole Persona,

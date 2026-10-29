@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using CodeTurtleEngine.Core;
 
 namespace CodeTurtleEngine.Council;
@@ -12,7 +13,7 @@ public sealed record GuardOutcome(
 public interface ITurtleShellGuard
 {
     GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null,
-        Func<string, CitationResolution>? citationResolver = null);
+        Func<string, CitationResolution>? citationResolver = null, Func<string, int, int, string?>? sourceResolver = null);
 }
 
 public sealed class TurtleShellGuard : ITurtleShellGuard
@@ -41,22 +42,65 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
         Verify(findings, payload, null);
 
     public GuardOutcome Verify(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, Func<string, bool>? compilationOracle = null,
-        Func<string, CitationResolution>? citationResolver = null)
+        Func<string, CitationResolution>? citationResolver = null, Func<string, int, int, string?>? sourceResolver = null)
     {
         var allow = BuildAllowList(payload);
 
         var audit = new List<GuardResult>();
         var kept = new List<ReviewFinding>();
+        var findingStatuses = new Dictionary<ReviewFinding, string>();
 
         foreach (var finding in findings)
         {
+            // L1: Hunk & Location intersection
+            if (_options.EnableHunkIntersectionGuard)
+            {
+                var (file, startLine, endLine) = ParseLocation(finding.Location);
+                var matchedFile = payload.Files.FirstOrDefault(f =>
+                    f.FilePath.EndsWith(file, StringComparison.OrdinalIgnoreCase) ||
+                    file.EndsWith(f.FilePath, StringComparison.OrdinalIgnoreCase));
+
+                if (matchedFile is null)
+                {
+                    findingStatuses[finding] = "OffDiffLocation";
+                    if (_options.Guard == GuardMode.Flag) kept.Add(finding);
+                    continue;
+                }
+
+                if (startLine > 0 && matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
+                {
+                    var inRange = matchedFile.Methods.Any(m =>
+                        (m.StartLine == 0 && m.EndLine == 0) ||
+                        (startLine >= m.StartLine && (endLine == 0 || endLine <= m.EndLine || startLine <= m.EndLine)));
+                    if (!inRange)
+                    {
+                        findingStatuses[finding] = "OffDiffLocation";
+                        if (_options.Guard == GuardMode.Flag) kept.Add(finding);
+                        continue;
+                    }
+                }
+            }
+
+            // L2: Quote verification
+            var currentFinding = finding;
+            if (_options.EnableQuoteVerificationGuard && finding.OriginalCode is not null && sourceResolver is not null)
+            {
+                var (file, startLine, endLine) = ParseLocation(finding.Location);
+                var actual = sourceResolver(file, startLine, endLine);
+                if (actual is not null && NormalizeWhitespace(actual) != NormalizeWhitespace(finding.OriginalCode))
+                {
+                    findingStatuses[finding] = "QuoteMismatch";
+                    currentFinding = finding with { SuggestedCode = null };
+                }
+            }
+
+            // Citations check (L0)
             var verified = new List<string>();
-            foreach (var cite in finding.CitedSymbolFqns)
+            foreach (var cite in currentFinding.CitedSymbolFqns)
             {
                 var inPayload = allow.Contains(cite);
                 var resolution = citationResolver?.Invoke(cite);
                 var inCompilation = resolution?.Exists ?? compilationOracle?.Invoke(cite);
-                // When a compilation oracle is present it is authoritative, even for payload names.
                 var ok = inCompilation ?? inPayload;
                 var evidence = !ok ? "Rejected" : inPayload ? "Payload" : "Compilation";
                 audit.Add(new GuardResult(cite, ok, evidence)
@@ -69,31 +113,55 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
 
             if (_options.Guard == GuardMode.Flag)
             {
-                kept.Add(finding);
+                kept.Add(currentFinding);
                 continue;
             }
 
             // Strip mode:
-            if (_options.RequireCitationsInStripMode && finding.CitedSymbolFqns.Count == 0)
+            if (_options.RequireCitationsInStripMode && currentFinding.CitedSymbolFqns.Count == 0)
             {
                 continue;
             }
 
-            if (finding.CitedSymbolFqns.Count > 0 && verified.Count == 0)
+            if (currentFinding.CitedSymbolFqns.Count > 0 && verified.Count == 0)
             {
                 continue;
             }
 
-            kept.Add(finding with { CitedSymbolFqns = verified });
+            kept.Add(currentFinding with { CitedSymbolFqns = verified });
         }
 
         var findingAudit = findings.Select(f =>
         {
             var retained = kept.Any(k => k.Persona == f.Persona && k.Title == f.Title && k.Location == f.Location);
+            if (findingStatuses.TryGetValue(f, out var specificStatus))
+            {
+                return new FindingAudit(f, retained, specificStatus);
+            }
             var rejected = f.CitedSymbolFqns.Any(c => audit.Any(a => a.CitedFqn == c && !a.Verified));
             var status = f.CitedSymbolFqns.Count == 0 ? "UncitedAdvisory" : rejected ? "RejectedCitations" : "CitationExistenceOnly";
             return new FindingAudit(f, retained, status);
         }).ToList();
+
         return new GuardOutcome(kept, audit) { FindingAudit = findingAudit };
     }
+
+    private static (string file, int startLine, int endLine) ParseLocation(string location)
+    {
+        if (string.IsNullOrWhiteSpace(location)) return ("", 0, 0);
+        var colon = location.LastIndexOf(':');
+        if (colon < 0) return (location.Trim(), 0, 0);
+
+        var file = location.Substring(0, colon).Trim();
+        var lineSpan = location.Substring(colon + 1).Trim();
+        var dash = lineSpan.IndexOf('-');
+        if (dash > 0 && int.TryParse(lineSpan.Substring(0, dash), out var start) && int.TryParse(lineSpan.Substring(dash + 1), out var end))
+            return (file, start, end);
+        if (int.TryParse(lineSpan, out var single))
+            return (file, single, single);
+        return (file, 0, 0);
+    }
+
+    private static string NormalizeWhitespace(string input) =>
+        Regex.Replace(input.Trim(), @"\s+", " ");
 }
