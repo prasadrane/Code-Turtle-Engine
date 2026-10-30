@@ -43,6 +43,10 @@ public partial class WebReviewPipelineTests
             Assert.False(Directory.Exists(directory));
             Assert.True(store.TryGetResult(id, out var result));
             Assert.NotNull(result);
+            Assert.NotNull(runner.Payload!.Files[0].DiffHunks);
+            Assert.NotEmpty(runner.Payload.Files[0].DiffHunks!);
+            Assert.Single(result.Verdict.Synthesized);
+            Assert.Equal("Service.cs:4", result.Verdict.Synthesized[0].Location);
             Assert.DoesNotContain("SOURCE_ONLY_CANARY", System.Text.Json.JsonSerializer.Serialize(runner.Payload));
             store.TryGetJob(id, out var job);
             Assert.Contains("SOURCE_ONLY_CANARY", Assert.Single(job!.Changes!.Files).Source);

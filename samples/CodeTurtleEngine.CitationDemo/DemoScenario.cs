@@ -56,7 +56,7 @@ public static class DemoScenario
             Finding("Real but unrelated member", "Demo.Dependency.Unrelated"),
             Finding("Name only: overload unspecified", "Demo.Dependency.Run")
         ];
-        var payload = new PayloadGenerator(compilation).Build("citation-demo", "authored-fixture", ["Changed.cs"]);
+        var payload = new PayloadGenerator(compilation).Build("citation-demo", "authored-fixture", ["Changed.cs"], [new DiffHunk("Changed.cs", 1, 10)]);
         var guarded = new TurtleShellGuard(new CouncilOptions { Guard = GuardMode.Strip })
             .Verify(original, payload, citationResolver: new SymbolOracle(compilation).Resolve);
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(

@@ -94,4 +94,21 @@ public class PayloadTrimmerTests
         Assert.Equal(25, m.EndLine);
         Assert.Equal(2, m.Risks!.Count);
     }
+
+    [Fact]
+    public void Preserves_DiffHunks_In_Prompt_Projection()
+    {
+        var hunks = new[] { new DiffHunk("A.cs", 10, 5) };
+        var payload = new RoslynPayload("Slug", "main", new[]
+        {
+            new FileFacts("A.cs", new[] { Method("M1", 2, 2) }, hunks)
+        });
+
+        var trimmed = PayloadTrimmer.TrimForPrompt(payload, TinyCaps());
+
+        Assert.NotNull(trimmed.Files[0].DiffHunks);
+        var hunk = Assert.Single(trimmed.Files[0].DiffHunks!);
+        Assert.Equal(10, hunk.StartLine);
+        Assert.Equal(5, hunk.LineCount);
+    }
 }

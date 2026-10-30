@@ -50,13 +50,7 @@ public sealed class GitDiffProvider : IDiffProvider
             foreach (var entry in patch)
             {
                 if (!entry.Path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)) continue;
-                var matches = HunkHeaderRegex.Matches(entry.Patch);
-                foreach (Match m in matches)
-                {
-                    var startLine = int.Parse(m.Groups[1].Value);
-                    var lineCount = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 1;
-                    list.Add(new DiffHunk(entry.Path, startLine, lineCount));
-                }
+                list.AddRange(ExtractHunksFromPatch(entry.Path, entry.Patch));
             }
             return list;
         }
@@ -64,6 +58,79 @@ public sealed class GitDiffProvider : IDiffProvider
         {
             throw new DiffException($"Diff failed for '{repoPath}': {ex.Message}", ex);
         }
+    }
+
+    public static IReadOnlyList<DiffHunk> ExtractHunksFromPatch(string filePath, string patchText)
+    {
+        var hunks = new List<DiffHunk>();
+        if (string.IsNullOrEmpty(patchText)) return hunks;
+
+        int headLine = 0;
+        int? currentRunStart = null;
+        int currentRunCount = 0;
+        bool inHunk = false;
+
+        void FlushCurrentRun()
+        {
+            if (currentRunStart.HasValue && currentRunCount > 0)
+            {
+                hunks.Add(new DiffHunk(filePath, currentRunStart.Value, currentRunCount));
+                currentRunStart = null;
+                currentRunCount = 0;
+            }
+        }
+
+        foreach (var rawLine in patchText.Split('\n'))
+        {
+            var line = rawLine.TrimEnd('\r');
+            if (line.StartsWith("@@", StringComparison.Ordinal))
+            {
+                FlushCurrentRun();
+                var match = HunkHeaderRegex.Match(line);
+                if (match.Success)
+                {
+                    headLine = int.Parse(match.Groups[1].Value);
+                    inHunk = true;
+                }
+                else
+                {
+                    inHunk = false;
+                }
+                continue;
+            }
+
+            if (!inHunk || line.Length == 0) continue;
+
+            if (line[0] == '+')
+            {
+                if (!currentRunStart.HasValue)
+                {
+                    currentRunStart = headLine;
+                    currentRunCount = 1;
+                }
+                else
+                {
+                    currentRunCount++;
+                }
+                headLine++;
+            }
+            else if (line[0] == '-')
+            {
+                // Deleted line: only in old tree, head line does not advance
+            }
+            else if (line[0] == ' ')
+            {
+                FlushCurrentRun();
+                headLine++;
+            }
+            else
+            {
+                FlushCurrentRun();
+            }
+        }
+
+        FlushCurrentRun();
+        return hunks;
     }
 
     private static TreeChanges Compare(Repository repo, string baselineRef)

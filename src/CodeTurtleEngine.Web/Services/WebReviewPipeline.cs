@@ -135,7 +135,10 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     var diffProvider = new GitHubPrDiffProvider(prDetails.ChangedFiles);
                     var changed = diffProvider.GetChangedCSharpFiles(clonedDir, prDetails.BaseSha);
                     var repoSlug = $"{parsedPr.Owner}/{parsedPr.Repo}";
-                    var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed);
+                    var hunks = LibGit2Sharp.Repository.IsValid(clonedDir)
+                        ? new GitDiffProvider().GetDiffHunks(clonedDir, prDetails.BaseSha)
+                        : null;
+                    var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed, hunks);
                     var display = LibGit2Sharp.Repository.IsValid(clonedDir)
                         ? new ReviewChangesBuilder().Build(clonedDir, repoSlug, parsedPr.PullNumber, prDetails, payload) : null;
                     context.Changes = display;
@@ -205,15 +208,18 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     {
                         markdown = $"> Degraded review: {verdicts.Count}/{ExpectedPersonas} council personas succeeded.\n\n" + markdown;
                     }
-                    if (loaded.Diagnostics.Count > 0)
+                    var diagnostics = new List<string>(loaded.Diagnostics);
+                    if (hunks is null)
+                        diagnostics.Add("Diff hunk evidence unavailable: strict L1 will reject ungrounded findings.");
+                    if (diagnostics.Count > 0)
                         markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
-                            string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
+                            string.Join("\n> ", diagnostics) + "\n\n" + markdown;
                     var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
                     if (display is not null) context.Changes = FindingAnchors.Attach(display, payload, guarded.KeptFindings, loaded.Projects);
                     var stats = new
                     {
                         personasSucceeded = verdicts.Count,
-                        compilationDiagnostics = loaded.Diagnostics,
+                        compilationDiagnostics = diagnostics,
                         findingsKept = guarded.KeptFindings.Count,
                         findingsStripped = merged.Count - guarded.KeptFindings.Count
                     };

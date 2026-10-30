@@ -39,7 +39,7 @@ public class OracleWiringTests
                 "namespace Demo; public class Outside { public void Real() {} }", path: "Outside.cs")],
                 [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
             var options = new TurtleOptions { RubricPath = rubric, Council = new CouncilOptions {
-                Guard = mode, RequireCitationsInStripMode = strict, MaxFiles = 0 } };
+                Guard = mode, RequireCitationsInStripMode = strict, MaxFiles = 0, EnableHunkIntersectionGuard = false } };
             var result = await new ReviewPipeline(new FakeDiff([]), new FakeLoader(compilation), new Personas(),
                 new Arbiter(), new TurtleShellGuard(options.Council), new RubricLoader(), new ArtifactWriter(directory), options)
                 .RunAsync(directory, "Demo.csproj", null);

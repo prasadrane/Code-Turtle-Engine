@@ -13,7 +13,7 @@ public class EndToEndTests
         try
         {
             var payload = new PayloadGenerator(loaded.Compilation)
-                .Build("SampleRepo", "HEAD", new[] { "PaymentService.cs" });
+                .Build("SampleRepo", "HEAD", new[] { "PaymentService.cs" }, [new DiffHunk("PaymentService.cs", 1, 100)]);
 
             var realSymbol = payload.Files
                 .SelectMany(f => f.Methods)

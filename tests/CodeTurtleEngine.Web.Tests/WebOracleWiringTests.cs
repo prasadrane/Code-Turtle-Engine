@@ -28,7 +28,7 @@ public partial class WebReviewPipelineTests
             ReviewFinding Finding(string title, params string[] names) => new(PersonaRole.AllocationsPerformance,
                 Severity.Warning, title, "d", "A.cs:1", names);
             var mixed = Finding("mixed", "Demo.Outside.Real", "Demo.Outside.Fake");
-            var options = new CouncilOptions { Guard = mode, RequireCitationsInStripMode = strict, MaxFiles = 0 };
+            var options = new CouncilOptions { Guard = mode, RequireCitationsInStripMode = strict, MaxFiles = 0, EnableHunkIntersectionGuard = false };
             var store = new ReviewJobStore();
             var id = store.CreateJob("https://github.com/o/r/pull/1");
             await new WebReviewPipeline(new StubPrFetcher(new GitHubPrDetails(true, true, "base", "head", "branch", [], "")),

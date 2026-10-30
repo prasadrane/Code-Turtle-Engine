@@ -79,7 +79,12 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                     findingStatuses[finding] = "MalformedLocation";
                     locationFailed = true;
                 }
-                else if (payload.Files.Count > 0)
+                else if (payload.Files.Count == 0)
+                {
+                    findingStatuses[finding] = "NoDiffEvidence";
+                    locationFailed = true;
+                }
+                else
                 {
                     var matchedFile = payload.Files.FirstOrDefault(f => PathMatches(f.FilePath, file));
                     if (matchedFile is null)
@@ -87,23 +92,22 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                         findingStatuses[finding] = "OffDiffLocation";
                         locationFailed = true;
                     }
-                    else if (matchedFile.DiffHunks is { Count: > 0 } hunks)
+                    else if (matchedFile.DiffHunks is null)
                     {
-                        var inHunk = hunks.Any(h => h.LineCount > 0 &&
+                        findingStatuses[finding] = "NoDiffEvidence";
+                        locationFailed = true;
+                    }
+                    else if (matchedFile.DiffHunks.Count == 0)
+                    {
+                        findingStatuses[finding] = "NoChangedLines";
+                        locationFailed = true;
+                    }
+                    else
+                    {
+                        var inHunk = matchedFile.DiffHunks.Any(h => h.LineCount > 0 &&
                             startLine >= h.StartLine &&
                             endLine <= (h.StartLine + h.LineCount - 1));
                         if (!inHunk)
-                        {
-                            findingStatuses[finding] = "OffDiffLocation";
-                            locationFailed = true;
-                        }
-                    }
-                    else if (matchedFile.Methods.Count > 0 && matchedFile.Methods.Any(m => m.StartLine > 0))
-                    {
-                        var inRange = matchedFile.Methods.Any(m =>
-                            (m.StartLine == 0 && m.EndLine == 0) ||
-                            (startLine >= m.StartLine && (m.EndLine == 0 || endLine <= m.EndLine)));
-                        if (!inRange)
                         {
                             findingStatuses[finding] = "OffDiffLocation";
                             locationFailed = true;
@@ -226,46 +230,11 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
     }
 
     private static bool IsQuoteMatch(string actual, string expected) =>
-        NormalizeSnippet(actual) == NormalizeSnippet(expected);
+        NormalizeLineEndings(actual) == NormalizeLineEndings(expected);
 
-    private static string NormalizeSnippet(string code)
+    private static string NormalizeLineEndings(string s)
     {
-        if (string.IsNullOrEmpty(code)) return string.Empty;
-        var lines = code.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-
-        int start = 0;
-        while (start < lines.Length && string.IsNullOrWhiteSpace(lines[start])) start++;
-        int end = lines.Length - 1;
-        while (end >= start && string.IsNullOrWhiteSpace(lines[end])) end--;
-
-        if (start > end) return string.Empty;
-
-        int minIndent = int.MaxValue;
-        for (int i = start; i <= end; i++)
-        {
-            var line = lines[i];
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            int indent = 0;
-            while (indent < line.Length && (line[indent] == ' ' || line[indent] == '\t')) indent++;
-            if (indent < minIndent) minIndent = indent;
-        }
-        if (minIndent == int.MaxValue) minIndent = 0;
-
-        var resultLines = new List<string>(end - start + 1);
-        for (int i = start; i <= end; i++)
-        {
-            var line = lines[i].TrimEnd();
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                resultLines.Add(string.Empty);
-            }
-            else
-            {
-                var stripped = line.Length >= minIndent ? line.Substring(minIndent) : line.TrimStart();
-                resultLines.Add(stripped);
-            }
-        }
-
-        return string.Join("\n", resultLines);
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+        return s.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
     }
 }

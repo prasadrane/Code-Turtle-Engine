@@ -28,7 +28,8 @@ public static class PayloadTrimmer
                         method.StartLine,
                         method.EndLine,
                         method.Risks?.Take(opts.MaxRisksPerMethod).ToList()))
-                    .ToList()))
+                    .ToList(),
+                file.DiffHunks?.ToList()))
             .ToList();
 
         return new RoslynPayload(full.RepoSlug, full.DiffBaseline, files);

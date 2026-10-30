@@ -9,8 +9,14 @@ namespace CodeTurtleEngine.Cli.Tests;
 internal sealed class FakeDiff : IDiffProvider
 {
     private readonly string[] _files;
-    public FakeDiff(string[] files) => _files = files;
+    private readonly IReadOnlyList<DiffHunk> _hunks;
+    public FakeDiff(string[] files, IReadOnlyList<DiffHunk>? hunks = null)
+    {
+        _files = files;
+        _hunks = hunks ?? files.Select(f => new DiffHunk(f, 1, 100)).ToList();
+    }
     public IReadOnlyList<string> GetChangedCSharpFiles(string repoPath, string? baselineRef) => _files;
+    public IReadOnlyList<DiffHunk> GetDiffHunks(string repoPath, string? baselineRef) => _hunks;
 }
 
 internal sealed class FakeLoader : ICompilationLoader

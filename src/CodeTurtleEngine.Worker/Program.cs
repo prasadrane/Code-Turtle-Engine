@@ -53,7 +53,7 @@ try
             if (request.ChangedFiles.Any(file => !loaded.Projects.SelectMany(c => c.SyntaxTrees)
                 .Any(tree => RepoPaths.EndsWith(tree.FilePath, file))))
                 throw new CompilationException("Changed file outside compilation.");
-            var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles);
+            var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles, request.DiffHunks);
             var oracle = new SymbolOracle(loaded.Projects);
             if (request.Operation == "Analyze")
                 result = new { ArchiveSha256 = hash, Payload = payload, DiagnosticsCount = loaded.Diagnostics.Count };
@@ -86,4 +86,5 @@ static async Task Drain(StreamReader reader)
 }
 
 internal sealed record WorkerRequest(string Operation, string Project, IReadOnlyList<string> ChangedFiles,
-    IReadOnlyList<ReviewFinding> Findings, GuardMode Guard = GuardMode.Strip, bool Strict = false);
+    IReadOnlyList<ReviewFinding> Findings, GuardMode Guard = GuardMode.Strip, bool Strict = false,
+    IReadOnlyList<DiffHunk>? DiffHunks = null);

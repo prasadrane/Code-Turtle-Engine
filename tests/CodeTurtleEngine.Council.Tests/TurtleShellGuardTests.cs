@@ -6,11 +6,13 @@ namespace CodeTurtleEngine.Council.Tests;
 public class TurtleShellGuardTests
 {
     private static RoslynPayload PayloadWith(string resolvedSymbol) => new("R", "HEAD", [
-        new FileFacts("F.cs", [new MethodFacts("M", [], null, [], [resolvedSymbol])])
+        new FileFacts("F.cs", [new MethodFacts("M", [], null, [], [resolvedSymbol])],
+            DiffHunks: [new DiffHunk("F.cs", 1, 100)])
     ]);
 
     private static RoslynPayload PayloadWithRange(int start, int end) => new("R", "HEAD", [
-        new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: start, EndLine: end)])
+        new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: start, EndLine: end)],
+            DiffHunks: [new DiffHunk("F.cs", start, end - start + 1)])
     ]);
 
     private static ReviewFinding Finding(string title, params string[] cites) =>
@@ -69,7 +71,7 @@ public class TurtleShellGuardTests
             new FileFacts("A.cs", [
                 new MethodFacts("M1", [], null, [], ["Demo.A", "Demo.B"]),
                 new MethodFacts("M2", [], null, [], ["Demo.B"])
-            ])
+            ], DiffHunks: [new DiffHunk("A.cs", 1, 100)])
         ]);
 
         var allow = TurtleShellGuard.BuildAllowList(payload);
@@ -116,7 +118,7 @@ public class TurtleShellGuardTests
     }
 
     [Fact]
-    public void Strip_Drops_Finding_When_Line_Is_Outside_Payload_Method_Ranges()
+    public void Strip_Drops_Finding_When_Line_Is_Outside_Payload_Hunk_Ranges()
     {
         var findings = new[] { FindingAt("F.cs:50") };
         var outcome = Guard().Verify(findings, PayloadWithRange(10, 20));
@@ -194,6 +196,45 @@ public class TurtleShellGuardTests
     }
 
     [Fact]
+    public void Strip_Rejects_Findings_When_DiffHunks_Is_Null()
+    {
+        var payload = new RoslynPayload("R", "base", [
+            new FileFacts("F.cs", [new MethodFacts("C.M", [], null, [], ["C.M"], StartLine: 10, EndLine: 20)], DiffHunks: null)
+        ]);
+        var finding = FindingAt("F.cs:15");
+        var outcome = Guard().Verify([finding], payload);
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("NoDiffEvidence", Assert.Single(outcome.FindingAudit).Status);
+    }
+
+    [Fact]
+    public void Strip_Rejects_Findings_When_DiffHunks_Is_Empty()
+    {
+        var payload = new RoslynPayload("R", "base", [
+            new FileFacts("F.cs", [new MethodFacts("C.M", [], null, [], ["C.M"], StartLine: 10, EndLine: 20)], DiffHunks: [])
+        ]);
+        var finding = FindingAt("F.cs:15");
+        var outcome = Guard().Verify([finding], payload);
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("NoChangedLines", Assert.Single(outcome.FindingAudit).Status);
+    }
+
+    [Fact]
+    public void Strip_Rejects_Findings_When_Payload_Has_No_Files_While_Preserving_Citation_Audit()
+    {
+        var payload = new RoslynPayload("R", "base", []);
+        var finding = FindingAt("F.cs:15");
+        var outcome = Guard().Verify([finding], payload, _ => true);
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("NoDiffEvidence", Assert.Single(outcome.FindingAudit).Status);
+        Assert.True(Assert.Single(outcome.Audit).Verified);
+        Assert.Equal("Compilation", outcome.Audit[0].Evidence);
+    }
+
+    [Fact]
     public void QuoteVerification_Preserves_Multiline_Verbatim_Strings_And_Empty_Lines()
     {
         var finding = FindingAt("F.cs:15-18") with { OriginalCode = "var s = @\"a\n\n b\";", SuggestedCode = "var s = \"c\";" };
@@ -202,8 +243,35 @@ public class TurtleShellGuardTests
         Assert.Null(outcome1.KeptFindings[0].SuggestedCode);
         Assert.Equal("QuoteMismatch", outcome1.FindingAudit.Single().Status);
 
-        var outcome2 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "    var s = @\"a\n\n     b\";");
+        var outcome2 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\n\n     b\";");
         Assert.Single(outcome2.KeptFindings);
-        Assert.NotNull(outcome2.KeptFindings[0].SuggestedCode);
+        Assert.Null(outcome2.KeptFindings[0].SuggestedCode);
+        Assert.Equal("QuoteMismatch", outcome2.FindingAudit.Single().Status);
+
+        var outcome3 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\n\n b\";");
+        Assert.Single(outcome3.KeptFindings);
+        Assert.NotNull(outcome3.KeptFindings[0].SuggestedCode);
+    }
+
+    [Fact]
+    public void QuoteVerification_Rejects_Leading_Trailing_And_Whitespace_Only_Literal_Differences()
+    {
+        var finding = FindingAt("F.cs:15") with { OriginalCode = "var s = @\"a\";", SuggestedCode = "replacement" };
+        var leadingSpace = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\" a\";");
+        Assert.Null(leadingSpace.KeptFindings[0].SuggestedCode);
+
+        var trailingSpace = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a \";");
+        Assert.Null(trailingSpace.KeptFindings[0].SuggestedCode);
+
+        var whitespaceLineFinding = FindingAt("F.cs:15-17") with { OriginalCode = "var s = @\"a\n\nb\";", SuggestedCode = "replacement" };
+        var whitespaceLine = Guard().Verify([whitespaceLineFinding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\n   \nb\";");
+        Assert.Null(whitespaceLine.KeptFindings[0].SuggestedCode);
+
+        var rawStringFinding = FindingAt("F.cs:15-17") with { OriginalCode = "\"\"\"\n    hello\n    \"\"\";", SuggestedCode = "replacement" };
+        var rawMatch = Guard().Verify([rawStringFinding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "\"\"\"\n    hello\n    \"\"\";");
+        Assert.NotNull(rawMatch.KeptFindings[0].SuggestedCode);
+
+        var rawMismatch = Guard().Verify([rawStringFinding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "\"\"\"\n      hello\n    \"\"\";");
+        Assert.Null(rawMismatch.KeptFindings[0].SuggestedCode);
     }
 }

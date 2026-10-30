@@ -10,7 +10,7 @@ public class VerificationContractTests
     [InlineData(GuardMode.Flag, true, 5)]
     public void Policy_Matrix(GuardMode mode, bool strict, int kept)
     {
-        var payload = new RoslynPayload("r", "HEAD", [new FileFacts("A.cs", [new MethodFacts("M", [], null, [], ["Demo.A.M"])])]);
+        var payload = new RoslynPayload("r", "HEAD", [new FileFacts("A.cs", [new MethodFacts("M", [], null, [], ["Demo.A.M"])], DiffHunks: [new DiffHunk("A.cs", 1, 10)])]);
         ReviewFinding Finding(string title, params string[] citations) =>
             new(PersonaRole.SecurityAuditor, Severity.Warning, title, "detail", "A.cs:1", citations);
         var findings = new[] { Finding("payload", "Demo.A.M"), Finding("broader", "System.String.Trim"),
@@ -30,7 +30,7 @@ public class VerificationContractTests
     [Fact]
     public void Oracle_Rejection_Overrides_Payload_And_Namespaces_Are_Not_Inferred()
     {
-        var payload = new RoslynPayload("r", "HEAD", [new FileFacts("A.cs", [new MethodFacts("M", [], null, [], ["Demo.Sub.A"])])]);
+        var payload = new RoslynPayload("r", "HEAD", [new FileFacts("A.cs", [new MethodFacts("M", [], null, [], ["Demo.Sub.A"])], DiffHunks: [new DiffHunk("A.cs", 1, 10)])]);
         Assert.DoesNotContain("Demo.Sub", TurtleShellGuard.BuildAllowList(payload));
         var finding = new ReviewFinding(PersonaRole.SecurityAuditor, Severity.Warning, "x", "d", "A.cs:1", ["Demo.Sub.A"]);
         var result = new TurtleShellGuard(new CouncilOptions()).Verify([finding], payload, _ => false);

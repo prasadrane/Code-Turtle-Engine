@@ -16,7 +16,7 @@ public class CitationEvidenceTests
             public class Changed { public void Run() { new Outside().Real(1); new Outside().Echo("x"); } }
             public class Outside { public void Real(int x) {} public void Unrelated() {} public T Echo<T>(T value) => value; }
             """, path: "Changed.cs")], [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
-        var payload = new PayloadGenerator(compilation).Build("demo", "fixture", ["Changed.cs"]);
+        var payload = new PayloadGenerator(compilation).Build("demo", "fixture", ["Changed.cs"], [new DiffHunk("Changed.cs", 1, 10)]);
         // Limit extraction to the changed member, as if the unrelated class were in another file.
         payload = payload with { Files = [payload.Files[0] with { Methods = [payload.Files[0].Methods[0]] }] };
         var oracle = new SymbolOracle(compilation);
