@@ -136,7 +136,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     var changed = diffProvider.GetChangedCSharpFiles(clonedDir, prDetails.BaseSha);
                     var repoSlug = $"{parsedPr.Owner}/{parsedPr.Repo}";
                     var hunks = LibGit2Sharp.Repository.IsValid(clonedDir)
-                        ? new GitDiffProvider().GetDiffHunks(clonedDir, prDetails.BaseSha)
+                        ? new GitDiffProvider().GetDiffHunks(clonedDir, prDetails.BaseSha, useMergeBase: true)
                         : null;
                     var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed, hunks);
                     var display = LibGit2Sharp.Repository.IsValid(clonedDir)
@@ -210,7 +210,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     }
                     var diagnostics = new List<string>(loaded.Diagnostics);
                     if (hunks is null)
-                        diagnostics.Add("Diff hunk evidence unavailable: strict L1 will reject ungrounded findings.");
+                        diagnostics.Add(DiffEvidence.UnavailableDiagnostic);
                     if (diagnostics.Count > 0)
                         markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
                             string.Join("\n> ", diagnostics) + "\n\n" + markdown;

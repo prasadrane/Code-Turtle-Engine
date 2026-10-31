@@ -40,7 +40,7 @@ public class WorkerAuditTests
             var strictOptions = new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true };
             var resultStrict = WorkerAuditRunner.ExecuteAudit(requestWithoutHunks, loaded, "hash2", strictOptions);
             Assert.Empty(resultStrict.Outcome.KeptFindings);
-            Assert.Contains(resultStrict.Diagnostics, d => d.Contains("Diff hunk evidence unavailable: strict L1 will reject ungrounded findings."));
+            Assert.Contains(resultStrict.Diagnostics, d => d.Contains(DiffEvidence.UnavailableDiagnostic));
             Assert.Contains("Diff hunk evidence unavailable", resultStrict.Markdown);
 
             // 3. When DiffHunks ARE provided, findings stay and no missing-evidence diagnostic is added

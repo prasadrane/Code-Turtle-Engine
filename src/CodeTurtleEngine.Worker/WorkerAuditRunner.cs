@@ -32,7 +32,7 @@ internal static class WorkerAuditRunner
 
         var diagnostics = new List<string>(loaded.Diagnostics);
         if (request.DiffHunks is null)
-            diagnostics.Add("Diff hunk evidence unavailable: strict L1 will reject ungrounded findings.");
+            diagnostics.Add(DiffEvidence.UnavailableDiagnostic);
 
         var markdown = new Arbiter().RenderMarkdown(guarded.KeptFindings, payload);
         if (diagnostics.Count > 0)

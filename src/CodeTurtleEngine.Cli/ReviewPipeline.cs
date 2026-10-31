@@ -52,7 +52,7 @@ public sealed class ReviewPipeline
             {
                 var sarifJson = await File.ReadAllTextAsync(_options.SarifPath, ct).ConfigureAwait(false);
                 var diags = SarifTriagePipeline.ParseSarifJson(sarifJson);
-                var targetHunks = hunks.Count > 0
+                var targetHunks = hunks is { Count: > 0 }
                     ? hunks
                     : payload.Files.SelectMany(f => f.DiffHunks ?? Enumerable.Empty<DiffHunk>()).ToList();
                 var intersected = SarifTriagePipeline.IntersectWithDiffHunks(diags, targetHunks);

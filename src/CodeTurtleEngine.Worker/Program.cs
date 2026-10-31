@@ -58,7 +58,7 @@ try
             {
                 var diagnostics = new List<string>(loaded.Diagnostics);
                 if (request.DiffHunks is null)
-                    diagnostics.Add("Diff hunk evidence unavailable: strict L1 will reject ungrounded findings.");
+                    diagnostics.Add(DiffEvidence.UnavailableDiagnostic);
                 result = new { ArchiveSha256 = hash, Payload = payload, DiagnosticsCount = diagnostics.Count, Diagnostics = diagnostics };
             }
             else if (request.Operation == "Audit")

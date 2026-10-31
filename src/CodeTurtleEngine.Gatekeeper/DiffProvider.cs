@@ -7,7 +7,11 @@ namespace CodeTurtleEngine.Gatekeeper;
 public interface IDiffProvider
 {
     IReadOnlyList<string> GetChangedCSharpFiles(string repoPath, string? baselineRef);
-    IReadOnlyList<DiffHunk> GetDiffHunks(string repoPath, string? baselineRef) => Array.Empty<DiffHunk>();
+    /// <summary>
+    /// Changed head-side line runs. <c>null</c> means no hunk evidence is available (distinct from an
+    /// empty list, which means the diff exists but adds no lines).
+    /// </summary>
+    IReadOnlyList<DiffHunk>? GetDiffHunks(string repoPath, string? baselineRef) => null;
 }
 
 public sealed class GitDiffProvider : IDiffProvider
@@ -15,6 +19,19 @@ public sealed class GitDiffProvider : IDiffProvider
     private static readonly Regex HunkHeaderRegex = new(
         @"^@@\s+-(?:\d+)(?:,\d+)?\s+\+(\d+)(?:,(\d+))?\s+@@",
         RegexOptions.Compiled | RegexOptions.Multiline);
+
+    public static Commit? FindMergeBase(Repository repo, Commit? baseline, Commit? head)
+    {
+        if (baseline is null || head is null) return null;
+        try
+        {
+            return repo.ObjectDatabase.FindMergeBase(baseline, head);
+        }
+        catch (LibGit2SharpException)
+        {
+            return null;
+        }
+    }
 
     public IReadOnlyList<string> GetChangedCSharpFiles(string repoPath, string? baselineRef)
     {
@@ -37,14 +54,37 @@ public sealed class GitDiffProvider : IDiffProvider
         }
     }
 
-    public IReadOnlyList<DiffHunk> GetDiffHunks(string repoPath, string? baselineRef)
+    public IReadOnlyList<DiffHunk>? GetDiffHunks(string repoPath, string? baselineRef) =>
+        GetDiffHunks(repoPath, baselineRef, useMergeBase: false);
+
+    public IReadOnlyList<DiffHunk>? GetDiffHunks(string repoPath, string? baselineRef, bool useMergeBase)
     {
         try
         {
             using var repo = new Repository(repoPath);
-            Patch patch = baselineRef is null
-                ? repo.Diff.Compare<Patch>(repo.Head.Tip.Tree, DiffTargets.WorkingDirectory)
-                : ComparePatch(repo, baselineRef);
+            Patch patch;
+            if (baselineRef is null)
+            {
+                patch = repo.Diff.Compare<Patch>(repo.Head.Tip.Tree, DiffTargets.WorkingDirectory);
+            }
+            else if (useMergeBase)
+            {
+                var branch = repo.Branches[baselineRef];
+                var baselineCommit = branch?.Tip ?? repo.Lookup<Commit>(baselineRef);
+                if (baselineCommit is null) return null;
+
+                var headCommit = repo.Head?.Tip;
+                if (headCommit is null) return null;
+
+                var mergeBase = FindMergeBase(repo, baselineCommit, headCommit);
+                if (mergeBase is null) return null;
+
+                patch = repo.Diff.Compare<Patch>(mergeBase.Tree, headCommit.Tree);
+            }
+            else
+            {
+                patch = ComparePatch(repo, baselineRef);
+            }
 
             var list = new List<DiffHunk>();
             foreach (var entry in patch)

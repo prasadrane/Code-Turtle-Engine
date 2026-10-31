@@ -5,6 +5,12 @@ public sealed record DiffHunk(
     int StartLine,
     int LineCount);
 
+public static class DiffEvidence
+{
+    public const string UnavailableDiagnostic =
+        "Diff hunk evidence unavailable: when the L1 line-range guard is enabled, findings are rejected as NoDiffEvidence.";
+}
+
 public sealed record MethodFacts(
     string Method,
     IReadOnlyList<string> Allocations,

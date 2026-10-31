@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using CodeTurtleEngine.Core;
+using CodeTurtleEngine.Gatekeeper;
 using CodeTurtleEngine.Web.Models;
 using LibGit2Sharp;
 using DiffHunk = CodeTurtleEngine.Web.Models.DiffHunk;
@@ -21,9 +22,7 @@ public sealed class ReviewChangesBuilder
         if (head is null || repo.Head.Tip.Sha != details.HeadSha)
             throw new InvalidOperationException("Review snapshot identity mismatch.");
         var baseline = repo.Lookup<Commit>(details.BaseSha);
-        Commit? mergeBase = null;
-        try { if (baseline is not null) mergeBase = repo.ObjectDatabase.FindMergeBase(baseline, head); }
-        catch (LibGit2SharpException) { /* Partial history is a display limitation, not a reason to fabricate a diff. */ }
+        var mergeBase = GitDiffProvider.FindMergeBase(repo, baseline, head);
         var snapshot = new ReviewSnapshot(repository, pullNumber, details.Title, details.BaseSha,
             details.HeadSha, mergeBase?.Sha, mergeBase is null ? "head-only" : "merge-base-to-head");
         var files = new List<ChangedFile>();
