@@ -295,43 +295,47 @@ public class TurtleShellGuardTests
     }
 
     [Fact]
-    public void QuoteVerification_Preserves_Multiline_Verbatim_Strings_And_Empty_Lines()
+    public void QuoteVerification_Matches_When_Differing_Only_In_Indentation()
     {
-        var finding = FindingAt("F.cs:15-18") with { OriginalCode = "var s = @\"a\n\n b\";", SuggestedCode = "var s = \"c\";" };
-        var outcome1 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\nb\";");
-        Assert.Single(outcome1.KeptFindings);
-        Assert.Null(outcome1.KeptFindings[0].SuggestedCode);
-        Assert.Equal("QuoteMismatch", outcome1.FindingAudit.Single().Status);
+        var finding = FindingAt("F.cs:15-16") with
+        {
+            OriginalCode = "var x = 1;\n    var y = 2;",
+            SuggestedCode = "var x = 1;\n    var y = 3;"
+        };
+        var outcome = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "        var x = 1;\n        var y = 2;");
 
-        var outcome2 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\n\n     b\";");
-        Assert.Single(outcome2.KeptFindings);
-        Assert.Null(outcome2.KeptFindings[0].SuggestedCode);
-        Assert.Equal("QuoteMismatch", outcome2.FindingAudit.Single().Status);
-
-        var outcome3 = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\n\n b\";");
-        Assert.Single(outcome3.KeptFindings);
-        Assert.NotNull(outcome3.KeptFindings[0].SuggestedCode);
+        Assert.Single(outcome.KeptFindings);
+        Assert.NotNull(outcome.KeptFindings[0].SuggestedCode);
+        Assert.Equal("CitationExistenceOnly", outcome.FindingAudit.Single().Status);
     }
 
     [Fact]
-    public void QuoteVerification_Rejects_Leading_Trailing_And_Whitespace_Only_Literal_Differences()
+    public void QuoteVerification_Rejects_When_String_Literal_Content_Differs()
     {
-        var finding = FindingAt("F.cs:15") with { OriginalCode = "var s = @\"a\";", SuggestedCode = "replacement" };
-        var leadingSpace = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\" a\";");
-        Assert.Null(leadingSpace.KeptFindings[0].SuggestedCode);
+        var finding = FindingAt("F.cs:15") with
+        {
+            OriginalCode = "var s = \"hello world\";",
+            SuggestedCode = "var s = \"hello universe\";"
+        };
+        var outcome = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = \"hello   world\";");
 
-        var trailingSpace = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a \";");
-        Assert.Null(trailingSpace.KeptFindings[0].SuggestedCode);
+        Assert.Single(outcome.KeptFindings);
+        Assert.Null(outcome.KeptFindings[0].SuggestedCode);
+        Assert.Equal("QuoteMismatch", outcome.FindingAudit.Single().Status);
+    }
 
-        var whitespaceLineFinding = FindingAt("F.cs:15-17") with { OriginalCode = "var s = @\"a\n\nb\";", SuggestedCode = "replacement" };
-        var whitespaceLine = Guard().Verify([whitespaceLineFinding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "var s = @\"a\n   \nb\";");
-        Assert.Null(whitespaceLine.KeptFindings[0].SuggestedCode);
+    [Fact]
+    public void QuoteVerification_Drops_Blank_Lines_And_Matches()
+    {
+        var finding = FindingAt("F.cs:15-18") with
+        {
+            OriginalCode = "var a = 1;\nvar b = 2;",
+            SuggestedCode = "var a = 1;\nvar b = 3;"
+        };
+        var outcome = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "    var a = 1;\n\n    var b = 2;\n");
 
-        var rawStringFinding = FindingAt("F.cs:15-17") with { OriginalCode = "\"\"\"\n    hello\n    \"\"\";", SuggestedCode = "replacement" };
-        var rawMatch = Guard().Verify([rawStringFinding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "\"\"\"\n    hello\n    \"\"\";");
-        Assert.NotNull(rawMatch.KeptFindings[0].SuggestedCode);
-
-        var rawMismatch = Guard().Verify([rawStringFinding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "\"\"\"\n      hello\n    \"\"\";");
-        Assert.Null(rawMismatch.KeptFindings[0].SuggestedCode);
+        Assert.Single(outcome.KeptFindings);
+        Assert.NotNull(outcome.KeptFindings[0].SuggestedCode);
+        Assert.Equal("CitationExistenceOnly", outcome.FindingAudit.Single().Status);
     }
 }

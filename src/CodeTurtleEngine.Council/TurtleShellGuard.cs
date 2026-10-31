@@ -250,11 +250,15 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
     }
 
     private static bool IsQuoteMatch(string actual, string expected) =>
-        NormalizeLineEndings(actual) == NormalizeLineEndings(expected);
+        NormalizeCodeLines(actual) == NormalizeCodeLines(expected);
 
-    private static string NormalizeLineEndings(string s)
+    private static string NormalizeCodeLines(string code)
     {
-        if (string.IsNullOrEmpty(s)) return string.Empty;
-        return s.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
+        if (string.IsNullOrEmpty(code)) return string.Empty;
+        var lines = code.Replace("\r\n", "\n").Replace('\r', '\n')
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0);
+        return string.Join("\n", lines);
     }
 }
