@@ -1,11 +1,9 @@
 """Fixture/saved-output orchestration only. Credentialed model transport belongs outside workers."""
 import argparse
-import difflib
 import hashlib
 import json
 from pathlib import Path
 import re
-import tarfile
 from worker_runtime import run
 
 HUNK_HEADER_REGEX = re.compile(r'^@@\s+-(?:\d+)(?:,\d+)?\s+\+(\d+)(?:,(\d+))?\s+@@')
@@ -68,53 +66,49 @@ def extract_hunks_from_patch(file_path, patch_text):
     return hunks
 
 
-def compute_archive_diff_hunks_from_file(archive_fileobj, changed_files):
-    """Compute diff hunks from a tar fileobj by generating unified diff for changed files."""
+def split_patch_by_file(patch_text):
+    """Map each head-side path ('+++ b/<path>') in a unified git diff to its own section text."""
+    sections, current, lines, in_header = {}, None, [], False
+    for raw_line in patch_text.split('\n'):
+        line = raw_line.rstrip('\r')
+        if line.startswith('diff --git '):
+            if current is not None:
+                sections[current] = '\n'.join(lines)
+            current, lines, in_header = None, [], True
+            continue
+        if in_header and line.startswith('+++ '):
+            target = line[4:].strip()
+            current = None if target == '/dev/null' else target[2:] if target.startswith('b/') else target
+            continue
+        if line.startswith('@@'):
+            in_header = False
+        lines.append(line)
+    if current is not None:
+        sections[current] = '\n'.join(lines)
+    return sections
+
+
+def compute_diff_hunks(changed_files, patch_text):
+    """Hunks for changed files from a unified git diff, or None when no diff evidence was supplied.
+
+    The archive is a head-only snapshot, so changed lines cannot be derived from it; returning None
+    lets the worker report missing evidence instead of treating whole files as changed.
+    """
+    if not patch_text:
+        return None
+    normalize = lambda path: path.replace('\\', '/').lstrip('/')
+    sections = {normalize(path): text for path, text in split_patch_by_file(patch_text).items()}
     hunks = []
-    try:
-        with tarfile.open(fileobj=archive_fileobj, mode='r') as tar:
-            for rel_path in changed_files:
-                norm_rel = rel_path.replace('\\', '/').lstrip('/')
-                member = next((m for m in tar.getmembers() if m.name.replace('\\', '/').lstrip('/') == norm_rel), None)
-                if member and member.isfile():
-                    f = tar.extractfile(member)
-                    if f:
-                        lines = [line.decode('utf-8', errors='replace') for line in f.readlines()]
-                        diff = list(difflib.unified_diff([], lines, fromfile='/dev/null', tofile=norm_rel))
-                        diff_text = ''.join(diff)
-                        file_hunks = extract_hunks_from_patch(rel_path, diff_text)
-                        hunks.extend(file_hunks)
-    except Exception:
-        pass
+    for file_path in changed_files:
+        section = sections.get(normalize(file_path))
+        if section is not None:
+            hunks.extend(extract_hunks_from_patch(file_path, section))
     return hunks
 
 
-def compute_archive_diff_hunks(archive_path, changed_files, patch=None):
-    """Extract hunks from patch if supplied, or compute additions for changed files in archive."""
-    if patch:
-        if isinstance(patch, (str, Path)) and Path(patch).is_file():
-            patch_text = Path(patch).read_text(encoding='utf-8', errors='replace')
-        else:
-            patch_text = str(patch)
-        hunks = []
-        for file_path in changed_files:
-            hunks.extend(extract_hunks_from_patch(file_path, patch_text))
-        return hunks
-
-    archive_file = Path(archive_path)
-    if not archive_file.is_file():
-        return []
-
-    try:
-        with open(archive_file, 'rb') as f:
-            return compute_archive_diff_hunks_from_file(f, changed_files)
-    except Exception:
-        return []
-
-
-def review(image, archive, project, changed, findings, strict=False, mode='Strip', diff_hunks=None, patch=None):
+def review(image, archive, project, changed, findings, strict=False, mode='Strip', diff_hunks=None, patch_text=None):
     if diff_hunks is None:
-        diff_hunks = compute_archive_diff_hunks(archive, changed, patch=patch)
+        diff_hunks = compute_diff_hunks(changed, patch_text)
     base = dict(Project=project, ChangedFiles=changed, Findings=[], Guard=mode, Strict=strict, DiffHunks=diff_hunks)
     analysis = run(image, archive, dict(base, Operation='Analyze'))
     # Tests can inject a failing stub after compilation; no provider transport lives here.
@@ -139,5 +133,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     result = review(args.image, args.archive, args.project, args.changed,
                     json.loads(Path(args.fixture_findings).read_text()),
-                    patch=args.patch)
+                    patch_text=Path(args.patch).read_text(encoding='utf-8') if args.patch else None)
     Path(args.out).write_text(json.dumps(result, indent=2))

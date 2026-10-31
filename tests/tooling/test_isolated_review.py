@@ -1,7 +1,5 @@
-from io import BytesIO
 from pathlib import Path
 import sys
-import tarfile
 import unittest
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
@@ -36,14 +34,20 @@ class IsolatedReviewTests(unittest.TestCase):
         self.assertEqual(hunks[0], {'FilePath': 'File.cs', 'StartLine': 11, 'LineCount': 2})
         self.assertEqual(hunks[1], {'FilePath': 'File.cs', 'StartLine': 14, 'LineCount': 1})
 
-    def test_compute_archive_diff_hunks_from_tar(self):
-        buf = BytesIO()
-        with tarfile.open(fileobj=buf, mode='w') as tar:
-            data = b'line1\nline2\nline3\n'
-            info = tarfile.TarInfo('src/Foo.cs')
-            info.size = len(data)
-            tar.addfile(info, BytesIO(data))
-        buf.seek(0)
-        hunks = isolated_review.compute_archive_diff_hunks_from_file(buf, ['src/Foo.cs'])
-        self.assertEqual(len(hunks), 1)
-        self.assertEqual(hunks[0], {'FilePath': 'src/Foo.cs', 'StartLine': 1, 'LineCount': 3})
+    def test_compute_diff_hunks_attributes_each_hunk_to_its_own_file(self):
+        patch_text = (
+            "diff --git a/src/A.cs b/src/A.cs\n--- a/src/A.cs\n+++ b/src/A.cs\n"
+            "@@ -1,2 +1,3 @@\n keep\n+a-added\n keep\n"
+            "diff --git a/src/B.cs b/src/B.cs\n--- a/src/B.cs\n+++ b/src/B.cs\n"
+            "@@ -5,1 +5,2 @@\n keep\n+++ b-added-looks-like-header\n")
+        hunks = isolated_review.compute_diff_hunks(['src/A.cs', 'src/B.cs', 'src/C.cs'], patch_text)
+        self.assertEqual(hunks, [
+            {'FilePath': 'src/A.cs', 'StartLine': 2, 'LineCount': 1},
+            {'FilePath': 'src/B.cs', 'StartLine': 6, 'LineCount': 1}])
+
+    def test_without_patch_reports_no_evidence_instead_of_whole_file_hunks(self):
+        self.assertIsNone(isolated_review.compute_diff_hunks(['src/A.cs'], None))
+        with patch.object(isolated_review, 'run', return_value={'ArchiveSha256':'a', 'Payload': {}}) as worker:
+            isolated_review.review('image', 'archive', 'p', ['src/A.cs'], [])
+            for call in worker.call_args_list:
+                self.assertIsNone(call[0][2]['DiffHunks'])

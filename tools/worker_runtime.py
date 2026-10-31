@@ -1,10 +1,7 @@
 """Credential-free, network-denied worker. A missing control is an error, never host fallback."""
 import argparse
 from contextlib import contextmanager
-try:
-    import fcntl
-except ImportError:
-    fcntl = None
+import fcntl
 import tempfile
 import hashlib
 import json
@@ -52,7 +49,7 @@ def worker_slot():
     for slot in range(2):
         candidate = os.open(directory / str(slot), os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
-            if fcntl: fcntl.flock(candidate, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(candidate, fcntl.LOCK_EX | fcntl.LOCK_NB)
             handle = candidate
             break
         except BlockingIOError:
@@ -62,7 +59,7 @@ def worker_slot():
     try:
         yield
     finally:
-        if fcntl: fcntl.flock(handle, fcntl.LOCK_UN)
+        fcntl.flock(handle, fcntl.LOCK_UN)
         os.close(handle)
 
 
