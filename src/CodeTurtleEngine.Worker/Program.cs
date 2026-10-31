@@ -54,17 +54,17 @@ try
                 .Any(tree => RepoPaths.EndsWith(tree.FilePath, file))))
                 throw new CompilationException("Changed file outside compilation.");
             var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles, request.DiffHunks);
-            var oracle = new SymbolOracle(loaded.Projects);
             if (request.Operation == "Analyze")
-                result = new { ArchiveSha256 = hash, Payload = payload, DiagnosticsCount = loaded.Diagnostics.Count };
+            {
+                var diagnostics = new List<string>(loaded.Diagnostics);
+                if (request.DiffHunks is null)
+                    diagnostics.Add("Diff hunk evidence unavailable: strict L1 will reject ungrounded findings.");
+                result = new { ArchiveSha256 = hash, Payload = payload, DiagnosticsCount = diagnostics.Count, Diagnostics = diagnostics };
+            }
             else if (request.Operation == "Audit")
             {
-                if (request.Findings.Any(f => f.CitedSymbolFqns is null || f.Title is null || f.Detail is null || f.Location is null))
-                    throw new InvalidDataException();
-                var merged = new Arbiter().Merge(request.Findings.GroupBy(f => f.Persona).Select(g => new PersonaVerdict(g.Key, g.ToList())).ToList());
-                var guarded = new TurtleShellGuard(new CouncilOptions { Guard = request.Guard, RequireCitationsInStripMode = request.Strict })
-                    .Verify(merged, payload, citationResolver: oracle.Resolve);
-                result = new { ArchiveSha256 = hash, Outcome = guarded, Markdown = new Arbiter().RenderMarkdown(guarded.KeptFindings, payload) };
+                var auditResult = WorkerAuditRunner.ExecuteAudit(request, loaded, hash);
+                result = new { ArchiveSha256 = auditResult.ArchiveSha256, Outcome = auditResult.Outcome, Markdown = auditResult.Markdown, Diagnostics = auditResult.Diagnostics };
             }
             else throw new InvalidDataException("Unknown operation.");
         }
