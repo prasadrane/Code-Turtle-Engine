@@ -144,7 +144,7 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                 {
                     if (string.IsNullOrWhiteSpace(finding.OriginalCode))
                     {
-                        findingStatuses[finding] = "MissingQuote";
+                        findingStatuses.TryAdd(finding, "MissingQuote");
                         currentFinding = finding with { SuggestedCode = null };
                     }
                     else
@@ -153,7 +153,7 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                         var actual = valid ? sourceResolver?.Invoke(file, startLine, endLine) : null;
                         if (actual is null || !IsQuoteMatch(actual, finding.OriginalCode))
                         {
-                            findingStatuses[finding] = "QuoteMismatch";
+                            findingStatuses.TryAdd(finding, "QuoteMismatch");
                             currentFinding = finding with { SuggestedCode = null };
                         }
                     }
@@ -164,7 +164,7 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                     var actual = valid ? sourceResolver.Invoke(file, startLine, endLine) : null;
                     if (actual is null || !IsQuoteMatch(actual, finding.OriginalCode))
                     {
-                        findingStatuses[finding] = "QuoteMismatch";
+                        findingStatuses.TryAdd(finding, "QuoteMismatch");
                     }
                 }
             }

@@ -325,6 +325,16 @@ public class TurtleShellGuardTests
     }
 
     [Fact]
+    public void Location_Status_Is_Not_Overwritten_By_Quote_Status()
+    {
+        var finding = FindingAt("F.cs:50") with { OriginalCode = "x", SuggestedCode = "y" };
+        var outcome = Guard().Verify([finding], PayloadWithRange(10, 20), sourceResolver: (_, _, _) => "z");
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
     public void QuoteVerification_Drops_Blank_Lines_And_Matches()
     {
         var finding = FindingAt("F.cs:15-18") with
