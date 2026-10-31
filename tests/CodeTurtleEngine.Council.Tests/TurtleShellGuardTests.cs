@@ -25,6 +25,15 @@ public class TurtleShellGuardTests
         new(new CouncilOptions { Guard = GuardMode.Strip, EnableHunkIntersectionGuard = true, EnableQuoteVerificationGuard = true });
 
     [Fact]
+    public void CouncilOptions_Defaults_Are_OptIn()
+    {
+        var options = new CouncilOptions();
+        Assert.False(options.EnableHunkIntersectionGuard);
+        Assert.False(options.EnableQuoteVerificationGuard);
+        Assert.False(options.StrictHunkIntersection);
+    }
+
+    [Fact]
     public void Strip_Removes_Hallucinated_Citations_And_Ungrounded_Findings()
     {
         var findings = new[]
@@ -164,7 +173,52 @@ public class TurtleShellGuardTests
     }
 
     [Fact]
-    public void Strip_Enforces_Actual_Diff_Hunk_Boundaries_When_Present()
+    public void HunkIntersection_Keeps_Finding_On_Unchanged_Line_Inside_Changed_Method()
+    {
+        var payload = new RoslynPayload("R", "HEAD", [
+            new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: 10, EndLine: 50)],
+                DiffHunks: [new DiffHunk("F.cs", 15, 6)]) // lines 15..20
+        ]);
+        var finding = FindingAt("F.cs:30"); // Unchanged line inside changed method
+        var outcome = Guard().Verify([finding], payload);
+
+        Assert.Single(outcome.KeptFindings);
+        Assert.Equal("CitationExistenceOnly", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void HunkIntersection_Rejects_Finding_In_Method_With_No_Changes()
+    {
+        var payload = new RoslynPayload("R", "HEAD", [
+            new FileFacts("F.cs", [
+                new MethodFacts("ChangedMethod", [], null, [], ["SampleRepo.Real"], StartLine: 10, EndLine: 50),
+                new MethodFacts("UnchangedMethod", [], null, [], ["SampleRepo.Real"], StartLine: 60, EndLine: 80)
+            ],
+            DiffHunks: [new DiffHunk("F.cs", 15, 6)]) // lines 15..20
+        ]);
+        var finding = FindingAt("F.cs:70"); // inside UnchangedMethod
+        var outcome = Guard().Verify([finding], payload);
+
+        Assert.Empty(outcome.KeptFindings);
+        Assert.Equal("OffDiffLocation", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void HunkIntersection_Keeps_Finding_Whose_Range_Partly_Overlaps_Hunk()
+    {
+        var payload = new RoslynPayload("R", "HEAD", [
+            new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: 10, EndLine: 50)],
+                DiffHunks: [new DiffHunk("F.cs", 15, 6)]) // lines 15..20
+        ]);
+        var finding = FindingAt("F.cs:18-25"); // partly overlaps 15..20
+        var outcome = Guard().Verify([finding], payload);
+
+        Assert.Single(outcome.KeptFindings);
+        Assert.Equal("CitationExistenceOnly", outcome.FindingAudit.Single().Status);
+    }
+
+    [Fact]
+    public void Strip_Enforces_Actual_Diff_Hunk_Boundaries_When_StrictHunkIntersection_Is_True()
     {
         var payload = new RoslynPayload("R", "HEAD", [
             new FileFacts("F.cs", [new MethodFacts("M", [], null, [], ["SampleRepo.Real"], StartLine: 10, EndLine: 50)],
@@ -176,7 +230,13 @@ public class TurtleShellGuardTests
             FindingAt("F.cs:18") with { Title = "In method but off hunk" },
             FindingAt("F.cs:12-25") with { Title = "Span exceeding hunk" }
         };
-        var outcome = Guard().Verify(findings, payload);
+        var strictGuard = new TurtleShellGuard(new CouncilOptions
+        {
+            Guard = GuardMode.Strip,
+            EnableHunkIntersectionGuard = true,
+            StrictHunkIntersection = true
+        });
+        var outcome = strictGuard.Verify(findings, payload);
 
         Assert.Single(outcome.KeptFindings);
         Assert.Equal("In hunk", outcome.KeptFindings[0].Title);

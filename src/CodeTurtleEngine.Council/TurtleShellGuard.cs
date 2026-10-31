@@ -104,9 +104,29 @@ public sealed class TurtleShellGuard : ITurtleShellGuard
                     }
                     else
                     {
-                        var inHunk = matchedFile.DiffHunks.Any(h => h.LineCount > 0 &&
-                            startLine >= h.StartLine &&
-                            endLine <= (h.StartLine + h.LineCount - 1));
+                        bool inHunk;
+                        if (_options.StrictHunkIntersection)
+                        {
+                            inHunk = matchedFile.DiffHunks.Any(h => h.LineCount > 0 &&
+                                startLine >= h.StartLine &&
+                                endLine <= (h.StartLine + h.LineCount - 1));
+                        }
+                        else
+                        {
+                            var overlapsHunk = matchedFile.DiffHunks.Any(h => h.LineCount > 0 &&
+                                startLine <= (h.StartLine + h.LineCount - 1) &&
+                                h.StartLine <= endLine);
+
+                            var inChangedMethod = matchedFile.Methods.Any(m =>
+                                m.StartLine > 0 && m.EndLine >= m.StartLine &&
+                                startLine >= m.StartLine && endLine <= m.EndLine &&
+                                matchedFile.DiffHunks.Any(h => h.LineCount > 0 &&
+                                    m.StartLine <= (h.StartLine + h.LineCount - 1) &&
+                                    h.StartLine <= m.EndLine));
+
+                            inHunk = overlapsHunk || inChangedMethod;
+                        }
+
                         if (!inHunk)
                         {
                             findingStatuses[finding] = "OffDiffLocation";

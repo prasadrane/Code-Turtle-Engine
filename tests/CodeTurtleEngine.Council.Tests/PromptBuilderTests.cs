@@ -112,4 +112,13 @@ public class PromptBuilderTests
         Assert.Contains("service locator", archSystem, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("captive", archSystem, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void GroundingRules_Instructs_DiffHunks_And_Anchoring()
+    {
+        var msgs = PromptBuilder.Build(PersonaRole.SecurityAuditor, SamplePayload(), "RUBRIC");
+        var systemMsg = Assert.Single(msgs, m => m.Role == ChatRole.System);
+        Assert.Contains("DiffHunks", systemMsg.Text);
+        Assert.Contains("anchoring findings to changed lines where possible", systemMsg.Text);
+    }
 }
