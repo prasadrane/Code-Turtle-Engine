@@ -67,6 +67,42 @@ outputs remain in `Personas` / `verdicts.json`; arbitration can remove duplicate
 before guard audit. Retained findings may have citations removed without modifying
 original persona outputs. No findings means no retained findings, not clean code.
 
+## Location (L1) and quote (L2) guards
+
+Both are opt-in and off by default (`CouncilOptions.EnableHunkIntersectionGuard`,
+`EnableQuoteVerificationGuard`; config keys `Turtle:Council:<name>`). They check
+location and quoted code, not correctness.
+
+Diff hunks are runs of added head-side lines. CLI hunks come from git (baseline-to-HEAD,
+or HEAD-to-working-tree). Web hunks are computed merge-base-to-head. The isolated worker
+receives hunks only when `tools/isolated_review.py --patch` supplies a git diff. A provider
+without hunk support reports no evidence (`null`), never an empty change set, and
+reviews without evidence carry the `Diff hunk evidence unavailable` diagnostic.
+
+L1 parses `File.cs:LINE` or `File.cs:START-END`. By default a finding passes when its
+range overlaps a hunk, or lies inside one extracted method that overlaps a hunk.
+`StrictHunkIntersection=true` instead requires the whole range inside one added run.
+Findings about deleted code have no head-side lines and fail L1.
+
+L2 compares `OriginalCode` with the cited source lines after trimming each line and
+dropping blank lines. In-line whitespace, including string literal content, must match.
+A suggestion without a quote, or with a mismatched quote, loses `SuggestedCode`; the
+finding itself stays subject to the other checks.
+
+| Status | Meaning | Strip | Flag |
+|---|---|---|---|
+| `MalformedLocation` | Location not `File:LINE[-END]` with positive ordered lines | Drop | Retain |
+| `NoDiffEvidence` | No payload files, or the matched file has no hunk evidence | Drop | Retain |
+| `NoChangedLines` | Evidence exists but the file adds no lines | Drop | Retain |
+| `OffDiffLocation` | File not in the payload, or range outside the changed lines | Drop | Retain |
+| `MissingQuote` | `SuggestedCode` without `OriginalCode` | Retain, suggestion removed | Same |
+| `QuoteMismatch` | Quote differs from the cited lines, or the lines cannot be read | Retain, suggestion removed | Same |
+
+Statuses appear in `FindingAudit`; when L1 and L2 both fail, the L1 status is recorded.
+A finding dropped by L1 is not kept even with resolved citations.
+
+## Web streams
+
 Web persona streams are provisional and unaudited. Completion replaces the stream's
 working findings with synthesized results. Raw persona tabs explicitly label removed
 findings and show citation audit evidence where available. A true legacy `Verified`

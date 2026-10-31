@@ -82,6 +82,12 @@ Uncited findings remain advisory by default; `RequireCitationsInStripMode=true`
 drops them. Flag preserves originals, including rejected and uncited findings,
 and records the audit. See the [behavior matrix](docs/VERIFICATION_CONTRACT.md).
 
+Two opt-in guards are off by default. The location guard (L1) keeps findings whose
+line range overlaps changed lines or sits inside a changed method; the quote guard (L2)
+removes suggested code whose quoted original does not match the source. Both check
+location and quoting only, not correctness. Statuses and Strip/Flag behavior are in the
+[contract](docs/VERIFICATION_CONTRACT.md#location-l1-and-quote-l2-guards).
+
 Workspace failures and project compilation errors stop review. Per-project Roslyn
 compilations preserve binding contexts. Review never restores dependencies
 automatically. Restore/build trusted target projects yourself first.

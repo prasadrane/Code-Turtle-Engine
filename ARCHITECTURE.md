@@ -73,6 +73,11 @@ and name-level extracted context are recorded separately. Unsupported signatures
 reject, and no check establishes call-site binding. No citation label verifies
 prose, relevance, locations, or recommended changes.
 
+`IDiffProvider.GetDiffHunks` supplies added head-side line runs (`DiffHunk`, in Core);
+`null` means no evidence. `PayloadGenerator` attaches them per file and the prompt
+projection keeps them. The opt-in L1 location and L2 quote guards in TurtleShellGuard
+use them; see the contract for statuses.
+
 ## Web states
 
 Streaming persona findings are provisional. Completion reconciles working findings
