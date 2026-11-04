@@ -40,6 +40,8 @@ builder.Services.AddHttpClient<IGitHubPrFetcher, GitHubPrFetcher>(client =>
     client.MaxResponseContentBufferSize = 4 * 1024 * 1024;
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton<IRepoCloner, RepoCloner>();
+builder.Services.AddSingleton(builder.Configuration.GetSection("WebDependencies").Get<WebDependencyOptions>() ?? new());
+builder.Services.AddSingleton<IWebDependencyPreparer, WebDependencyPreparer>();
 builder.Services.AddSingleton<ICompilationLoader, MsBuildCompilationLoader>();
 builder.Services.AddSingleton<IArbiter, Arbiter>();
 builder.Services.AddSingleton<ITurtleShellGuard>(sp => new TurtleShellGuard(sp.GetRequiredService<CouncilOptions>()));
@@ -125,21 +127,47 @@ app.MapGet("/api/review/{jobId:guid}/stream", async (Guid jobId, HttpContext htt
         return;
     }
 
+    using var lease = jobContext.TryAcquireStream();
+    if (lease is null)
+    {
+        httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+        await httpContext.Response.WriteAsJsonAsync(new { error = "This review already has an active stream. Results remain available at the result endpoint." });
+        return;
+    }
+
     httpContext.Response.Headers.ContentType = "text/event-stream";
     httpContext.Response.Headers.CacheControl = "no-cache";
     httpContext.Response.Headers.Connection = "keep-alive";
 
-    var reader = jobStore.GetReader(jobId);
+    var reader = jobContext.Channel.Reader;
     var ct = httpContext.RequestAborted;
+
+    async Task WriteEvent(SseEvent sseEvent)
+    {
+        var json = JsonSerializer.Serialize(sseEvent.Data);
+        await httpContext.Response.WriteAsync($"event: {sseEvent.Type}\ndata: {json}\n\n", ct);
+        await httpContext.Response.Body.FlushAsync(ct);
+    }
+
+    SseEvent? TerminalSnapshot() => jobContext.Result is { } result
+        ? SseEvent.Completed(result.Markdown, result.Verdict)
+        : jobContext.Error is not null || jobContext.Cancellation.IsCancellationRequested
+            ? SseEvent.Error("REVIEW_STOPPED", "Review failed, cancelled, or expired.") : null;
 
     try
     {
+        if (TerminalSnapshot() is { } saved)
+        {
+            await WriteEvent(saved);
+            return;
+        }
+        var deliveredTerminal = false;
         await foreach (var sseEvent in reader.ReadAllAsync(ct))
         {
-            var json = JsonSerializer.Serialize(sseEvent.Data);
-            await httpContext.Response.WriteAsync($"event: {sseEvent.Type}\ndata: {json}\n\n", ct);
-            await httpContext.Response.Body.FlushAsync(ct);
+            await WriteEvent(sseEvent);
+            deliveredTerminal |= sseEvent.Type is SseEventTypes.Completed or SseEventTypes.Error;
         }
+        if (!deliveredTerminal && TerminalSnapshot() is { } terminal) await WriteEvent(terminal);
     }
     catch (OperationCanceledException) when (ct.IsCancellationRequested)
     {

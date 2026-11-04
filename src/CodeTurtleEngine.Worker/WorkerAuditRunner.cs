@@ -19,12 +19,14 @@ internal static class WorkerAuditRunner
         WorkerRequest request,
         LoadedCompilation loaded,
         string hash,
-        CouncilOptions? options = null)
+        CouncilOptions? options = null,
+        string? repositoryRoot = null)
     {
         if (request.Findings.Any(f => f.CitedSymbolFqns is null || f.Title is null || f.Detail is null || f.Location is null))
             throw new InvalidDataException();
 
-        var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles, request.DiffHunks);
+        var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles,
+            request.DiffHunks, repositoryRoot);
         var oracle = new SymbolOracle(loaded.Projects);
         var merged = new Arbiter().Merge(request.Findings.GroupBy(f => f.Persona).Select(g => new PersonaVerdict(g.Key, g.ToList())).ToList());
         var guardOptions = options ?? new CouncilOptions { Guard = request.Guard, RequireCitationsInStripMode = request.Strict };

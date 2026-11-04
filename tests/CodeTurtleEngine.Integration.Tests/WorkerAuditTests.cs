@@ -2,11 +2,35 @@ using CodeTurtleEngine.Core;
 using CodeTurtleEngine.Council;
 using CodeTurtleEngine.Gatekeeper;
 using CodeTurtleEngine.Worker;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace CodeTurtleEngine.Integration.Tests;
 
 public class WorkerAuditTests
 {
+    [Fact]
+    public void WorkerAudit_RejectsSameSuffixTreeOutsideThePinnedSourceRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "turtle-worker-coverage-" + Guid.NewGuid());
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "C.cs"), "class Expected {} ");
+            var wrongTree = CSharpSyntaxTree.ParseText("class Other {}", path: Path.Combine(root, "other", "C.cs"));
+            using var workspace = new AdhocWorkspace();
+            var loaded = new LoadedCompilation(CSharpCompilation.Create("Other", [wrongTree]), workspace);
+            var request = new WorkerRequest("Audit", "Project.csproj", ["C.cs"], []);
+
+            Assert.Throws<CompilationException>(() => WorkerAuditRunner.ExecuteAudit(request, loaded, "sealed-hash",
+                repositoryRoot: root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task WorkerAudit_WithNoDiffHunks_NeverSilentlyReturnsZeroFindings()
     {

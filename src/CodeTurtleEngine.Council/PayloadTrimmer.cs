@@ -11,6 +11,14 @@ namespace CodeTurtleEngine.Council;
 /// </summary>
 public static class PayloadTrimmer
 {
+    public static PromptCoverage MeasureCoverage(RoslynPayload full, RoslynPayload prompt)
+    {
+        var extractedMethods = full.Files.Sum(f => f.Methods.Count);
+        var submittedMethods = prompt.Files.Sum(f => f.Methods.Count);
+        return new PromptCoverage(full.Files.Count, prompt.Files.Count, full.Files.Count - prompt.Files.Count,
+            extractedMethods, submittedMethods, extractedMethods - submittedMethods);
+    }
+
     public static RoslynPayload TrimForPrompt(RoslynPayload full, CouncilOptions opts)
     {
         var files = full.Files

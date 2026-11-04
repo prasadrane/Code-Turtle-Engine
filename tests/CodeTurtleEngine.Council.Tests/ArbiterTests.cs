@@ -39,4 +39,12 @@ public class ArbiterTests
         Assert.Contains("## [Error] SQL injection", md);
         Assert.Contains("DataAccess.cs:11", md);
     }
+
+    [Fact]
+    public void Unknown_Prompt_Coverage_Does_Not_Claim_Files_Were_Reviewed()
+    {
+        var md = new Arbiter().RenderMarkdown([], new RoslynPayload("demo", "HEAD", []));
+        Assert.Contains("Model prompt coverage unavailable", md);
+        Assert.DoesNotContain("Files reviewed", md);
+    }
 }

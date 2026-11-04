@@ -23,7 +23,7 @@ public sealed class ExtractionPipeline
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
-            return new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed, hunks);
+            return new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed, hunks, repositoryRoot: repoPath);
         }
         finally
         {

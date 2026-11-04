@@ -4,7 +4,8 @@ This package is an unpublished, framework-dependent Linux x64 preparation artifa
 It includes the CLI, separate worker binaries, offline example, tools and templates.
 No live model, pilot or public deployment acceptance is claimed. Use only trusted
 local repositories with the legacy CLI; use sealed-archive workers for untrusted
-source. Public acquisition and public web release remain closed.
+source. Public web acquisition/release remain closed. The source checkout also has
+an opt-in public-PR GitHub workflow; see [its setup and limits](../ISOLATION.md#github-pr-workflow).
 
 ## Install and verify locally
 
@@ -69,6 +70,26 @@ backend. The current API accepts loopback clients only. Run both services locall
 under the same hostname (`localhost` for both, not a mix of `localhost` and
 `127.0.0.1`), because the browser session cookie uses `SameSite=Strict`.
 
+Stage the target project's required package versions from an explicit existing local
+cache before enabling dependency preparation. From the source checkout:
+
+```bash
+python tools/prepare_web_offline.py \
+  --assets /absolute/path/to/trusted-project/obj/project.assets.json \
+  --cache /absolute/path/to/approved-nuget-cache \
+  --output work/web-offline
+```
+
+Use a fresh output directory each time. The helper copies only the package archives
+selected by the trusted assets file, writes a SHA256 manifest, and prints the absolute
+feed path for `WebDependencies__OfflineSources__0`. It does not restore or download
+packages. Missing archives stop setup; prepare them separately under the operator's
+package policy. Its generated `appsettings.WebOffline.json` is reference configuration
+and is not loaded automatically. For solutions, stage the required packages from all
+target projects into approved feeds. Local validation staged 25 Web dependencies;
+a fresh-cache fixture restore used only that feed. This does not establish that the
+feed covers arbitrary target repositories.
+
 After configuring the authorized model endpoint above, configure the API in its
 own terminal. For example, using Bash from the repository root:
 
@@ -77,13 +98,30 @@ export Access__Mode=TrustedLocal
 export Access__ApiKey='<choose-a-local-access-key>'
 export Access__Origins__0=http://localhost:3000
 export Access__TrustedRepositories__0=owner/repo
+export WebDependencies__Enabled=true
+export WebDependencies__OfflineSources__0=/absolute/path/to/approved-offline-feed
 dotnet run --project src/CodeTurtleEngine.Web --urls http://localhost:5000
 ```
 
 In another terminal, run `cd web`, `npm ci`, and `npm run dev`, then open
 http://localhost:3000. Enter the local access key under **Connect your local beta
-server** and submit a PR from the allowed repository. Restore/build only trusted
-target dependencies first. Model reviews use the configured provider and budget.
+server** and submit a PR from the allowed repository. The trusted-local web pipeline
+restores each temporary clone before compilation using the explicitly configured local
+package directories. Preparation is disabled unless `WebDependencies__Enabled=true`;
+remote URLs and relative feed paths are rejected; project-added restore sources are
+suppressed. Stage all required package versions
+in these directories first. `WebDependencies__TimeoutSeconds` defaults to 45 (maximum
+60); cancellation or restore failure stops the review before model calls. CLI reviews
+still require explicit dependency preparation. This host restore evaluates trusted
+MSBuild code and is not an isolation boundary. Model reviews use the configured
+provider and budget.
+
+The opt-in integration smoke uses the trusted CLI provider configuration and is
+reported as skipped unless `TURTLE_LIVE=1`. After configuring the authorized endpoint
+and key, run `TURTLE_LIVE=1 dotnet test tests/CodeTurtleEngine.Integration.Tests
+--filter FullyQualifiedName~Bailian_Reachable_When_Live_Enabled`. It makes one small
+request with a 30-second deadline; route fallback/retry policy can cause transport
+retries. A successful smoke proves reachability, not review quality.
 
 Development uses http://localhost:5000 when `NEXT_PUBLIC_API_BASE` is unset or
 blank. For a local production preview (`npm run build` then `npm start`), set

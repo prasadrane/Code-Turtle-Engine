@@ -6,7 +6,7 @@ namespace CodeTurtleEngine.Council;
 public interface IArbiter
 {
     IReadOnlyList<ReviewFinding> Merge(IReadOnlyList<PersonaVerdict> verdicts);
-    string RenderMarkdown(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload);
+    string RenderMarkdown(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, PromptCoverage? coverage = null);
 }
 
 public sealed class Arbiter : IArbiter
@@ -19,12 +19,21 @@ public sealed class Arbiter : IArbiter
             .ThenBy(f => f.Location, StringComparer.Ordinal)
             .ToList();
 
-    public string RenderMarkdown(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload)
+    public string RenderMarkdown(IReadOnlyList<ReviewFinding> findings, RoslynPayload payload, PromptCoverage? coverage = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"# Code Turtle Review - {payload.RepoSlug}");
         sb.AppendLine();
-        sb.AppendLine($"Diff baseline: `{payload.DiffBaseline}` - Files reviewed: {payload.Files.Count}");
+        sb.AppendLine($"Diff baseline: `{payload.DiffBaseline}`");
+        if (coverage is null)
+            sb.AppendLine($"Extracted file contexts: {payload.Files.Count}. Model prompt coverage unavailable.");
+        else
+        {
+            sb.AppendLine($"File contexts: {coverage.ExtractedFiles} extracted, {coverage.SubmittedFiles} submitted to model prompts, {coverage.OmittedFiles} omitted.");
+            sb.AppendLine($"Member contexts: {coverage.ExtractedMethods} extracted, {coverage.SubmittedMethods} submitted to model prompts, {coverage.OmittedMethods} omitted.");
+            if (coverage.OmittedFiles > 0 || coverage.OmittedMethods > 0)
+                sb.AppendLine("> Partial model input: prompt limits omitted extracted contexts. Citation checks still use the full payload.");
+        }
         sb.AppendLine();
 
         if (findings.Count == 0)

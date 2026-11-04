@@ -5,8 +5,11 @@ using CodeTurtleEngine.Gatekeeper;
 
 namespace CodeTurtleEngine.Cli.Tests;
 
-public class ReviewPipelineTests
+public class ReviewPipelineTests : IDisposable
 {
+    private readonly string _repo = Path.Combine(Path.GetTempPath(), "turtle-pipeline-repo-" + Guid.NewGuid().ToString("N"));
+    public ReviewPipelineTests() => Directory.CreateDirectory(_repo);
+    public void Dispose() => Directory.Delete(_repo, true);
     [Fact]
     public async Task Orchestrates_And_Writes_Artifacts()
     {
@@ -25,7 +28,7 @@ public class ReviewPipelineTests
             new ArtifactWriter(home),
             options);
 
-        var result = await pipeline.RunAsync("/repo", "/repo/SampleRepo.csproj", null);
+        var result = await pipeline.RunAsync(_repo, Path.Combine(_repo, "SampleRepo.csproj"), null);
 
         Assert.Contains("# Code Turtle Review", result.Markdown);
         Assert.True(File.Exists(Path.Combine(result.ArtifactDir, "review.md")));
@@ -49,14 +52,14 @@ public class ReviewPipelineTests
         var rubricPath = Path.GetTempFileName();
         File.WriteAllText(rubricPath, "# Review Rubric v1");
         var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
-            "namespace Demo { public class A { public void M() { } } }", path: "/repo/src/A.cs");
+            "namespace Demo { public class A { public void M() { } } }", path: Path.Combine(_repo, "src", "A.cs"));
         var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Demo", new[] { tree });
         var options = new TurtleOptions { RubricPath = rubricPath, Council = new CouncilOptions { Quorum = 1, PromptMode = mode } };
         var personas = new RecordingPersonas();
 
         var result = await new ReviewPipeline(new FakeDiff(new[] { "src/A.cs" }), new FakeLoader(compilation), personas,
             new Arbiter(), new TurtleShellGuard(options.Council), new RubricLoader(), new ArtifactWriter(home), options)
-            .RunAsync("/repo", "/repo/Demo.csproj", null);
+            .RunAsync(_repo, Path.Combine(_repo, "Demo.csproj"), null);
 
         Assert.Equal(expectedSources, personas.LastSources!.Count);
         if (expectedSources == 1)
@@ -79,7 +82,7 @@ public class ReviewPipelineTests
         var result = await new ReviewPipeline(new FakeDiff(new[] { "src/A.cs" }),
             new FakeLoader(degraded: new[] { "BrokenUnrelatedProj" }), personas,
             new Arbiter(), new TurtleShellGuard(options.Council), new RubricLoader(), new ArtifactWriter(home), options)
-            .RunAsync("/repo", "/repo/Demo.csproj", null);
+            .RunAsync(_repo, Path.Combine(_repo, "Demo.csproj"), null);
 
         Assert.Contains("Degraded projects (unmodified, excluded from compilation oracle): BrokenUnrelatedProj", result.Markdown);
         Directory.Delete(home, true);

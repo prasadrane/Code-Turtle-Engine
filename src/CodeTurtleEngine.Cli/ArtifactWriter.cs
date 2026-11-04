@@ -21,6 +21,7 @@ public sealed class ArtifactWriter
         File.WriteAllText(Path.Combine(dir, "audit.json"), JsonSerializer.Serialize(verdict.GuardAudit, TurtleJson.Options));
 
         File.WriteAllText(Path.Combine(dir, "finding-audit.json"), JsonSerializer.Serialize(verdict.FindingAudit, TurtleJson.Options));
+        File.WriteAllText(Path.Combine(dir, "prompt-coverage.json"), JsonSerializer.Serialize(verdict.PromptCoverage, TurtleJson.Options));
 
         File.WriteAllText(Path.Combine(dir, "compilation-diagnostics.json"), JsonSerializer.Serialize(compilationDiagnostics ?? Array.Empty<string>(), TurtleJson.Options));
 

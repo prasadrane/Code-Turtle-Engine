@@ -116,6 +116,23 @@ export function useReviewStream(options: UseReviewStreamOptions = {}) {
         terminal.current = true;
         dispatch({ type: 'set', value: { status: 'failed', error: 'Connection to review stream closed. Results may be incomplete.' } });
         closeStream();
+        // A transport failure may race the final event. Recover only a stored terminal report;
+        // provisional findings must never be promoted into a completed review.
+        void (async () => {
+          try {
+            const saved = await fetch(`${requestApiBase}/api/review/${data.jobId}/result`, {
+              credentials: 'include', cache: 'no-store', signal: request.signal });
+            if (!saved.ok || stale()) return;
+            const result = await saved.json();
+            if (stale()) return;
+            if (result.status === 'completed' && typeof result.markdown === 'string' &&
+              Array.isArray(result.verdict?.synthesized) && Array.isArray(result.verdict?.guardAudit)) {
+              dispatch({ type: 'event', event: 'completed', data: result });
+              dispatch({ type: 'set', value: { error: null } });
+              void loadChanges(data.jobId);
+            }
+          } catch { /* Keep the interrupted state when recovery is unavailable. */ }
+        })();
       };
     } catch (error) {
       if (!stale()) dispatch({ type: 'set', value: { status: 'failed', error: reviewConnectionMessage(error, 'Network error occurred.') } });

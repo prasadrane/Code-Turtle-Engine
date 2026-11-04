@@ -11,6 +11,7 @@ public sealed class ReviewJobContext
     private ReviewResult? _result;
     private string? _error;
     private ReviewChanges? _changes;
+    private int _streamActive;
     public string? AccessOwner { get; set; }
     public ReviewChanges? Changes
     {
@@ -48,6 +49,21 @@ public sealed class ReviewJobContext
     public bool IsCompleted
     {
         get { lock (_sync) return _result is not null || _error is not null; }
+    }
+
+    public IDisposable? TryAcquireStream()
+    {
+        return Interlocked.CompareExchange(ref _streamActive, 1, 0) == 0 ? new StreamLease(this) : null;
+    }
+
+    private sealed class StreamLease(ReviewJobContext owner) : IDisposable
+    {
+        private ReviewJobContext? _owner = owner;
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref _owner, null);
+            if (current is not null) Interlocked.Exchange(ref current._streamActive, 0);
+        }
     }
 }
 

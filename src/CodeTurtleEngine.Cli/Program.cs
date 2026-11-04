@@ -179,4 +179,5 @@ var root = new RootCommand("Code Turtle Engine - AI PR reviewer grounded in Rosl
 root.Subcommands.Add(review);
 root.Subcommands.Add(extract);
 root.Subcommands.Add(bench);
+root.Subcommands.Add(CouncilOnlyCommand.Create());
 return await root.Parse(args).InvokeAsync().ConfigureAwait(false);

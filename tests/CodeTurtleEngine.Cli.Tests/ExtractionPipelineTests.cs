@@ -11,15 +11,17 @@ public class ExtractionPipelineTests
     public async Task Extracts_Payload_To_Json_Without_Llm_Calls()
     {
         var tempOut = Path.GetTempFileName();
+        var repo = Path.Combine(Path.GetTempPath(), "turtle-extraction-repo-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(repo);
         try
         {
-            var tree = CSharpSyntaxTree.ParseText("namespace Demo; public class A { public void M() {} }", path: "/repo/A.cs");
+            var tree = CSharpSyntaxTree.ParseText("namespace Demo; public class A { public void M() {} }", path: Path.Combine(repo, "A.cs"));
             var compilation = CSharpCompilation.Create("Demo", new[] { tree });
             var loader = new FakeLoader(compilation);
             var diff = new FakeDiff(new[] { "A.cs" });
 
             var extractor = new ExtractionPipeline(diff, loader);
-            var payload = await extractor.ExtractAsync("/repo", "/repo/Demo.csproj", null);
+            var payload = await extractor.ExtractAsync(repo, Path.Combine(repo, "Demo.csproj"), null);
             var json = extractor.SerializePayload(payload);
 
             Assert.Equal("Demo", payload.RepoSlug);
@@ -29,6 +31,7 @@ public class ExtractionPipelineTests
         finally
         {
             if (File.Exists(tempOut)) File.Delete(tempOut);
+            Directory.Delete(repo, true);
         }
     }
 }

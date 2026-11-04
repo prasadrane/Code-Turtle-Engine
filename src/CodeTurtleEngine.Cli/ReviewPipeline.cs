@@ -37,11 +37,15 @@ public sealed class ReviewPipeline
         try
         {
             var repoSlug = Path.GetFileNameWithoutExtension(projectPath);
-            var payload = preExtractedPayload ?? new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed, hunks);
+            // Imported facts must not bypass validation of the checkout's changed source.
+            var currentPayload = new PayloadGenerator(loaded.Projects).Build(repoSlug, baselineRef ?? "working-tree", changed, hunks, repositoryRoot: repoPath);
+            var payload = preExtractedPayload ?? currentPayload;
             var rubric = _rubricLoader.Load(ResolveRubric());
             // THE INVARIANT: trimming applies ONLY to the LLM prompt projection. The guard
             // must keep verifying against the FULL payload's ResolvedSymbols allow-list.
             var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _options.Council);
+            var promptCoverage = _options.Council.PromptMode == PromptMode.Grounded
+                ? PayloadTrimmer.MeasureCoverage(payload, promptPayload) : null;
             var sources = _options.Council.PromptMode == PromptMode.Naive
                 ? CollectSources(loaded.Projects, changed, _options.Council.MaxFiles)
                 : Array.Empty<SourceFile>();
@@ -91,7 +95,7 @@ public sealed class ReviewPipeline
             };
 
             var guarded = _guard.Verify(merged, payload, citationResolver: new SymbolOracle(loaded.Projects).Resolve, sourceResolver: sourceResolver);
-            var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
+            var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload, promptCoverage);
             const int ExpectedReviewPersonas = 3; // matches PersonaRunner's review personas
             if (verdicts.Count < ExpectedReviewPersonas)
                 markdown = $"> Degraded review: {verdicts.Count}/{ExpectedReviewPersonas} council personas succeeded.\n\n" + markdown;
@@ -100,7 +104,7 @@ public sealed class ReviewPipeline
             if (loaded.Diagnostics.Count > 0)
                 markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
                     string.Join("\n> ", loaded.Diagnostics) + "\n\n" + markdown;
-            var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
+            var verdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit, PromptCoverage = promptCoverage };
             var dir = _artifacts.Write(repoSlug, payload, verdict, markdown, loaded.Diagnostics);
 
             var batched = BatchedReviewBuilder.BuildReviewRequest(payload.DiffBaseline, markdown, guarded.KeptFindings);
@@ -123,8 +127,13 @@ public sealed class ReviewPipeline
             .Select(x => new SourceFile(x.rel, x.tree!.GetText().ToString()))
             .ToList();
 
-    private string ResolveRubric() =>
-        Path.IsPathRooted(_options.RubricPath)
-            ? _options.RubricPath
-            : Path.Combine(Directory.GetCurrentDirectory(), _options.RubricPath);
+    private string ResolveRubric()
+    {
+        if (Path.IsPathRooted(_options.RubricPath)) return _options.RubricPath;
+        // The shipped default belongs to the application, independent of the caller's cwd.
+        // Explicit custom relative paths retain their working-directory semantics.
+        if (_options.RubricPath.Replace('\\', '/') == "turtle/rubric_v1.md")
+            return Path.Combine(AppContext.BaseDirectory, "turtle", "rubric_v1.md");
+        return Path.Combine(Directory.GetCurrentDirectory(), _options.RubricPath);
+    }
 }

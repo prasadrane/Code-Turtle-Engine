@@ -6,6 +6,8 @@ internal static class SourceArchive
 {
     public static void Extract(string archive, string destination)
     {
+        destination = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destination));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         Directory.CreateDirectory(destination);
         using var input = File.OpenRead(archive);
         using var reader = new TarReader(input);
@@ -21,7 +23,7 @@ internal static class SourceArchive
             if (Path.IsPathRooted(relative) || relative.Split('/').Any(p => p == "..") || relative.Contains(':'))
                 throw new InvalidDataException("Unsafe archive entry.");
             var path = Path.GetFullPath(Path.Combine(destination, relative));
-            if (!path.StartsWith(destination + "/", StringComparison.Ordinal) && path != destination)
+            if (!path.StartsWith(destination + Path.DirectorySeparatorChar, comparison) && !path.Equals(destination, comparison))
                 throw new InvalidDataException("Archive escape.");
             if (entry.EntryType == TarEntryType.Directory) Directory.CreateDirectory(path);
             else

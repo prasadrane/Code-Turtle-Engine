@@ -36,7 +36,8 @@ try
         // The only feed is immutable, operator-supplied image content. No credentials or network.
         stage = "restore";
         var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var arg in new[] { "restore", project, "--source", "/opt/offline-feed", "--disable-parallel", "-p:NuGetAudit=false" })
+        foreach (var arg in new[] { "restore", project, "--source", "/opt/offline-feed", "--disable-parallel",
+            "-p:RestoreAdditionalProjectSources=", "-p:NuGetAudit=false" })
             start.ArgumentList.Add(arg);
         using (var process = Process.Start(start) ?? throw new InvalidOperationException())
         {
@@ -50,10 +51,8 @@ try
         var loaded = await new MsBuildCompilationLoader().LoadAsync(project);
         using (loaded.Workspace)
         {
-            if (request.ChangedFiles.Any(file => !loaded.Projects.SelectMany(c => c.SyntaxTrees)
-                .Any(tree => RepoPaths.EndsWith(tree.FilePath, file))))
-                throw new CompilationException("Changed file outside compilation.");
-            var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles, request.DiffHunks);
+            var payload = new PayloadGenerator(loaded.Projects).Build("sealed-archive", hash, request.ChangedFiles,
+                request.DiffHunks, root);
             if (request.Operation == "Analyze")
             {
                 var diagnostics = new List<string>(loaded.Diagnostics);
@@ -63,7 +62,7 @@ try
             }
             else if (request.Operation == "Audit")
             {
-                var auditResult = WorkerAuditRunner.ExecuteAudit(request, loaded, hash);
+                var auditResult = WorkerAuditRunner.ExecuteAudit(request, loaded, hash, repositoryRoot: root);
                 result = new { ArchiveSha256 = auditResult.ArchiveSha256, Outcome = auditResult.Outcome, Markdown = auditResult.Markdown, Diagnostics = auditResult.Diagnostics };
             }
             else throw new InvalidDataException("Unknown operation.");

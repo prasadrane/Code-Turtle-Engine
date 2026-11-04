@@ -25,11 +25,19 @@ public class BenchRunnerTests : IDisposable
 
     private readonly string _home = Path.Combine(Path.GetTempPath(), "turtle-bench-" + Guid.NewGuid().ToString("N"));
     private readonly string _rubric = Path.GetTempFileName();
-    private readonly Compilation _compilation = CSharpCompilation.Create("Demo",
-        new[] { CSharpSyntaxTree.ParseText(Source, path: "/repo/A.cs") },
-        new[] { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) });
+    private readonly Compilation _compilation;
+    private string Repo => Path.Combine(_home, "repo");
 
-    public BenchRunnerTests() => File.WriteAllText(_rubric, "# Rubric");
+    public BenchRunnerTests()
+    {
+        File.WriteAllText(_rubric, "# Rubric");
+        Directory.CreateDirectory(Repo);
+        var sourcePath = Path.Combine(Repo, "A.cs");
+        File.WriteAllText(sourcePath, Source);
+        _compilation = CSharpCompilation.Create("Demo",
+            [CSharpSyntaxTree.ParseText(Source, path: sourcePath)],
+            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
+    }
 
     public void Dispose()
     {
@@ -62,8 +70,8 @@ public class BenchRunnerTests : IDisposable
         new[] { new CorpusEntry("e1", CorpusKind.Seeded, "Demo.csproj") },
         new Dictionary<string, PersonaRole> { ["SqlInjection"] = PersonaRole.SecurityAuditor });
 
-    private static Task<PreparedEntry> Prepared(IReadOnlyList<ExpectedDefect>? expected = null) =>
-        Task.FromResult(new PreparedEntry("/repo", "/repo/Demo.csproj", "base", "head", expected));
+    private Task<PreparedEntry> Prepared(IReadOnlyList<ExpectedDefect>? expected = null) =>
+        Task.FromResult(new PreparedEntry(Repo, Path.Combine(Repo, "Demo.csproj"), "base", "head", expected));
 
     [Fact]
     public async Task Scores_Naive_Grounded_And_CodeTurtle_Arms()

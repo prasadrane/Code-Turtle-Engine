@@ -3,36 +3,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: read
-
+# Notification only. PR code and PR-produced artifacts never enter the trusted job.
+permissions: {}
 jobs:
-  extract:
+  notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Prepare Artifact Directory
-        run: mkdir -p turtle-artifacts
-
-      - name: Build and Extract Roslyn Payload
-        run: |
-          git fetch origin ${{ github.base_ref }}
-          dotnet build -c Release
-          dotnet run -c Release --no-build --project src/CodeTurtleEngine.Cli -- extract . --diff origin/${{ github.base_ref }} --out turtle-artifacts
-
-      - name: Upload Semantic Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: turtle-artifacts
-          path: turtle-artifacts/
-          retention-days: 1
+      - name: Request pinned isolated review
+        run: echo 'Trusted Stage 2 acquires the pinned PR revision independently.'

@@ -24,6 +24,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
     private readonly IReviewJobStore _jobStore;
     private readonly CouncilOptions _councilOptions;
     private readonly string _rubricPath;
+    private readonly IWebDependencyPreparer? _dependencyPreparer;
 
     public WebReviewPipeline(
         IGitHubPrFetcher prFetcher,
@@ -35,7 +36,8 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
         RubricLoader rubricLoader,
         IReviewJobStore jobStore,
         CouncilOptions councilOptions,
-        string rubricPath = "turtle/rubric_v1.md")
+        string rubricPath = "turtle/rubric_v1.md",
+        IWebDependencyPreparer? dependencyPreparer = null)
     {
         _prFetcher = prFetcher ?? throw new ArgumentNullException(nameof(prFetcher));
         _repoCloner = repoCloner ?? throw new ArgumentNullException(nameof(repoCloner));
@@ -47,6 +49,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
         _jobStore = jobStore ?? throw new ArgumentNullException(nameof(jobStore));
         _councilOptions = councilOptions ?? throw new ArgumentNullException(nameof(councilOptions));
         _rubricPath = rubricPath ?? throw new ArgumentNullException(nameof(rubricPath));
+        _dependencyPreparer = dependencyPreparer;
     }
 
     public async Task ExecuteAsync(Guid jobId, CancellationToken ct = default)
@@ -128,6 +131,8 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     return;
                 }
 
+                if (_dependencyPreparer is not null)
+                    await _dependencyPreparer.PrepareAsync(projectOrSln, ct).ConfigureAwait(false);
                 var loaded = await _loader.LoadAsync(projectOrSln, ct).ConfigureAwait(false);
                 using (loaded.Workspace)
                 {
@@ -138,12 +143,13 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     var hunks = LibGit2Sharp.Repository.IsValid(clonedDir)
                         ? new GitDiffProvider().GetDiffHunks(clonedDir, prDetails.BaseSha, useMergeBase: true)
                         : null;
-                    var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed, hunks);
+                    var payload = new PayloadGenerator(loaded.Projects).Build(repoSlug, prDetails.BaseSha ?? "main", changed, hunks, repositoryRoot: clonedDir);
                     var display = LibGit2Sharp.Repository.IsValid(clonedDir)
                         ? new ReviewChangesBuilder().Build(clonedDir, repoSlug, parsedPr.PullNumber, prDetails, payload) : null;
                     context.Changes = display;
                     var rubric = _rubricLoader.Load(ResolveRubric());
                     var promptPayload = PayloadTrimmer.TrimForPrompt(payload, _councilOptions);
+                    var promptCoverage = PayloadTrimmer.MeasureCoverage(payload, promptPayload);
 
                     // 10 & 11. Run streaming personas with start/finding/complete/fail SSE events
                     var verdicts = await _personaRunner.RunWithCallbacksAsync(
@@ -202,7 +208,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     await writer.WriteAsync(SseEvent.GuardAudit("Judge Shellsworth", verified, stripped, guarded.Audit.Count, guarded.Audit), ct).ConfigureAwait(false);
 
                     // 14. Write SSE completed
-                    var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload);
+                    var markdown = _arbiter.RenderMarkdown(guarded.KeptFindings, payload, promptCoverage);
                     const int ExpectedPersonas = 3;
                     if (verdicts.Count < ExpectedPersonas)
                     {
@@ -214,7 +220,7 @@ public sealed class WebReviewPipeline : IWebReviewPipeline
                     if (diagnostics.Count > 0)
                         markdown = "> Compilation/workspace diagnostics (review permitted with warnings):\n> " +
                             string.Join("\n> ", diagnostics) + "\n\n" + markdown;
-                    var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit };
+                    var finalVerdict = new CouncilVerdict(verdicts, guarded.KeptFindings, guarded.Audit) { FindingAudit = guarded.FindingAudit, PromptCoverage = promptCoverage };
                     if (display is not null) context.Changes = FindingAnchors.Attach(display, payload, guarded.KeptFindings, loaded.Projects);
                     var stats = new
                     {

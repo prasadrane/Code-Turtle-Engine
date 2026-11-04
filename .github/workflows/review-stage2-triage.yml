@@ -5,115 +5,54 @@ on:
     types: [completed]
 
 permissions:
-  pull-requests: write
-  issues: write
   contents: read
+  pull-requests: read
+
+concurrency:
+  group: turtle-review-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
 
 jobs:
   triage:
+    # Explicit operator opt-in; no PR comments or other publication permissions.
+    if: ${{ vars.CODETURTLE_REVIEW_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.pull_requests[0] != null }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.pull_requests[0] != null }}
+    timeout-minutes: 20
     steps:
-      - name: Checkout Trusted Repository
+      - name: Checkout trusted reviewer
         uses: actions/checkout@v4
         with:
-          ref: main
-
-      - name: Setup .NET
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup trusted SDK
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
-
-      - name: Download Artifacts from Stage 1
-        uses: actions/download-artifact@v4
-        with:
-          name: turtle-artifacts
-          path: downloaded-artifacts
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Validate PR and Run Grounded Review
-        id: review
+          dotnet-version: 10.0.100
         env:
-          TURTLE_LLM_BASE_URL: ${{ secrets.TURTLE_LLM_BASE_URL }}
-          TURTLE_LLM_API_KEY: ${{ secrets.TURTLE_LLM_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pr = context.payload.workflow_run.pull_requests[0];
-            if (!pr || !pr.number) {
-              throw new Error("No associated pull request found in trusted workflow run event.");
-            }
-            const prNumber = pr.number;
-            const headSha = pr.head.sha;
-            if (!/^[0-9a-fA-F]{40}$/.test(headSha)) {
-              throw new Error("Invalid commit SHA: " + headSha);
-            }
-
-            // Verify with GitHub API that PR head SHA matches
-            const { data: currentPr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
-
-            if (currentPr.head.sha !== headSha) {
-              core.warning(`PR head SHA changed from ${headSha} to ${currentPr.head.sha}; skipping stale run.`);
-              return;
-            }
-
-            core.setOutput("pr_number", prNumber.toString());
-            core.setOutput("head_sha", headSha);
-
-      - name: Generate Review from Extracted Payload
-        if: steps.review.outputs.pr_number != ''
-        env:
-          TURTLE_LLM_BASE_URL: ${{ secrets.TURTLE_LLM_BASE_URL }}
-          TURTLE_LLM_API_KEY: ${{ secrets.TURTLE_LLM_API_KEY }}
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/code-turtle-dotnet
+      - name: Publish trusted reviewer and isolated worker
         run: |
-          dotnet build -c Release
-          dotnet run -c Release --no-build --project src/CodeTurtleEngine.Cli -- review . --payload downloaded-artifacts/payload.json --out review.md
-
-      - name: Post or Update PR Comment
-        if: steps.review.outputs.pr_number != ''
-        uses: actions/github-script@v7
+          test "$DOTNET_ROOT" = "$RUNNER_TEMP/code-turtle-dotnet"
+          test "$(command -v dotnet)" = "$DOTNET_ROOT/dotnet"
+          # Populate the approved feed for the default solution, including tests.
+          # This is the trusted checkout; PR projects are restored only in workers.
+          dotnet restore CodeTurtleEngine.sln
+          dotnet publish src/CodeTurtleEngine.Worker -c Release -o "$RUNNER_TEMP/worker-publish"
+          dotnet publish src/CodeTurtleEngine.Cli -c Release -o "$RUNNER_TEMP/cli-publish"
+          mkdir "$RUNNER_TEMP/offline-feed"
+          find "$HOME/.nuget/packages" -type f -name '*.nupkg' -exec cp '{}' "$RUNNER_TEMP/offline-feed/" ';'
+          python3 tools/build_worker.py --dotnet-root "$DOTNET_ROOT" --published "$RUNNER_TEMP/worker-publish" --packages "$RUNNER_TEMP/offline-feed" --context "$RUNNER_TEMP/worker-image"
+      - name: Review the same pinned archive through analysis and audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TURTLE_LLM_API_KEY: ${{ secrets.TURTLE_LLM_API_KEY }}
+          TURTLE_LLM_BASE_URL: ${{ vars.TURTLE_LLM_BASE_URL }}
+          REVIEW_PROJECT: ${{ vars.CODETURTLE_REVIEW_PROJECT }}
+        run: |
+          python3 tools/github_isolated_review.py --event "$GITHUB_EVENT_PATH" --image-file "$RUNNER_TEMP/worker-image/image-id.txt" --cli "$RUNNER_TEMP/cli-publish/CodeTurtleEngine.Cli.dll" --project "${REVIEW_PROJECT:-CodeTurtleEngine.sln}" --out "$RUNNER_TEMP/review-result"
+      - name: Retain isolated review result
+        uses: actions/upload-artifact@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const prNumber = parseInt('${{ steps.review.outputs.pr_number }}', 10);
-            if (!fs.existsSync('review.md')) {
-              console.log('No review.md generated.');
-              return;
-            }
-            const body = fs.readFileSync('review.md', 'utf8');
-            const marker = '<!-- code-turtle-review -->';
-            const taggedBody = `${body}\n\n${marker}`;
-
-            // Check for existing review comments to update instead of spamming
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const existing = comments.find(c => c.body && c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body: taggedBody
-              });
-              console.log(`Updated comment ${existing.id} on PR #${prNumber}`);
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: taggedBody
-              });
-              console.log(`Created new comment on PR #${prNumber}`);
-            }
+          name: turtle-isolated-review-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/review-result/
+          retention-days: 7

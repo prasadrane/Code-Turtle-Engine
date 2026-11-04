@@ -126,6 +126,43 @@ it('marks transport failures as interrupted without converting partial notes int
   expect(stream.close).toHaveBeenCalledOnce();
 });
 
+it('recovers the stored completed report when the terminal stream event is lost', async () => {
+  const transport = setupTransport();
+  transport.mockImplementation((url: string, options?: RequestInit) => {
+    if (url.endsWith('/result')) return Promise.resolve(response({ status: 'completed', markdown: 'Recovered report', verdict }));
+    if (url.endsWith('/changes')) return Promise.resolve(response(artifact));
+    if (options?.method === 'DELETE') return Promise.resolve(response(null, 204));
+    return Promise.resolve(response({ jobId: 'recover-job' }));
+  });
+  const { result } = renderHook(() => useReviewStream());
+  await act(async () => { await result.current.startReview('https://github.com/o/r/pull/1'); });
+  act(() => Stream.instances[0].onerror?.());
+  await waitFor(() => expect(result.current.status).toBe('completed'));
+  expect(result.current.markdown).toBe('Recovered report');
+  expect(result.current.verdict).toEqual(verdict);
+  expect(result.current.error).toBeNull();
+  expect(transport).toHaveBeenCalledWith(expect.stringContaining('/recover-job/result'),
+    expect.objectContaining({ credentials: 'include', cache: 'no-store' }));
+});
+
+it('ignores a recovered report after the review has been reset', async () => {
+  const transport = setupTransport();
+  let resolve!: (value: ReturnType<typeof response>) => void;
+  const pending = new Promise<ReturnType<typeof response>>(done => { resolve = done; });
+  transport.mockImplementation((url: string, options?: RequestInit) => {
+    if (url.endsWith('/result')) return pending;
+    if (options?.method === 'DELETE') return Promise.resolve(response(null, 204));
+    return Promise.resolve(response({ jobId: 'recover-job' }));
+  });
+  const { result } = renderHook(() => useReviewStream());
+  await act(async () => { await result.current.startReview('https://github.com/o/r/pull/1'); });
+  act(() => Stream.instances[0].onerror?.());
+  act(() => result.current.reset());
+  await act(async () => { resolve(response({ status: 'completed', markdown: 'Old report', verdict })); });
+  expect(result.current.status).toBe('idle');
+  expect(result.current.verdict).toBeNull();
+});
+
 it('keeps terminal server errors and ignores events from a previous review', async () => {
   const transport = setupTransport();
   const { result } = renderHook(() => useReviewStream());

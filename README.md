@@ -24,7 +24,8 @@ versioned source/diff fixture. No model calls are made for the sample.*
 
 The web API now defaults to disabled; the browser demo remains offline. See
 [isolation and local-access controls](docs/ISOLATION.md) before enabling a trusted-local
-server. Public source acquisition and hosted release remain gated.
+server. Public web hosting remains gated. An opt-in GitHub workflow acquires public
+PR revisions for isolated review; see [workflow setup](docs/ISOLATION.md#github-pr-workflow).
 
 ## A thoughtful second look
 
@@ -89,13 +90,18 @@ location and quoting only, not correctness. Statuses and Strip/Flag behavior are
 [contract](docs/VERIFICATION_CONTRACT.md#location-l1-and-quote-l2-guards).
 
 Workspace failures and project compilation errors stop review. Per-project Roslyn
-compilations preserve binding contexts. Review never restores dependencies
-automatically. Restore/build trusted target projects yourself first.
+compilations preserve binding contexts. CLI review never restores dependencies
+automatically; restore/build trusted target projects yourself first. Trusted-local
+web review requires explicit dependency preparation against operator-selected
+offline package directories for each fresh clone; see the local setup guide.
+Present changed C# files outside the selected compilation stop review instead of
+being silently omitted.
 
 Product prompts contain semantic metadata rather than raw source bodies. Metadata
 can disclose proprietary symbols, paths, dependencies and risk descriptions.
-This is not a privacy or security guarantee. The beta evaluates MSBuild on the host;
-use trusted repositories until the later isolation gate is implemented.
+This is not a privacy or security guarantee. The trusted-local CLI and web beta
+evaluate MSBuild on the host; use trusted repositories with those paths. The
+separate worker path evaluates sealed archives with network and resource limits.
 
 The browser source/diff artifact is separate from model inputs. It is captured
 before clone cleanup, bound to the creating review/session, sent with `no-store`,
@@ -143,8 +149,9 @@ npm run typecheck
 npm run build
 ```
 
-Offline tests require no LLM credentials. The opt-in live smoke returns early unless
-TURTLE_LIVE=1; its offline result is not a live model test.
+Offline tests require no LLM credentials. The live smoke is reported as skipped
+unless TURTLE_LIVE=1; an offline pass is not a live model test. An enabled smoke
+requires the configured provider endpoint and key and has a 30-second deadline.
 
 ## CLI and self-hosted beta
 
@@ -174,9 +181,17 @@ compared with the working directory. Solutions retain separate C# project compil
 Exit codes are 0 for success and 1 for pipeline error. A degraded quorum review is
 explicitly labeled, not clean or complete council participation.
 
+The trusted orchestration command `council --analysis <worker-analysis.json>
+--out <fresh-findings.json>` sends isolated compiler facts through the configured
+personas without loading a target repository. Its findings are unverified proposals;
+the orchestrator must run worker Audit against the same sealed archive before use.
+The GitHub workflow does this and retains artifacts without posting PR comments.
+
 Artifacts under `$TURTLE_HOME/reviews` (default `~/.turtle/reviews`) include full
 payload.json, raw verdicts.json, final review.md, citation audit.json, and
-finding-audit.json and compilation-diagnostics.json. Council configuration includes Quorum, Strip/Flag,
+finding-audit.json, compilation-diagnostics.json and prompt-coverage.json. Reports
+distinguish extracted file/member contexts from those submitted to model prompts
+and disclose omissions caused by prompt limits. Council configuration includes Quorum, Strip/Flag,
 RequireCitationsInStripMode, prompt caps and MaxFindingsPerPersona. JsonRetries
 bounds retries for malformed or schema-invalid model output.
 

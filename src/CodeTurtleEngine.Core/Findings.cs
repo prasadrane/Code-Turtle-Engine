@@ -38,4 +38,5 @@ public sealed record CouncilVerdict(
     IReadOnlyList<GuardResult> GuardAudit)
 {
     public IReadOnlyList<FindingAudit> FindingAudit { get; init; } = Array.Empty<FindingAudit>();
+    public PromptCoverage? PromptCoverage { get; init; }
 }

@@ -14,7 +14,9 @@ The [verification contract](docs/VERIFICATION_CONTRACT.md) defines all labels an
   Polly timeouts/circuit breaker, structured output; depends on Core.
 - `Council`: prompt construction/trimming, persona quorum, deterministic arbiter,
   TurtleShellGuard; depends on Core, Gatekeeper, Llm.
-- `Cli`: review orchestration, artifact writing, and benchmark tooling.
+- `Cli`: review orchestration, isolated-facts council transport, artifact writing,
+  and benchmark tooling.
+- `Worker`: restore, extraction and citation audit inside a sealed-archive container.
 - `Web`: ASP.NET Core PR metadata, clone service, in-memory job store, SSE pipeline;
   reuses the council and gatekeeper. Next.js/React in `web/` consumes its events.
 
@@ -23,15 +25,22 @@ The [verification contract](docs/VERIFICATION_CONTRACT.md) defines all labels an
 MSBuildWorkspace opens a project (including its referenced projects) or solution.
 Workspace failures, null compilations, no C# projects, and compilation errors stop
 review before any persona request. Exceptions include bounded diagnostic details.
-Warnings do not imply incompleteness. Restore is **not automatic** in CLI/web review.
-MSBuild evaluation is not an isolation boundary; only trusted repositories belong
-in this beta until the later isolation/security gate is implemented.
+Warnings do not imply incompleteness. CLI review requires dependencies to be
+prepared beforehand. Trusted-local web review explicitly enables bounded restore
+from operator-selected offline package directories before loading each fresh clone;
+the public hosted path remains disabled.
+MSBuild evaluation on the host is not an isolation boundary; the CLI review and
+web beta host paths accept trusted repositories only. The separate worker path
+handles sealed archives under the controls in docs/ISOLATION.md.
 
 `LoadedCompilation.Projects` preserves each project's compilation. Its `Compilation`
 property remains a compatibility view of the first project, not an aggregate.
 PayloadGenerator analyzes each changed tree using its owning compilation's semantic
 model; parse options, project references, preprocessor symbols and duplicate type
 names are not flattened. Linked files may yield facts in multiple project contexts.
+CLI extraction/review and web review reject present changed files outside loaded
+compilations. Deleted source has no head-side tree; declaration-only files do not
+produce executable-member facts.
 SymbolOracle aggregates lookup conservatively: duplicate fully qualified source types
 without project identity are rejected as ambiguous. Error types and members with
 unresolved signatures are excluded from evidence. Metadata references are searched
@@ -51,8 +60,11 @@ they do not infer solution-wide service lifetimes.
 Diff → per-project compilations → full payload → trimmed prompt projection → three
 parallel personas → deterministic arbitration → citation guard → markdown/artifacts.
 
-Prompt trimming does not modify the full payload used by verification. Product
-configuration enforces Grounded prompts: source bodies are reserved for the explicit
+Prompt trimming does not modify the full payload used by verification. Reports
+record extracted, submitted and omitted file/member context counts. Linked
+files may count more than once when extracted in multiple project contexts. Renderers
+without known model inputs label prompt coverage unavailable.
+Product configuration enforces Grounded prompts: source bodies are reserved for the explicit
 programmatic Naive benchmark baseline. Metadata can disclose proprietary names,
 paths, dependencies and risk descriptions; this is not a privacy guarantee.
 
@@ -90,13 +102,14 @@ code. Compilation failures produce an error, not a completed empty review.
 
 The server job store is in memory; cloning and MSBuild run on the host. This is not
 public hosting isolation or deployment readiness. No validated Docker Compose setup
-is shipped. Repository execution/isolation and hosting gates remain future work.
+is shipped. Public web acquisition and hosting gates remain future work.
 
 ## Artifacts and evaluation
 
 CLI writes full payload.json, raw verdicts.json, review.md, citation audit.json,
 finding-audit.json and compilation-diagnostics.json under TURTLE_HOME/reviews. Web serializes the same verdict
 contracts through SSE. Originals are preserved when stripped copies are derived.
+CLI also writes prompt-coverage.json with the final report's model input counts.
 
 BenchRunner requests Naive/Grounded pipelines in Flag mode and derives the guarded
 arm from Grounded findings using the same compilation oracle. BenchScorer reports
@@ -113,9 +126,19 @@ fixtures establish extraction behavior only, not model quality or production ROI
 
 CI runs Release backend build/tests with TURTLE_LIVE=0, plus Node 24.19.0 npm ci,
 Vitest, TypeScript checks and production Next.js build. Live smoke is opt-in and
-returns early without TURTLE_LIVE=1; an offline pass is not live validation.
-See docs/REVIEW_HARDENING_VALIDATION.md for this change's exact evidence and limits.
+reported as skipped without TURTLE_LIVE=1; an offline pass is not live validation.
+See docs/REVIEW_COMPLETION_2026-11-04.md for current evidence and limits;
+docs/REVIEW_HARDENING_VALIDATION.md preserves the earlier phase report.
 Historical docs/design plans are snapshots, not the current behavior contract.
+
+The Stage 2 GitHub workflow defaults off and requires CODETURTLE_REVIEW_ENABLED=true.
+It checks out trusted reviewer code, acquires pinned public PR Git objects without
+a PR checkout, and seals one source archive. Worker Analyze and Audit use that same
+archive and verify its SHA256. Between them, the trusted CLI council command sends
+grounded facts through model personas without compiling or loading PR projects on
+the host. GitHub credentials are excluded from the council process; model credentials
+never enter the worker. Reports and provenance are retained as artifacts; PR comments
+are not posted. See docs/ISOLATION.md for configuration and validation limits.
 
 ## Isolation follow-on
 
@@ -123,6 +146,6 @@ The separate Worker project and tools/worker_runtime.py provide a network-denied
 resource-bounded sealed-archive path. Model credentials stay outside workers.
 Web admission defaults closed; explicit trusted-local access requires a key,
 repository/origin allowlists and loopback clients, with bounded scheduling and
-retention. See docs/ISOLATION.md for enforced controls and pending acquisition,
-image supply-chain and public deployment gates. Earlier host-path descriptions
+retention. See docs/ISOLATION.md for enforced controls and pending private/public-web
+acquisition, image supply-chain and public deployment gates. Earlier host-path descriptions
 above apply to the explicit trusted-local pipeline, not public hosting.
