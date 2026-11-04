@@ -22,10 +22,11 @@ symbol references; it does not verify recommendation correctness or changed-code
 an illustrative preview; the interactive sample uses authored findings and a
 versioned source/diff fixture. No model calls are made for the sample.*
 
-The web API now defaults to disabled; the browser demo remains offline. See
+The web API defaults to disabled; the browser demo needs no model credentials. See
 [isolation and local-access controls](docs/ISOLATION.md) before enabling a trusted-local
 server. Public web hosting remains gated. An opt-in GitHub workflow acquires public
-PR revisions for isolated review; see [workflow setup](docs/ISOLATION.md#github-pr-workflow).
+PR revisions for isolated review and retains report artifacts without posting PR
+comments. It defaults off; see [workflow setup](docs/ISOLATION.md#github-pr-workflow).
 
 ## A thoughtful second look
 
@@ -153,6 +154,12 @@ Offline tests require no LLM credentials. The live smoke is reported as skipped
 unless TURTLE_LIVE=1; an offline pass is not a live model test. An enabled smoke
 requires the configured provider endpoint and key and has a 30-second deadline.
 
+The [November 4, 2026 CI checkpoint](https://github.com/prasadrane/Code-Turtle-Engine/actions/runs/41832106112)
+passed backend, frontend, tooling and Linux worker-isolation jobs, including container
+canaries and the offline fixture matrix. Local validation passed 468 backend tests
+and 142 frontend tests; the live-provider smoke was skipped. These checks validate
+the offline paths, not live model quality or a credentialed end-to-end PR review.
+
 ## CLI and self-hosted beta
 
 Configure `TURTLE_LLM_BASE_URL` and `TURTLE_LLM_API_KEY` for a supported provider
@@ -243,6 +250,8 @@ contains UI regressions. `bench/` holds the corpus and `turtle/` the review rubr
 - [Frozen benchmark protocol and disclosed limits](docs/CONTROLLED_BENCHMARK.md)
 - [Bounded beta install, examples, troubleshooting and pilot templates](docs/beta/BETA.md)
 
-This is preparation evidence: no live provider calls, fresh empirical benchmark
-responses, pilot outreach, public deployment or merge were performed. Public review
-remains closed pending source/package acquisition and relevant live/deployment gates.
+Public-PR review is available through the opt-in isolated workflow. Its model-backed
+end-to-end run still needs provider configuration and validation; PR dependencies
+must be present in the approved offline feed. Public web backend hosting remains
+gated. No new live model responses, pilot results or public deployment acceptance
+are claimed by the offline checks above.
