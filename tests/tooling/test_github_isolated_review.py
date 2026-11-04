@@ -41,7 +41,7 @@ class PinnedReviewTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError): runner.validate_path(value)
 
     def test_model_and_audit_receive_same_archive_and_github_token_is_excluded(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / 'work') as temporary:
+        with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             archive = root / 'source.tar'
             archive.write_bytes(b'sealed source')
@@ -66,7 +66,7 @@ class PinnedReviewTests(unittest.TestCase):
             self.assertFalse((root/'analysis.json').exists())
 
     def test_audit_identity_mismatch_never_writes_completed_report(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / 'work') as temporary:
+        with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             archive = root/'source.tar'
             archive.write_bytes(b'sealed')
@@ -79,7 +79,7 @@ class PinnedReviewTests(unittest.TestCase):
             self.assertFalse((root/'review.md').exists())
 
     def test_missing_participation_never_produces_completed_report(self):
-        with tempfile.TemporaryDirectory(dir=ROOT / 'work') as temporary:
+        with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             archive = root / 'source.tar'
             archive.write_bytes(b'sealed')
